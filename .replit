@@ -37,13 +37,3 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-git init
-
-git add .
-git commit -m "Initial commit from Replit"
-
-git remote add origin https://github.com/gilliondepalm/Office-hub1.git
-
-git branch -M main
-git push -u origin main
