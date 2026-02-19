@@ -2,6 +2,7 @@ import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
 import {
   users, events, announcements, departments, absences, rewards, applications, appAccess, messages,
+  aoProcedures, aoInstructions, legislationLinks,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Announcement, type InsertAnnouncement,
@@ -11,6 +12,9 @@ import {
   type Application, type InsertApplication,
   type AppAccess, type InsertAppAccess,
   type Message, type InsertMessage,
+  type AoProcedure, type InsertAoProcedure,
+  type AoInstruction, type InsertAoInstruction,
+  type LegislationLink, type InsertLegislationLink,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -69,6 +73,19 @@ export interface IStorage {
   createMessage(msg: InsertMessage): Promise<Message>;
   replyToMessage(id: string, reply: string): Promise<Message>;
   markMessageRead(id: string): Promise<void>;
+
+  getAoProcedures(): Promise<(AoProcedure & { departmentName?: string })[]>;
+  getAoProceduresByDepartment(departmentId: string): Promise<AoProcedure[]>;
+  createAoProcedure(proc: InsertAoProcedure): Promise<AoProcedure>;
+  deleteAoProcedure(id: string): Promise<void>;
+
+  getAoInstructions(procedureId: string): Promise<AoInstruction[]>;
+  createAoInstruction(instr: InsertAoInstruction): Promise<AoInstruction>;
+  deleteAoInstruction(id: string): Promise<void>;
+
+  getLegislationLinks(): Promise<LegislationLink[]>;
+  createLegislationLink(link: InsertLegislationLink): Promise<LegislationLink>;
+  deleteLegislationLink(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -376,6 +393,60 @@ export class DatabaseStorage implements IStorage {
 
   async markMessageRead(id: string): Promise<void> {
     await db.update(messages).set({ read: true }).where(eq(messages.id, id));
+  }
+
+  async getAoProcedures(): Promise<(AoProcedure & { departmentName?: string })[]> {
+    const result = await db
+      .select({
+        id: aoProcedures.id,
+        departmentId: aoProcedures.departmentId,
+        title: aoProcedures.title,
+        description: aoProcedures.description,
+        departmentName: departments.name,
+      })
+      .from(aoProcedures)
+      .leftJoin(departments, eq(aoProcedures.departmentId, departments.id));
+    return result as any;
+  }
+
+  async getAoProceduresByDepartment(departmentId: string): Promise<AoProcedure[]> {
+    return db.select().from(aoProcedures).where(eq(aoProcedures.departmentId, departmentId));
+  }
+
+  async createAoProcedure(proc: InsertAoProcedure): Promise<AoProcedure> {
+    const [created] = await db.insert(aoProcedures).values(proc).returning();
+    return created;
+  }
+
+  async deleteAoProcedure(id: string): Promise<void> {
+    await db.delete(aoInstructions).where(eq(aoInstructions.procedureId, id));
+    await db.delete(aoProcedures).where(eq(aoProcedures.id, id));
+  }
+
+  async getAoInstructions(procedureId: string): Promise<AoInstruction[]> {
+    return db.select().from(aoInstructions).where(eq(aoInstructions.procedureId, procedureId)).orderBy(aoInstructions.sortOrder);
+  }
+
+  async createAoInstruction(instr: InsertAoInstruction): Promise<AoInstruction> {
+    const [created] = await db.insert(aoInstructions).values(instr).returning();
+    return created;
+  }
+
+  async deleteAoInstruction(id: string): Promise<void> {
+    await db.delete(aoInstructions).where(eq(aoInstructions.id, id));
+  }
+
+  async getLegislationLinks(): Promise<LegislationLink[]> {
+    return db.select().from(legislationLinks);
+  }
+
+  async createLegislationLink(link: InsertLegislationLink): Promise<LegislationLink> {
+    const [created] = await db.insert(legislationLinks).values(link).returning();
+    return created;
+  }
+
+  async deleteLegislationLink(id: string): Promise<void> {
+    await db.delete(legislationLinks).where(eq(legislationLinks.id, id));
   }
 }
 

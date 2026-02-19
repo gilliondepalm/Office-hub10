@@ -14,7 +14,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 1. **Dashboard** - Overview with stats, upcoming events, recent announcements, pending absences
 2. **Evenementen Kalender** - Event management with categories (vergadering, training, sociaal, deadline)
 3. **Aankondigingen** - Announcements with priority levels, pinning, PDF attachments, and direct messaging (admin/manager to employee with reply)
-4. **Organisatie** - Department management with member counts
+4. **Organisatie** - Department management with tabs: Afdelingen (department cards with manager info), AO-Procedures (admin-managed procedures with step-by-step instructions per department), Organogram (visual org chart), CAO Info (collective labor agreement overview), Wetgeving (legislation links grouped by category)
 5. **Personalia** - Employee directory with roles and departments
 6. **Verzuim** - Absence/leave management with approval workflow
 7. **Beloningsysteem** - Points-based rewards with leaderboard
@@ -56,6 +56,15 @@ All routes prefixed with `/api/` and require authentication except login.
 - POST /api/messages - Send message (admin/manager only): { toUserId, subject, content }
 - PATCH /api/messages/:id/reply - Reply to message (recipient only): { reply }
 - PATCH /api/messages/:id/read - Mark message as read (recipient only)
+- GET /api/ao-procedures - All AO procedures with department names
+- POST /api/ao-procedures - Create procedure (admin only): { departmentId, title, description? }
+- DELETE /api/ao-procedures/:id - Delete procedure and its instructions (admin only)
+- GET /api/ao-instructions/:procedureId - Instructions for a procedure
+- POST /api/ao-instructions - Create instruction (admin only): { procedureId, title, content, sortOrder }
+- DELETE /api/ao-instructions/:id - Delete instruction (admin only)
+- GET /api/legislation - All legislation links
+- POST /api/legislation - Create legislation link (admin only): { title, url, description?, category }
+- DELETE /api/legislation/:id - Delete legislation link (admin only)
 
 ## Running Locally
 ```bash

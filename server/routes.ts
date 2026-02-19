@@ -12,6 +12,7 @@ import {
   insertUserSchema, insertEventSchema, insertAnnouncementSchema,
   insertDepartmentSchema, insertAbsenceSchema, insertRewardSchema,
   insertApplicationSchema, insertAppAccessSchema, insertMessageSchema,
+  insertAoProcedureSchema, insertAoInstructionSchema, insertLegislationLinkSchema,
 } from "@shared/schema";
 
 const PgStore = pgSession(session);
@@ -429,6 +430,84 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });
     }
+  });
+
+  // AO Procedures
+  app.get("/api/ao-procedures", requireAuth, async (_req, res) => {
+    const all = await storage.getAoProcedures();
+    res.json(all);
+  });
+
+  app.post("/api/ao-procedures", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      const parsed = insertAoProcedureSchema.parse(req.body);
+      const proc = await storage.createAoProcedure(parsed);
+      res.json(proc);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Validatiefout" });
+    }
+  });
+
+  app.delete("/api/ao-procedures/:id", requireAdmin, async (req, res) => {
+    await storage.deleteAoProcedure(req.params.id);
+    res.json({ message: "Verwijderd" });
+  });
+
+  // AO Instructions
+  app.get("/api/ao-instructions/:procedureId", requireAuth, async (req, res) => {
+    const instructions = await storage.getAoInstructions(req.params.procedureId);
+    res.json(instructions);
+  });
+
+  app.post("/api/ao-instructions", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      const parsed = insertAoInstructionSchema.parse(req.body);
+      const instr = await storage.createAoInstruction(parsed);
+      res.json(instr);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Validatiefout" });
+    }
+  });
+
+  app.delete("/api/ao-instructions/:id", requireAdmin, async (req, res) => {
+    await storage.deleteAoInstruction(req.params.id);
+    res.json({ message: "Verwijderd" });
+  });
+
+  // Legislation Links
+  app.get("/api/legislation", requireAuth, async (_req, res) => {
+    const all = await storage.getLegislationLinks();
+    res.json(all);
+  });
+
+  app.post("/api/legislation", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      const parsed = insertLegislationLinkSchema.parse(req.body);
+      const link = await storage.createLegislationLink(parsed);
+      res.json(link);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Validatiefout" });
+    }
+  });
+
+  app.delete("/api/legislation/:id", requireAdmin, async (req, res) => {
+    await storage.deleteLegislationLink(req.params.id);
+    res.json({ message: "Verwijderd" });
   });
 
   return httpServer;

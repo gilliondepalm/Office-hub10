@@ -101,6 +101,29 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const aoProcedures = pgTable("ao_procedures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  departmentId: varchar("department_id").references(() => departments.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+});
+
+export const aoInstructions = pgTable("ao_instructions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  procedureId: varchar("procedure_id").references(() => aoProcedures.id).notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const legislationLinks = pgTable("legislation_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  description: text("description"),
+  category: text("category").notNull().default("algemeen"),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertEventSchema = createInsertSchema(events).omit({ id: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
@@ -110,6 +133,9 @@ export const insertRewardSchema = createInsertSchema(rewards).omit({ id: true, a
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true });
 export const insertAppAccessSchema = createInsertSchema(appAccess).omit({ id: true, grantedAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, reply: true, repliedAt: true, read: true });
+export const insertAoProcedureSchema = createInsertSchema(aoProcedures).omit({ id: true });
+export const insertAoInstructionSchema = createInsertSchema(aoInstructions).omit({ id: true });
+export const insertLegislationLinkSchema = createInsertSchema(legislationLinks).omit({ id: true });
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
@@ -134,3 +160,9 @@ export type InsertAppAccess = z.infer<typeof insertAppAccessSchema>;
 export type AppAccess = typeof appAccess.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
+export type InsertAoProcedure = z.infer<typeof insertAoProcedureSchema>;
+export type AoProcedure = typeof aoProcedures.$inferSelect;
+export type InsertAoInstruction = z.infer<typeof insertAoInstructionSchema>;
+export type AoInstruction = typeof aoInstructions.$inferSelect;
+export type InsertLegislationLink = z.infer<typeof insertLegislationLinkSchema>;
+export type LegislationLink = typeof legislationLinks.$inferSelect;
