@@ -37,6 +37,7 @@ const userFormSchema = z.object({
   role: z.string().default("employee"),
   department: z.string().optional(),
   startDate: z.string().min(1, "Datum in dienst is verplicht"),
+  birthDate: z.string().optional(),
 });
 
 const editFormSchema = z.object({
@@ -45,6 +46,7 @@ const editFormSchema = z.object({
   role: z.string(),
   department: z.string().optional(),
   startDate: z.string().min(1, "Datum in dienst is verplicht"),
+  birthDate: z.string().optional(),
 });
 
 const deactivateFormSchema = z.object({
@@ -71,6 +73,7 @@ function EditDialog({
       role: user.role,
       department: user.department || "",
       startDate: user.startDate || "",
+      birthDate: user.birthDate || "",
     },
   });
 
@@ -79,6 +82,7 @@ function EditDialog({
       await apiRequest("PATCH", `/api/users/${user.id}`, {
         ...data,
         department: data.department || null,
+        birthDate: data.birthDate || null,
       });
     },
     onSuccess: () => {
@@ -149,13 +153,22 @@ function EditDialog({
                 </FormItem>
               )} />
             </div>
-            <FormField control={form.control} name="startDate" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Datum in Dienst</FormLabel>
-                <FormControl><Input {...field} type="date" data-testid="input-edit-startdate" /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="startDate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Datum in Dienst</FormLabel>
+                  <FormControl><Input {...field} type="date" data-testid="input-edit-startdate" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="birthDate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Geboortedatum</FormLabel>
+                  <FormControl><Input {...field} type="date" data-testid="input-edit-birthdate" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
             <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-save-edit">
               {mutation.isPending ? "Opslaan..." : "Wijzigingen Opslaan"}
             </Button>
@@ -250,6 +263,7 @@ export default function PersonaliaPage() {
       username: "", password: "", fullName: "", email: "",
       role: "employee", department: "",
       startDate: new Date().toISOString().split("T")[0],
+      birthDate: "",
     },
   });
 
@@ -258,6 +272,7 @@ export default function PersonaliaPage() {
       await apiRequest("POST", "/api/users", {
         ...data,
         department: data.department || null,
+        birthDate: data.birthDate || null,
         avatar: null,
         active: true,
         endDate: null,
@@ -394,13 +409,22 @@ export default function PersonaliaPage() {
                       </FormItem>
                     )} />
                   </div>
-                  <FormField control={createForm.control} name="startDate" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Datum in Dienst</FormLabel>
-                      <FormControl><Input {...field} type="date" data-testid="input-user-startdate" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={createForm.control} name="startDate" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Datum in Dienst</FormLabel>
+                        <FormControl><Input {...field} type="date" data-testid="input-user-startdate" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="birthDate" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Geboortedatum</FormLabel>
+                        <FormControl><Input {...field} type="date" data-testid="input-user-birthdate" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
                   <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-user">
                     {createMutation.isPending ? "Opslaan..." : "Medewerker Opslaan"}
                   </Button>
@@ -446,6 +470,7 @@ export default function PersonaliaPage() {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Afdeling</TableHead>
                     <TableHead>Rol</TableHead>
+                    <TableHead>Geboortedatum</TableHead>
                     <TableHead>In Dienst</TableHead>
                     <TableHead>Status</TableHead>
                     {currentUser?.role === "admin" && <TableHead className="text-right">Acties</TableHead>}
@@ -487,6 +512,15 @@ export default function PersonaliaPage() {
                           <Badge variant="secondary" className="text-xs">
                             {roleLabels[u.role] || u.role}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {u.birthDate ? (
+                            <span className="text-sm">
+                              {format(new Date(u.birthDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-0.5">

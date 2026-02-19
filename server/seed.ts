@@ -26,6 +26,7 @@ export async function seedDatabase() {
     permissions: ALL_MODULES,
     startDate: "2018-03-01",
     endDate: null,
+    birthDate: "1980-05-12",
   });
 
   const manager = await storage.createUser({
@@ -40,6 +41,7 @@ export async function seedDatabase() {
     permissions: MANAGER_MODULES,
     startDate: "2019-06-15",
     endDate: null,
+    birthDate: "1985-11-23",
   });
 
   const emp1 = await storage.createUser({
@@ -54,6 +56,7 @@ export async function seedDatabase() {
     permissions: EMPLOYEE_MODULES,
     startDate: "2021-01-10",
     endDate: null,
+    birthDate: "1992-03-08",
   });
 
   const emp2 = await storage.createUser({
@@ -68,6 +71,7 @@ export async function seedDatabase() {
     permissions: EMPLOYEE_MODULES,
     startDate: "2020-09-01",
     endDate: null,
+    birthDate: "1990-07-15",
   });
 
   const emp3 = await storage.createUser({
@@ -82,6 +86,7 @@ export async function seedDatabase() {
     permissions: EMPLOYEE_MODULES,
     startDate: "2024-11-01",
     endDate: null,
+    birthDate: "1995-12-30",
   });
 
   await storage.createDepartment({ name: "IT", description: "Informatie technologie en systeembeheer", managerId: admin.id });

@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   permissions: text("permissions").array(),
   startDate: date("start_date"),
   endDate: date("end_date"),
+  birthDate: date("birth_date"),
 });
 
 export const events = pgTable("events", {

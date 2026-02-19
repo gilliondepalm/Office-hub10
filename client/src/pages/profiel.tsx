@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User as UserIcon, Mail, Building2, Shield, Clock, Award, CalendarDays } from "lucide-react";
+import { User as UserIcon, Mail, Building2, Shield, Clock, Award, CalendarDays, Cake } from "lucide-react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import type { Absence, Reward } from "@shared/schema";
@@ -85,6 +85,12 @@ export default function ProfielPage() {
                   <Shield className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">{user.active ? "Actief" : "Inactief"}</span>
                 </div>
+                {user.birthDate && (
+                  <div className="flex items-center gap-2">
+                    <Cake className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm" data-testid="text-profile-birthdate">{format(new Date(user.birthDate + "T00:00:00"), "d MMMM yyyy", { locale: nl })}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
