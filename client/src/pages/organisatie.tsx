@@ -642,7 +642,7 @@ function OrganogramTab() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {departments.map((dept) => {
+        {departments.filter((d) => d.name !== "Directie").map((dept) => {
           const manager = dept.managerId ? users.find((u) => u.id === dept.managerId) : null;
           const members = users.filter((u) => u.department === dept.name && u.id !== dept.managerId);
           return (
