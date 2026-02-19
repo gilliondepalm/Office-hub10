@@ -13,7 +13,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 ## Modules
 1. **Dashboard** - Overview with stats, upcoming events, recent announcements, pending absences
 2. **Evenementen Kalender** - Event management with categories (vergadering, training, sociaal, deadline)
-3. **Aankondigingen** - Announcements with priority levels and pinning
+3. **Aankondigingen** - Announcements with priority levels, pinning, PDF attachments, and direct messaging (admin/manager to employee with reply)
 4. **Organisatie** - Department management with member counts
 5. **Personalia** - Employee directory with roles and departments
 6. **Verzuim** - Absence/leave management with approval workflow
@@ -52,6 +52,10 @@ All routes prefixed with `/api/` and require authentication except login.
 - GET/POST/DELETE /api/applications, /api/app-access
 - GET /api/dashboard/stats
 - PATCH /api/users/:id/permissions - Admin only, update user module permissions
+- GET /api/messages - Current user's messages (sent + received)
+- POST /api/messages - Send message (admin/manager only): { toUserId, subject, content }
+- PATCH /api/messages/:id/reply - Reply to message (recipient only): { reply }
+- PATCH /api/messages/:id/read - Mark message as read (recipient only)
 
 ## Running Locally
 ```bash
