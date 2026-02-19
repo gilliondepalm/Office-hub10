@@ -6,7 +6,6 @@ import {
   Building2,
   Users,
   Clock,
-  Award,
   AppWindow,
   LogOut,
   Shield,
@@ -35,7 +34,6 @@ const menuItems = [
   { title: "Organisatie", url: "/organisatie", icon: Building2, key: "organisatie" },
   { title: "Personalia", url: "/personalia", icon: Users, key: "personalia" },
   { title: "Verzuim", url: "/verzuim", icon: Clock, key: "verzuim" },
-  { title: "Beloningen", url: "/beloningen", icon: Award, key: "beloningen" },
   { title: "Applicaties", url: "/applicaties", icon: AppWindow, key: "applicaties" },
   { title: "Beheer", url: "/beheer", icon: Shield, key: "beheer" },
 ];
