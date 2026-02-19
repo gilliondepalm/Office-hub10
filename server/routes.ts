@@ -289,26 +289,32 @@ export async function registerRoutes(
         return count;
       }
 
-      const balances = allUsers.filter(u => u.active).map(u => {
-        const userVacationAbsences = allAbsences.filter(
-          a => a.userId === u.id && a.type === "vacation" && a.status === "approved" &&
-            new Date(a.startDate).getFullYear() === currentYear
-        );
-        let usedDays = 0;
-        for (const a of userVacationAbsences) {
-          const weekdays = countWeekdays(a.startDate, a.endDate);
+      const countDays = (list: typeof allAbsences) => {
+        let days = 0;
+        for (const a of list) {
           if (a.halfDay === "am" || a.halfDay === "pm") {
-            usedDays += 0.5;
+            days += 0.5;
           } else {
-            usedDays += weekdays;
+            days += countWeekdays(a.startDate, a.endDate);
           }
         }
+        return days;
+      };
+
+      const balances = allUsers.filter(u => u.active).map(u => {
+        const userVacAbsences = allAbsences.filter(
+          a => a.userId === u.id && a.type === "vacation" &&
+            new Date(a.startDate).getFullYear() === currentYear
+        );
+        const usedDays = countDays(userVacAbsences.filter(a => a.status === "approved"));
+        const pendingDays = countDays(userVacAbsences.filter(a => a.status === "pending"));
         const total = u.vacationDaysTotal ?? 25;
         return {
           userId: u.id,
           userName: u.fullName,
           totalDays: total,
           usedDays,
+          pendingDays,
           remainingDays: total - usedDays,
         };
       });

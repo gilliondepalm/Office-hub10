@@ -64,6 +64,7 @@ type VacationBalance = {
   userName: string;
   totalDays: number;
   usedDays: number;
+  pendingDays: number;
   remainingDays: number;
 };
 
@@ -357,7 +358,11 @@ export default function VerzuimPage() {
                   <span className="text-muted-foreground">Mijn vakantiesaldo:</span>{" "}
                   <span className="font-semibold" data-testid="text-my-remaining">{myBalance.remainingDays}</span>
                   <span className="text-muted-foreground"> van {myBalance.totalDays} dagen resterend</span>
-                  <span className="text-muted-foreground"> ({myBalance.usedDays} opgenomen)</span>
+                  <span className="text-muted-foreground"> ({myBalance.usedDays} opgenomen</span>
+                  {myBalance.pendingDays > 0 && (
+                    <span className="text-muted-foreground">, {myBalance.pendingDays} aangevraagd</span>
+                  )}
+                  <span className="text-muted-foreground">)</span>
                 </div>
               </CardContent>
             </Card>
@@ -471,6 +476,7 @@ export default function VerzuimPage() {
                         <TableHead>Medewerker</TableHead>
                         <TableHead className="text-right">Totaal</TableHead>
                         <TableHead className="text-right">Opgenomen</TableHead>
+                        <TableHead className="text-right">Aangevraagd</TableHead>
                         <TableHead className="text-right">Resterend</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -480,6 +486,13 @@ export default function VerzuimPage() {
                           <TableCell className="font-medium text-sm">{b.userName}</TableCell>
                           <TableCell className="text-right text-sm">{b.totalDays}</TableCell>
                           <TableCell className="text-right text-sm">{b.usedDays}</TableCell>
+                          <TableCell className="text-right text-sm">
+                            {b.pendingDays > 0 ? (
+                              <Badge variant="outline" className="text-xs">{b.pendingDays}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">0</span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
                               {b.remainingDays}
