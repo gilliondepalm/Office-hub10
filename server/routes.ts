@@ -332,9 +332,28 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/absences", requireAuth, async (_req, res) => {
-    const all = await storage.getAbsences();
-    res.json(all);
+  app.get("/api/absences", requireAuth, async (req, res) => {
+    const userId = (req.session as any).userId;
+    const currentUser = await storage.getUser(userId);
+    if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+
+    if (currentUser.role === "admin") {
+      const all = await storage.getAbsences();
+      return res.json(all);
+    }
+
+    if (currentUser.role === "manager") {
+      const dept = currentUser.department;
+      if (dept) {
+        const deptAbsences = await storage.getAbsencesByDepartment(dept);
+        return res.json(deptAbsences);
+      }
+      const mine = await storage.getAbsencesByUser(userId);
+      return res.json(mine);
+    }
+
+    const mine = await storage.getAbsencesByUser(userId);
+    res.json(mine);
   });
 
   app.get("/api/absences/mine", requireAuth, async (req, res) => {
@@ -355,7 +374,28 @@ export async function registerRoutes(
 
   app.patch("/api/absences/:id", requireAuth, async (req, res) => {
     try {
-      await storage.updateAbsenceStatus(req.params.id, req.body.status, req.body.approvedBy);
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+
+      const allAbsences = await storage.getAbsences();
+      const absence = allAbsences.find((a) => a.id === req.params.id);
+      if (!absence) return res.status(404).json({ message: "Melding niet gevonden" });
+
+      const absenceUser = await storage.getUser(absence.userId);
+
+      if (currentUser.role === "manager") {
+        if (absenceUser?.role === "manager" || absenceUser?.role === "admin") {
+          return res.status(403).json({ message: "Alleen de directeur kan manageraanvragen goedkeuren" });
+        }
+        if (absenceUser?.department !== currentUser.department) {
+          return res.status(403).json({ message: "U kunt alleen verzuim van uw eigen afdeling goedkeuren" });
+        }
+      } else if (currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Geen rechten om verzuim goed te keuren" });
+      }
+
+      await storage.updateAbsenceStatus(req.params.id, req.body.status, userId);
       res.json({ message: "Bijgewerkt" });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });

@@ -42,8 +42,9 @@ export interface IStorage {
   updateDepartment(id: string, data: Partial<InsertDepartment>): Promise<Department>;
   deleteDepartment(id: string): Promise<void>;
 
-  getAbsences(): Promise<(Absence & { userName?: string })[]>;
-  getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string })[]>;
+  getAbsences(): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
+  getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
+  getAbsencesByDepartment(department: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   createAbsence(absence: InsertAbsence): Promise<Absence>;
   updateAbsenceStatus(id: string, status: string, approvedBy: string | null): Promise<void>;
 
@@ -184,7 +185,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(departments).where(eq(departments.id, id));
   }
 
-  async getAbsences(): Promise<(Absence & { userName?: string })[]> {
+  async getAbsences(): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]> {
     const result = await db
       .select({
         id: absences.id,
@@ -198,6 +199,8 @@ export class DatabaseStorage implements IStorage {
         status: absences.status,
         approvedBy: absences.approvedBy,
         userName: users.fullName,
+        userDepartment: users.department,
+        userRole: users.role,
       })
       .from(absences)
       .leftJoin(users, eq(absences.userId, users.id))
@@ -205,7 +208,7 @@ export class DatabaseStorage implements IStorage {
     return result as any;
   }
 
-  async getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string })[]> {
+  async getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]> {
     const result = await db
       .select({
         id: absences.id,
@@ -219,10 +222,36 @@ export class DatabaseStorage implements IStorage {
         status: absences.status,
         approvedBy: absences.approvedBy,
         userName: users.fullName,
+        userDepartment: users.department,
+        userRole: users.role,
       })
       .from(absences)
       .leftJoin(users, eq(absences.userId, users.id))
       .where(eq(absences.userId, userId))
+      .orderBy(desc(absences.startDate));
+    return result as any;
+  }
+
+  async getAbsencesByDepartment(department: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]> {
+    const result = await db
+      .select({
+        id: absences.id,
+        userId: absences.userId,
+        type: absences.type,
+        startDate: absences.startDate,
+        endDate: absences.endDate,
+        reason: absences.reason,
+        bvvdReason: absences.bvvdReason,
+        halfDay: absences.halfDay,
+        status: absences.status,
+        approvedBy: absences.approvedBy,
+        userName: users.fullName,
+        userDepartment: users.department,
+        userRole: users.role,
+      })
+      .from(absences)
+      .leftJoin(users, eq(absences.userId, users.id))
+      .where(eq(users.department, department))
       .orderBy(desc(absences.startDate));
     return result as any;
   }

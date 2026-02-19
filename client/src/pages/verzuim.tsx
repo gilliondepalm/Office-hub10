@@ -117,13 +117,16 @@ export default function VerzuimPage() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await apiRequest("PATCH", `/api/absences/${id}`, { status, approvedBy: user?.id });
+      await apiRequest("PATCH", `/api/absences/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/absences"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Status bijgewerkt" });
+    },
+    onError: () => {
+      toast({ title: "Geen rechten voor deze actie", variant: "destructive" });
     },
   });
 
@@ -342,7 +345,7 @@ export default function VerzuimPage() {
       <Tabs defaultValue="meldingen">
         <TabsList>
           <TabsTrigger value="meldingen" data-testid="tab-meldingen">Meldingen</TabsTrigger>
-          <TabsTrigger value="vakantiesaldo" data-testid="tab-vakantiesaldo">Vakantiesaldo</TabsTrigger>
+          {isAdminOrManager && <TabsTrigger value="vakantiesaldo" data-testid="tab-vakantiesaldo">Vakantiesaldo</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="meldingen" className="space-y-4 mt-4">
@@ -413,7 +416,10 @@ export default function VerzuimPage() {
                             </TableCell>
                             {isAdminOrManager && (
                               <TableCell>
-                                {absence.status === "pending" && (
+                                {absence.status === "pending" && absence.userId !== user?.id && (
+                                  user?.role === "admin" ||
+                                  (user?.role === "manager" && (absence as any).userRole === "employee")
+                                ) && (
                                   <div className="flex gap-1">
                                     <Button
                                       size="sm"
