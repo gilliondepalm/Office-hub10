@@ -41,6 +41,7 @@ export const announcements = pgTable("announcements", {
   content: text("content").notNull(),
   priority: text("priority").notNull().default("normal"),
   pinned: boolean("pinned").notNull().default(false),
+  pdfUrl: text("pdf_url"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
