@@ -608,7 +608,8 @@ function OrganogramTab() {
   }
 
   const directeur = users.find((u) => u.role === "admin" && u.username === "directeur");
-  const stafAdmins = users.filter((u) => u.role === "admin" && u.username !== "directeur");
+  const deptManagerIds = new Set(departments.map((d) => d.managerId).filter(Boolean));
+  const stafAdmins = users.filter((u) => u.role === "admin" && u.username !== "directeur" && !deptManagerIds.has(u.id));
 
   return (
     <div className="space-y-6">
