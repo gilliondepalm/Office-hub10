@@ -383,7 +383,7 @@ export default function VerzuimPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {absences.map((absence) => {
+                      {[...absences].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl")).map((absence) => {
                         const sc = statusConfig[absence.status] || statusConfig.pending;
                         const StatusIcon = sc.icon;
                         const displayReason = absence.type === "bvvd" && absence.bvvdReason
