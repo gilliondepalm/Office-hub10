@@ -7,14 +7,13 @@ import {
   Megaphone,
   Users,
   Clock,
-  Award,
-  TrendingUp,
   AlertCircle,
   CheckCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import type { Event, Announcement, Absence } from "@shared/schema";
+import { useAuth } from "@/lib/auth";
 
 function StatCard({
   title,
@@ -50,6 +49,9 @@ function StatCard({
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const { data: stats, isLoading } = useQuery<{
     totalEmployees: number;
     activeAbsences: number;
@@ -67,7 +69,7 @@ export default function DashboardPage() {
   });
 
   const { data: absences } = useQuery<(Absence & { userName?: string })[]>({
-    queryKey: ["/api/absences"],
+    queryKey: [isAdmin ? "/api/absences" : "/api/absences/mine"],
   });
 
   const upcomingEvents = events
@@ -103,19 +105,21 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Medewerkers"
-          value={stats?.totalEmployees || 0}
-          icon={Users}
-          description="Actieve medewerkers"
-          color="bg-primary/10 text-primary"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {isAdmin && (
+          <StatCard
+            title="Medewerkers"
+            value={stats?.totalEmployees || 0}
+            icon={Users}
+            description="Actieve medewerkers"
+            color="bg-primary/10 text-primary"
+          />
+        )}
         <StatCard
           title="Afwezigheden"
-          value={stats?.activeAbsences || 0}
+          value={isAdmin ? (stats?.activeAbsences || 0) : (absences?.filter(a => a.status === "approved" || a.status === "pending").length || 0)}
           icon={Clock}
-          description={`${stats?.pendingAbsences || 0} in afwachting`}
+          description={isAdmin ? `${stats?.pendingAbsences || 0} in afwachting` : `${pendingAbsences.length} in afwachting`}
           color="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
         />
         <StatCard
@@ -124,13 +128,6 @@ export default function DashboardPage() {
           icon={CalendarDays}
           description="Aankomende evenementen"
           color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-        />
-        <StatCard
-          title="Beloningspunten"
-          value={stats?.totalRewardPoints || 0}
-          icon={Award}
-          description="Totaal uitgereikt"
-          color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
         />
       </div>
 
@@ -216,36 +213,50 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-sm">Verzuim in Afwachting</h3>
+              <h3 className="font-semibold text-sm">{isAdmin ? "Verzuim in Afwachting" : "Mijn Afwezigheden"}</h3>
             </div>
-            <Badge variant="secondary" className="text-xs">{pendingAbsences.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{isAdmin ? pendingAbsences.length : (absences?.length || 0)}</Badge>
           </CardHeader>
           <CardContent className="pt-0">
-            {pendingAbsences.length === 0 ? (
+            {(isAdmin ? pendingAbsences : absences || []).length === 0 ? (
               <div className="flex flex-col items-center py-6 text-center">
                 <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
-                <p className="text-sm text-muted-foreground">Geen openstaande verzuimverzoeken</p>
+                <p className="text-sm text-muted-foreground">{isAdmin ? "Geen openstaande verzuimverzoeken" : "Geen afwezigheden"}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingAbsences.map((absence) => (
+                {(isAdmin ? pendingAbsences : (absences || []).slice(0, 5)).map((absence) => {
+                  const statusColors: Record<string, string> = {
+                    pending: "bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400",
+                    approved: "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
+                    rejected: "bg-destructive/10 text-destructive",
+                  };
+                  const statusLabels: Record<string, string> = {
+                    pending: "In afwachting",
+                    approved: "Goedgekeurd",
+                    rejected: "Afgewezen",
+                  };
+                  const typeLabels: Record<string, string> = {
+                    sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", bvvd: "Bijzonder verlof", other: "Overig",
+                  };
+                  return (
                   <div key={absence.id} className="flex items-center gap-3 p-2 rounded-md hover-elevate" data-testid={`absence-item-${absence.id}`}>
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400">
                       <Clock className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{(absence as any).userName || "Medewerker"}</p>
+                      <p className="text-sm font-medium">{isAdmin ? ((absence as any).userName || "Medewerker") : (typeLabels[absence.type] || absence.type)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {absence.type === "sick" ? "Ziekte" : absence.type === "vacation" ? "Vakantie" : absence.type === "personal" ? "Persoonlijk" : "Overig"}
-                        {" - "}
+                        {isAdmin ? (typeLabels[absence.type] || absence.type) + " - " : ""}
                         {format(new Date(absence.startDate), "d MMM", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM", { locale: nl })}
                       </p>
                     </div>
-                    <Badge variant="outline" className="shrink-0 text-xs bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
-                      In afwachting
+                    <Badge variant="outline" className={`shrink-0 text-xs ${statusColors[absence.status] || ""}`}>
+                      {statusLabels[absence.status] || absence.status}
                     </Badge>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
