@@ -575,6 +575,10 @@ export default function KalenderPage() {
               const dayEntries = getEntriesForDay(day);
               const inMonth = isSameMonth(day, currentMonth);
               const today = isToday(day);
+              const dayOfWeek = day.getDay();
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              const isPast = day < new Date(new Date().setHours(0, 0, 0, 0)) && !today;
+              const isGray = isPast || isWeekend;
               const hasEvents = dayEntries.some((e) => e.type === "event");
               const hasBirthday = dayEntries.some((e) => e.type === "verjaardag");
               const hasAnniversary = dayEntries.some((e) => e.type === "jubileum");
@@ -583,9 +587,9 @@ export default function KalenderPage() {
               return (
                 <div
                   key={day.toISOString()}
-                  className={`bg-background min-h-[5rem] p-1 cursor-pointer transition-colors hover:bg-muted/50 ${
-                    !inMonth ? "opacity-40" : ""
-                  } ${today ? "ring-1 ring-inset ring-primary" : ""}`}
+                  className={`min-h-[5rem] p-1 cursor-pointer transition-colors hover:bg-muted/50 ${
+                    isGray ? "bg-muted/60" : "bg-background"
+                  } ${!inMonth ? "opacity-40" : ""} ${today ? "ring-1 ring-inset ring-primary" : ""}`}
                   onClick={() => setSelectedDay(day)}
                   data-testid={`cal-day-${format(day, "yyyy-MM-dd")}`}
                 >
