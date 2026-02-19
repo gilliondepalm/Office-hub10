@@ -301,6 +301,20 @@ export async function registerRoutes(
         return days;
       };
 
+      const countDaysUpTo = (list: typeof allAbsences, upTo: string) => {
+        let days = 0;
+        for (const a of list) {
+          if (a.startDate > upTo) continue;
+          const effectiveEnd = a.endDate <= upTo ? a.endDate : upTo;
+          if (a.halfDay === "am" || a.halfDay === "pm") {
+            days += 0.5;
+          } else {
+            days += countWeekdays(a.startDate, effectiveEnd);
+          }
+        }
+        return days;
+      };
+
       const todayStr = new Date().toISOString().split("T")[0];
 
       const balances = allUsers.filter(u => u.active).map(u => {
@@ -312,7 +326,7 @@ export async function registerRoutes(
         const pending = userVacAbsences.filter(a => a.status === "pending");
         const geplandDays = countDays(pending);
         const toegekendDays = countDays(approved);
-        const opgenomenDays = countDays(approved.filter(a => a.endDate <= todayStr));
+        const opgenomenDays = countDaysUpTo(approved, todayStr);
         const total = u.vacationDaysTotal ?? 25;
         return {
           userId: u.id,
