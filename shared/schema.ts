@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   department: text("department"),
   avatar: text("avatar"),
   active: boolean("active").notNull().default(true),
+  permissions: text("permissions").array(),
 });
 
 export const events = pgTable("events", {

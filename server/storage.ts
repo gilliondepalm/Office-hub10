@@ -36,12 +36,16 @@ export interface IStorage {
   deleteDepartment(id: string): Promise<void>;
 
   getAbsences(): Promise<(Absence & { userName?: string })[]>;
+  getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string })[]>;
   createAbsence(absence: InsertAbsence): Promise<Absence>;
   updateAbsenceStatus(id: string, status: string, approvedBy: string | null): Promise<void>;
 
   getRewards(): Promise<(Reward & { userName?: string })[]>;
+  getRewardsByUser(userId: string): Promise<(Reward & { userName?: string })[]>;
   createReward(reward: InsertReward): Promise<Reward>;
   getLeaderboard(): Promise<{ userId: string; userName: string; totalPoints: number }[]>;
+
+  updateUserPermissions(id: string, permissions: string[]): Promise<User>;
 
   getApplications(): Promise<Application[]>;
   createApplication(app: InsertApplication): Promise<Application>;
@@ -160,7 +164,27 @@ export class DatabaseStorage implements IStorage {
       .from(absences)
       .leftJoin(users, eq(absences.userId, users.id))
       .orderBy(desc(absences.startDate));
-    return result;
+    return result as any;
+  }
+
+  async getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string })[]> {
+    const result = await db
+      .select({
+        id: absences.id,
+        userId: absences.userId,
+        type: absences.type,
+        startDate: absences.startDate,
+        endDate: absences.endDate,
+        reason: absences.reason,
+        status: absences.status,
+        approvedBy: absences.approvedBy,
+        userName: users.fullName,
+      })
+      .from(absences)
+      .leftJoin(users, eq(absences.userId, users.id))
+      .where(eq(absences.userId, userId))
+      .orderBy(desc(absences.startDate));
+    return result as any;
   }
 
   async createAbsence(absence: InsertAbsence): Promise<Absence> {
@@ -186,7 +210,25 @@ export class DatabaseStorage implements IStorage {
       .from(rewards)
       .leftJoin(users, eq(rewards.userId, users.id))
       .orderBy(desc(rewards.awardedAt));
-    return result;
+    return result as any;
+  }
+
+  async getRewardsByUser(userId: string): Promise<(Reward & { userName?: string })[]> {
+    const result = await db
+      .select({
+        id: rewards.id,
+        userId: rewards.userId,
+        points: rewards.points,
+        reason: rewards.reason,
+        awardedBy: rewards.awardedBy,
+        awardedAt: rewards.awardedAt,
+        userName: users.fullName,
+      })
+      .from(rewards)
+      .leftJoin(users, eq(rewards.userId, users.id))
+      .where(eq(rewards.userId, userId))
+      .orderBy(desc(rewards.awardedAt));
+    return result as any;
   }
 
   async createReward(reward: InsertReward): Promise<Reward> {
@@ -206,6 +248,11 @@ export class DatabaseStorage implements IStorage {
       .groupBy(rewards.userId, users.fullName)
       .orderBy(sql`sum(${rewards.points}) desc`);
     return result as any;
+  }
+
+  async updateUserPermissions(id: string, permissions: string[]): Promise<User> {
+    const [updated] = await db.update(users).set({ permissions }).where(eq(users.id, id)).returning();
+    return updated;
   }
 
   async getApplications(): Promise<Application[]> {
@@ -241,7 +288,7 @@ export class DatabaseStorage implements IStorage {
       .from(appAccess)
       .leftJoin(users, eq(appAccess.userId, users.id))
       .leftJoin(applications, eq(appAccess.applicationId, applications.id));
-    return result;
+    return result as any;
   }
 
   async createAppAccess(access: InsertAppAccess): Promise<AppAccess> {

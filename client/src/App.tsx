@@ -18,18 +18,26 @@ import PersonaliaPage from "@/pages/personalia";
 import VerzuimPage from "@/pages/verzuim";
 import BeloningenPage from "@/pages/beloningen";
 import ApplicatiesPage from "@/pages/applicaties";
+import BeheerPage from "@/pages/beheer";
+import ProfielPage from "@/pages/profiel";
 
 function Router() {
+  const { user } = useAuth();
+  const perms = user?.permissions || [];
+
   return (
     <Switch>
+      {perms.includes("dashboard") && <Route path="/" component={DashboardPage} />}
+      {perms.includes("kalender") && <Route path="/kalender" component={KalenderPage} />}
+      {perms.includes("aankondigingen") && <Route path="/aankondigingen" component={AankondigingenPage} />}
+      {perms.includes("organisatie") && <Route path="/organisatie" component={OrganisatiePage} />}
+      {perms.includes("personalia") && <Route path="/personalia" component={PersonaliaPage} />}
+      {perms.includes("verzuim") && <Route path="/verzuim" component={VerzuimPage} />}
+      {perms.includes("beloningen") && <Route path="/beloningen" component={BeloningenPage} />}
+      {perms.includes("applicaties") && <Route path="/applicaties" component={ApplicatiesPage} />}
+      {perms.includes("beheer") && <Route path="/beheer" component={BeheerPage} />}
+      <Route path="/profiel" component={ProfielPage} />
       <Route path="/" component={DashboardPage} />
-      <Route path="/kalender" component={KalenderPage} />
-      <Route path="/aankondigingen" component={AankondigingenPage} />
-      <Route path="/organisatie" component={OrganisatiePage} />
-      <Route path="/personalia" component={PersonaliaPage} />
-      <Route path="/verzuim" component={VerzuimPage} />
-      <Route path="/beloningen" component={BeloningenPage} />
-      <Route path="/applicaties" component={ApplicatiesPage} />
       <Route component={NotFound} />
     </Switch>
   );

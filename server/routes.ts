@@ -39,6 +39,16 @@ export async function registerRoutes(
     next();
   }
 
+  async function requireAdmin(req: any, res: any, next: any) {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Geen toegang - alleen beheerders" });
+    }
+    next();
+  }
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -86,7 +96,7 @@ export async function registerRoutes(
     res.json(allUsers.map(({ password: _, ...u }) => u));
   });
 
-  app.post("/api/users", requireAuth, async (req, res) => {
+  app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);
       const hashed = await bcrypt.hash(parsed.password, 10);
@@ -98,7 +108,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id", requireAuth, async (req, res) => {
+  app.patch("/api/users/:id", requireAdmin, async (req, res) => {
     try {
       const data = { ...req.body };
       if (data.password) {
@@ -112,7 +122,21 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/users/:id", requireAuth, async (req, res) => {
+  app.patch("/api/users/:id/permissions", requireAdmin, async (req, res) => {
+    try {
+      const { permissions } = req.body;
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Ongeldige rechten" });
+      }
+      const user = await storage.updateUserPermissions(req.params.id, permissions);
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Bijwerken mislukt" });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
     await storage.deleteUser(req.params.id);
     res.json({ message: "Verwijderd" });
   });
@@ -209,6 +233,12 @@ export async function registerRoutes(
     res.json(all);
   });
 
+  app.get("/api/absences/mine", requireAuth, async (req, res) => {
+    const userId = (req.session as any).userId;
+    const mine = await storage.getAbsencesByUser(userId);
+    res.json(mine);
+  });
+
   app.post("/api/absences", requireAuth, async (req, res) => {
     try {
       const parsed = insertAbsenceSchema.parse(req.body);
@@ -231,6 +261,12 @@ export async function registerRoutes(
   app.get("/api/rewards", requireAuth, async (_req, res) => {
     const all = await storage.getRewards();
     res.json(all);
+  });
+
+  app.get("/api/rewards/mine", requireAuth, async (req, res) => {
+    const userId = (req.session as any).userId;
+    const mine = await storage.getRewardsByUser(userId);
+    res.json(mine);
   });
 
   app.post("/api/rewards", requireAuth, async (req, res) => {

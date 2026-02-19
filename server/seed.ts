@@ -3,6 +3,10 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 import { users } from "@shared/schema";
 
+const ALL_MODULES = ["dashboard", "kalender", "aankondigingen", "organisatie", "personalia", "verzuim", "beloningen", "applicaties", "beheer"];
+const MANAGER_MODULES = ["dashboard", "kalender", "aankondigingen", "organisatie", "personalia", "verzuim", "beloningen", "applicaties"];
+const EMPLOYEE_MODULES = ["dashboard", "kalender", "aankondigingen", "verzuim", "beloningen"];
+
 export async function seedDatabase() {
   const existingUsers = await storage.getUsers();
   if (existingUsers.length > 0) return;
@@ -19,6 +23,7 @@ export async function seedDatabase() {
     department: "IT",
     avatar: null,
     active: true,
+    permissions: ALL_MODULES,
   });
 
   const manager = await storage.createUser({
@@ -30,6 +35,7 @@ export async function seedDatabase() {
     department: "HR",
     avatar: null,
     active: true,
+    permissions: MANAGER_MODULES,
   });
 
   const emp1 = await storage.createUser({
@@ -41,6 +47,7 @@ export async function seedDatabase() {
     department: "Marketing",
     avatar: null,
     active: true,
+    permissions: EMPLOYEE_MODULES,
   });
 
   const emp2 = await storage.createUser({
@@ -52,6 +59,7 @@ export async function seedDatabase() {
     department: "Financien",
     avatar: null,
     active: true,
+    permissions: EMPLOYEE_MODULES,
   });
 
   const emp3 = await storage.createUser({
@@ -63,6 +71,7 @@ export async function seedDatabase() {
     department: "IT",
     avatar: null,
     active: true,
+    permissions: EMPLOYEE_MODULES,
   });
 
   await storage.createDepartment({ name: "IT", description: "Informatie technologie en systeembeheer", managerId: admin.id });
