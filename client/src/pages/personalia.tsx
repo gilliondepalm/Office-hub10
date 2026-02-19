@@ -460,134 +460,162 @@ export default function PersonaliaPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Medewerker</TableHead>
-                    <TableHead>E-mail</TableHead>
-                    <TableHead>Afdeling</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Geboortedatum</TableHead>
-                    <TableHead>In Dienst</TableHead>
-                    <TableHead>Status</TableHead>
-                    {currentUser?.role === "admin" && <TableHead className="text-right">Acties</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => {
-                    const initials = u.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-                    return (
-                      <TableRow key={u.id} className={!u.active ? "opacity-60" : ""} data-testid={`row-user-${u.id}`}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium text-sm">{u.fullName}</p>
-                              <p className="text-xs text-muted-foreground">@{u.username}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {u.email}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {u.department ? (
-                            <span className="flex items-center gap-1 text-sm">
-                              <Building2 className="h-3 w-3 text-muted-foreground" />
-                              {u.department}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs">
-                            {roleLabels[u.role] || u.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {u.birthDate ? (
-                            <span className="text-sm">
-                              {format(new Date(u.birthDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            {u.startDate ? (
-                              <span className="flex items-center gap-1 text-sm">
-                                <CalendarDays className="h-3 w-3 text-muted-foreground" />
-                                {format(new Date(u.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
-                              </span>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">-</span>
-                            )}
-                            {u.endDate && (
-                              <span className="text-xs text-muted-foreground">
-                                Uit: {format(new Date(u.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={u.active ? "default" : "outline"} className="text-xs" data-testid={`status-user-${u.id}`}>
-                            {u.active ? "Actief" : "Inactief"}
-                          </Badge>
-                        </TableCell>
-                        {currentUser?.role === "admin" && (
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => setEditUser(u)}
-                                data-testid={`button-edit-user-${u.id}`}
-                              >
-                                <Pencil className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                              {u.id !== currentUser.id && (
-                                u.active ? (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => setDeactivateUser(u)}
-                                    data-testid={`button-deactivate-user-${u.id}`}
-                                  >
-                                    <UserX className="h-4 w-4 text-muted-foreground" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => activateMutation.mutate(u.id)}
-                                    disabled={activateMutation.isPending}
-                                    data-testid={`button-activate-user-${u.id}`}
-                                  >
-                                    <UserCheck className="h-4 w-4 text-muted-foreground" />
-                                  </Button>
-                                )
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+        (() => {
+          const grouped: Record<string, User[]> = {};
+          users.forEach((u) => {
+            const dept = u.department || "Geen afdeling";
+            if (!grouped[dept]) grouped[dept] = [];
+            grouped[dept].push(u);
+          });
+
+          const sortedDeptNames = Object.keys(grouped).sort((a, b) => {
+            if (a === "Geen afdeling") return 1;
+            if (b === "Geen afdeling") return -1;
+            return a.localeCompare(b, "nl");
+          });
+
+          sortedDeptNames.forEach((dept) => {
+            grouped[dept].sort((a, b) => {
+              const aIsManager = a.role === "manager" || a.role === "admin";
+              const bIsManager = b.role === "manager" || b.role === "admin";
+              if (aIsManager && !bIsManager) return -1;
+              if (!aIsManager && bIsManager) return 1;
+              return a.fullName.localeCompare(b.fullName, "nl");
+            });
+          });
+
+          return (
+            <div className="space-y-6">
+              {sortedDeptNames.map((deptName) => (
+                <div key={deptName}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <h2 className="text-lg font-semibold" data-testid={`text-department-${deptName}`}>{deptName}</h2>
+                    <Badge variant="outline" className="text-xs">{grouped[deptName].length}</Badge>
+                  </div>
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Medewerker</TableHead>
+                              <TableHead>E-mail</TableHead>
+                              <TableHead>Rol</TableHead>
+                              <TableHead>Geboortedatum</TableHead>
+                              <TableHead>In Dienst</TableHead>
+                              <TableHead>Status</TableHead>
+                              {currentUser?.role === "admin" && <TableHead className="text-right">Acties</TableHead>}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {grouped[deptName].map((u) => {
+                              const initials = u.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+                              const isManager = u.role === "manager" || u.role === "admin";
+                              return (
+                                <TableRow key={u.id} className={!u.active ? "opacity-60" : ""} data-testid={`row-user-${u.id}`}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="h-8 w-8">
+                                        <AvatarFallback className={`text-xs ${isManager ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>{initials}</AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <p className="font-medium text-sm">{u.fullName}</p>
+                                        <p className="text-xs text-muted-foreground">@{u.username}</p>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                                      <Mail className="h-3 w-3" />
+                                      {u.email}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={isManager ? "default" : "secondary"} className="text-xs">
+                                      {roleLabels[u.role] || u.role}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {u.birthDate ? (
+                                      <span className="text-sm">
+                                        {format(new Date(u.birthDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-0.5">
+                                      {u.startDate ? (
+                                        <span className="flex items-center gap-1 text-sm">
+                                          <CalendarDays className="h-3 w-3 text-muted-foreground" />
+                                          {format(new Date(u.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-sm text-muted-foreground">-</span>
+                                      )}
+                                      {u.endDate && (
+                                        <span className="text-xs text-muted-foreground">
+                                          Uit: {format(new Date(u.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={u.active ? "default" : "outline"} className="text-xs" data-testid={`status-user-${u.id}`}>
+                                      {u.active ? "Actief" : "Inactief"}
+                                    </Badge>
+                                  </TableCell>
+                                  {currentUser?.role === "admin" && (
+                                    <TableCell>
+                                      <div className="flex items-center justify-end gap-1">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => setEditUser(u)}
+                                          data-testid={`button-edit-user-${u.id}`}
+                                        >
+                                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                        {u.id !== currentUser.id && (
+                                          u.active ? (
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => setDeactivateUser(u)}
+                                              data-testid={`button-deactivate-user-${u.id}`}
+                                            >
+                                              <UserX className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => activateMutation.mutate(u.id)}
+                                              disabled={activateMutation.isPending}
+                                              data-testid={`button-activate-user-${u.id}`}
+                                            >
+                                              <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                          )
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          );
+        })()
       )}
     </div>
   );
