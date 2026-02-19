@@ -403,7 +403,7 @@ export default function VerzuimPage() {
                         return depts.map(dept => (
                           <>{isAdminOrManager && (
                             <TableRow key={`dept-${dept}`}>
-                              <TableCell colSpan={colCount} className="bg-muted/50 font-semibold text-xs text-muted-foreground py-2">
+                              <TableCell colSpan={colCount} className="bg-muted/50 font-bold text-sm py-2">
                                 {dept}
                               </TableCell>
                             </TableRow>
@@ -508,7 +508,7 @@ export default function VerzuimPage() {
                         return departments.map(dept => (
                           <>
                             <TableRow key={`dept-${dept}`}>
-                              <TableCell colSpan={6} className="bg-muted/50 font-semibold text-xs text-muted-foreground py-2">
+                              <TableCell colSpan={6} className="bg-muted/50 font-bold text-sm py-2">
                                 {dept}
                               </TableCell>
                             </TableRow>
