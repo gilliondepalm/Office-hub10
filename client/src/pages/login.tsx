@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [, setLocation] = useLocation();
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -25,6 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(data.username, data.password);
+      setLocation("/");
     } catch (err: any) {
       toast({
         title: "Inloggen mislukt",
