@@ -276,6 +276,19 @@ export async function registerRoutes(
       const allAbsences = await storage.getAbsences();
       const currentYear = new Date().getFullYear();
 
+      const countWeekdays = (startStr: string, endStr: string): number => {
+        const start = new Date(startStr + "T00:00:00");
+        const end = new Date(endStr + "T00:00:00");
+        let count = 0;
+        const current = new Date(start);
+        while (current <= end) {
+          const day = current.getDay();
+          if (day !== 0 && day !== 6) count++;
+          current.setDate(current.getDate() + 1);
+        }
+        return count;
+      }
+
       const balances = allUsers.filter(u => u.active).map(u => {
         const userVacationAbsences = allAbsences.filter(
           a => a.userId === u.id && a.type === "vacation" && a.status === "approved" &&
@@ -283,10 +296,12 @@ export async function registerRoutes(
         );
         let usedDays = 0;
         for (const a of userVacationAbsences) {
-          const start = new Date(a.startDate);
-          const end = new Date(a.endDate);
-          const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-          usedDays += diff;
+          const weekdays = countWeekdays(a.startDate, a.endDate);
+          if (a.halfDay === "am" || a.halfDay === "pm") {
+            usedDays += 0.5;
+          } else {
+            usedDays += weekdays;
+          }
         }
         const total = u.vacationDaysTotal ?? 25;
         return {

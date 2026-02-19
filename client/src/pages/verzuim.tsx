@@ -53,6 +53,7 @@ const absenceFormSchema = z.object({
   endDate: z.string().min(1, "Einddatum is verplicht"),
   reason: z.string().optional(),
   bvvdReason: z.string().optional(),
+  halfDay: z.string().optional(),
 }).refine((data) => {
   if (data.type === "bvvd" && !data.bvvdReason) return false;
   return true;
@@ -84,7 +85,7 @@ export default function VerzuimPage() {
 
   const form = useForm<z.infer<typeof absenceFormSchema>>({
     resolver: zodResolver(absenceFormSchema),
-    defaultValues: { type: "sick", startDate: "", endDate: "", reason: "", bvvdReason: "" },
+    defaultValues: { type: "sick", startDate: "", endDate: "", reason: "", bvvdReason: "", halfDay: "" },
   });
 
   const watchType = form.watch("type");
@@ -96,6 +97,7 @@ export default function VerzuimPage() {
         userId: user?.id,
         reason: data.reason || null,
         bvvdReason: data.type === "bvvd" ? data.bvvdReason : null,
+        halfDay: (data.halfDay && data.halfDay !== "full") ? data.halfDay : null,
         status: "pending",
         approvedBy: null,
       });
@@ -304,6 +306,22 @@ export default function VerzuimPage() {
                       </FormItem>
                     )} />
                   </div>
+                  <FormField control={form.control} name="halfDay" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dagdeel</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-half-day"><SelectValue placeholder="Hele dag" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="full">Hele dag</SelectItem>
+                          <SelectItem value="am">Ochtend (AM)</SelectItem>
+                          <SelectItem value="pm">Middag (PM)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={form.control} name="reason" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Toelichting</FormLabel>
@@ -381,6 +399,8 @@ export default function VerzuimPage() {
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                              {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
+                              {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
                               {displayReason}

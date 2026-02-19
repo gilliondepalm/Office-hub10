@@ -62,6 +62,7 @@ export const absences = pgTable("absences", {
   endDate: date("end_date").notNull(),
   reason: text("reason"),
   bvvdReason: text("bvvd_reason"),
+  halfDay: text("half_day"),
   status: absenceStatusEnum("status").notNull().default("pending"),
   approvedBy: varchar("approved_by").references(() => users.id),
 });
