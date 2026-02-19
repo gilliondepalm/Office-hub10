@@ -489,7 +489,7 @@ export default function VerzuimPage() {
                     <TableBody>
                       {(() => {
                         const sorted = [...(vacationBalances || [])].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
-                        const departments = [...new Set(sorted.map(b => b.department))].sort((a, b) => a.localeCompare(b, "nl"));
+                        const departments = Array.from(new Set(sorted.map(b => b.department))).sort((a, b) => a.localeCompare(b, "nl"));
                         return departments.map(dept => (
                           <>
                             <TableRow key={`dept-${dept}`}>
