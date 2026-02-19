@@ -62,6 +62,7 @@ const absenceFormSchema = z.object({
 type VacationBalance = {
   userId: string;
   userName: string;
+  department: string;
   totalDays: number;
   geplandDays: number;
   toegekendDays: number;
@@ -486,26 +487,39 @@ export default function VerzuimPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {vacationBalances?.map((b) => (
-                        <TableRow key={b.userId} data-testid={`row-balance-${b.userId}`}>
-                          <TableCell className="font-medium text-sm">{b.userName}</TableCell>
-                          <TableCell className="text-right text-sm">{b.totalDays}</TableCell>
-                          <TableCell className="text-right text-sm">
-                            {b.geplandDays > 0 ? (
-                              <Badge variant="outline" className="text-xs">{b.geplandDays}</Badge>
-                            ) : (
-                              <span className="text-muted-foreground">0</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-sm">{b.toegekendDays}</TableCell>
-                          <TableCell className="text-right text-sm">{b.opgenomenDays}</TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
-                              {b.remainingDays}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {(() => {
+                        const sorted = [...(vacationBalances || [])].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
+                        const departments = [...new Set(sorted.map(b => b.department))].sort((a, b) => a.localeCompare(b, "nl"));
+                        return departments.map(dept => (
+                          <>
+                            <TableRow key={`dept-${dept}`}>
+                              <TableCell colSpan={6} className="bg-muted/50 font-semibold text-xs text-muted-foreground py-2">
+                                {dept}
+                              </TableCell>
+                            </TableRow>
+                            {sorted.filter(b => b.department === dept).map(b => (
+                              <TableRow key={b.userId} data-testid={`row-balance-${b.userId}`}>
+                                <TableCell className="font-medium text-sm pl-6">{b.userName}</TableCell>
+                                <TableCell className="text-right text-sm">{b.totalDays}</TableCell>
+                                <TableCell className="text-right text-sm">
+                                  {b.geplandDays > 0 ? (
+                                    <Badge variant="outline" className="text-xs">{b.geplandDays}</Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground">0</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right text-sm">{b.toegekendDays}</TableCell>
+                                <TableCell className="text-right text-sm">{b.opgenomenDays}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
+                                    {b.remainingDays}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        ));
+                      })()}
                     </TableBody>
                   </Table>
                 </div>

@@ -331,6 +331,7 @@ export async function registerRoutes(
         return {
           userId: u.id,
           userName: u.fullName,
+          department: u.department || "Geen afdeling",
           totalDays: total,
           geplandDays,
           toegekendDays,
