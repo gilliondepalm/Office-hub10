@@ -116,6 +116,16 @@ export const aoInstructions = pgTable("ao_instructions", {
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
+export const positionHistory = pgTable("position_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  functionTitle: text("function_title").notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  salary: integer("salary"),
+  notes: text("notes"),
+});
+
 export const legislationLinks = pgTable("legislation_links", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -135,6 +145,7 @@ export const insertAppAccessSchema = createInsertSchema(appAccess).omit({ id: tr
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, reply: true, repliedAt: true, read: true });
 export const insertAoProcedureSchema = createInsertSchema(aoProcedures).omit({ id: true });
 export const insertAoInstructionSchema = createInsertSchema(aoInstructions).omit({ id: true });
+export const insertPositionHistorySchema = createInsertSchema(positionHistory).omit({ id: true });
 export const insertLegislationLinkSchema = createInsertSchema(legislationLinks).omit({ id: true });
 
 export const loginSchema = z.object({
@@ -164,5 +175,7 @@ export type InsertAoProcedure = z.infer<typeof insertAoProcedureSchema>;
 export type AoProcedure = typeof aoProcedures.$inferSelect;
 export type InsertAoInstruction = z.infer<typeof insertAoInstructionSchema>;
 export type AoInstruction = typeof aoInstructions.$inferSelect;
+export type InsertPositionHistory = z.infer<typeof insertPositionHistorySchema>;
+export type PositionHistory = typeof positionHistory.$inferSelect;
 export type InsertLegislationLink = z.infer<typeof insertLegislationLinkSchema>;
 export type LegislationLink = typeof legislationLinks.$inferSelect;
