@@ -578,7 +578,7 @@ export default function KalenderPage() {
               const dayOfWeek = day.getDay();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
               const isPast = day < new Date(new Date().setHours(0, 0, 0, 0)) && !today;
-              const isGray = isPast || isWeekend;
+              const isGray = inMonth && (isPast || isWeekend);
               const hasEvents = dayEntries.some((e) => e.type === "event");
               const hasBirthday = dayEntries.some((e) => e.type === "verjaardag");
               const hasAnniversary = dayEntries.some((e) => e.type === "jubileum");
