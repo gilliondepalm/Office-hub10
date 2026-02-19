@@ -18,6 +18,8 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   active: boolean("active").notNull().default(true),
   permissions: text("permissions").array(),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
 });
 
 export const events = pgTable("events", {

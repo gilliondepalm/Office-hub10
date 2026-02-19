@@ -114,6 +114,12 @@ export async function registerRoutes(
       if (data.password) {
         data.password = await bcrypt.hash(data.password, 10);
       }
+      if (data.active === false && !data.endDate) {
+        return res.status(400).json({ message: "Datum uit dienst is verplicht bij deactiveren" });
+      }
+      if (data.active === true) {
+        data.endDate = null;
+      }
       const user = await storage.updateUser(req.params.id, data);
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
@@ -134,11 +140,6 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });
     }
-  });
-
-  app.delete("/api/users/:id", requireAdmin, async (req, res) => {
-    await storage.deleteUser(req.params.id);
-    res.json({ message: "Verwijderd" });
   });
 
   app.get("/api/events", requireAuth, async (_req, res) => {

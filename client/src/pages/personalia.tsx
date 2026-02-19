@@ -21,9 +21,11 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Users, Mail, Building2, Trash2 } from "lucide-react";
+import { Plus, Users, Mail, Building2, Pencil, UserCheck, UserX, CalendarDays } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { nl } from "date-fns/locale";
 import type { User, Department } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 
@@ -34,10 +36,203 @@ const userFormSchema = z.object({
   email: z.string().email("Ongeldig e-mailadres"),
   role: z.string().default("employee"),
   department: z.string().optional(),
+  startDate: z.string().min(1, "Datum in dienst is verplicht"),
 });
 
+const editFormSchema = z.object({
+  fullName: z.string().min(1, "Volledige naam is verplicht"),
+  email: z.string().email("Ongeldig e-mailadres"),
+  role: z.string(),
+  department: z.string().optional(),
+  startDate: z.string().min(1, "Datum in dienst is verplicht"),
+});
+
+const deactivateFormSchema = z.object({
+  endDate: z.string().min(1, "Datum uit dienst is verplicht"),
+});
+
+function EditDialog({
+  user,
+  departments,
+  open,
+  onOpenChange,
+}: {
+  user: User;
+  departments: Department[] | undefined;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const form = useForm<z.infer<typeof editFormSchema>>({
+    resolver: zodResolver(editFormSchema),
+    defaultValues: {
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      department: user.department || "",
+      startDate: user.startDate || "",
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: z.infer<typeof editFormSchema>) => {
+      await apiRequest("PATCH", `/api/users/${user.id}`, {
+        ...data,
+        department: data.department || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Medewerker bijgewerkt" });
+      onOpenChange(false);
+    },
+    onError: (err: any) => {
+      toast({ title: "Fout bij bijwerken", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Medewerker Bewerken</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="fullName" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Volledige Naam</FormLabel>
+                  <FormControl><Input {...field} data-testid="input-edit-fullname" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>E-mail</FormLabel>
+                  <FormControl><Input {...field} type="email" data-testid="input-edit-email" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="role" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rol</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-edit-role"><SelectValue /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="employee">Medewerker</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="admin">Beheerder</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="department" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Afdeling</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-edit-department"><SelectValue placeholder="Selecteer" /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {departments?.map((d) => (
+                        <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="startDate" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Datum in Dienst</FormLabel>
+                <FormControl><Input {...field} type="date" data-testid="input-edit-startdate" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-save-edit">
+              {mutation.isPending ? "Opslaan..." : "Wijzigingen Opslaan"}
+            </Button>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeactivateDialog({
+  user,
+  open,
+  onOpenChange,
+}: {
+  user: User;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { toast } = useToast();
+  const form = useForm<z.infer<typeof deactivateFormSchema>>({
+    resolver: zodResolver(deactivateFormSchema),
+    defaultValues: {
+      endDate: new Date().toISOString().split("T")[0],
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: z.infer<typeof deactivateFormSchema>) => {
+      await apiRequest("PATCH", `/api/users/${user.id}`, {
+        active: false,
+        endDate: data.endDate,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ title: `${user.fullName} is nu inactief` });
+      onOpenChange(false);
+    },
+    onError: (err: any) => {
+      toast({ title: "Fout bij deactiveren", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Medewerker Deactiveren</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Vul de datum uit dienst in voor <span className="font-medium text-foreground">{user.fullName}</span>.
+        </p>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+            <FormField control={form.control} name="endDate" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Datum uit Dienst</FormLabel>
+                <FormControl><Input {...field} type="date" data-testid="input-end-date" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <Button type="submit" variant="destructive" className="w-full" disabled={mutation.isPending} data-testid="button-confirm-deactivate">
+              {mutation.isPending ? "Deactiveren..." : "Deactiveren"}
+            </Button>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PersonaliaPage() {
-  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [deactivateUser, setDeactivateUser] = useState<User | null>(null);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -49,11 +244,12 @@ export default function PersonaliaPage() {
     queryKey: ["/api/departments"],
   });
 
-  const form = useForm<z.infer<typeof userFormSchema>>({
+  const createForm = useForm<z.infer<typeof userFormSchema>>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       username: "", password: "", fullName: "", email: "",
       role: "employee", department: "",
+      startDate: new Date().toISOString().split("T")[0],
     },
   });
 
@@ -64,28 +260,35 @@ export default function PersonaliaPage() {
         department: data.department || null,
         avatar: null,
         active: true,
+        endDate: null,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Medewerker aangemaakt" });
-      setOpen(false);
-      form.reset();
+      setCreateOpen(false);
+      createForm.reset();
     },
     onError: (err: any) => {
       toast({ title: "Fout bij aanmaken", description: err.message, variant: "destructive" });
     },
   });
 
-  const deleteMutation = useMutation({
+  const activateMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/users/${id}`);
+      await apiRequest("PATCH", `/api/users/${id}`, {
+        active: true,
+        endDate: null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Medewerker verwijderd" });
+      toast({ title: "Medewerker geactiveerd" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Fout bij activeren", description: err.message, variant: "destructive" });
     },
   });
 
@@ -112,7 +315,7 @@ export default function PersonaliaPage() {
           <p className="text-muted-foreground text-sm">Overzicht van alle medewerkers</p>
         </div>
         {currentUser?.role === "admin" && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-user">
                 <Plus className="h-4 w-4 mr-2" />
@@ -123,17 +326,17 @@ export default function PersonaliaPage() {
               <DialogHeader>
                 <DialogTitle>Nieuwe Medewerker</DialogTitle>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
+              <Form {...createForm}>
+                <form onSubmit={createForm.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="fullName" render={({ field }) => (
+                    <FormField control={createForm.control} name="fullName" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Volledige Naam</FormLabel>
                         <FormControl><Input {...field} data-testid="input-user-fullname" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={form.control} name="email" render={({ field }) => (
+                    <FormField control={createForm.control} name="email" render={({ field }) => (
                       <FormItem>
                         <FormLabel>E-mail</FormLabel>
                         <FormControl><Input {...field} type="email" data-testid="input-user-email" /></FormControl>
@@ -142,14 +345,14 @@ export default function PersonaliaPage() {
                     )} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="username" render={({ field }) => (
+                    <FormField control={createForm.control} name="username" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Gebruikersnaam</FormLabel>
                         <FormControl><Input {...field} data-testid="input-user-username" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={form.control} name="password" render={({ field }) => (
+                    <FormField control={createForm.control} name="password" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Wachtwoord</FormLabel>
                         <FormControl><Input {...field} type="password" data-testid="input-user-password" /></FormControl>
@@ -158,7 +361,7 @@ export default function PersonaliaPage() {
                     )} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="role" render={({ field }) => (
+                    <FormField control={createForm.control} name="role" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Rol</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -174,7 +377,7 @@ export default function PersonaliaPage() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={form.control} name="department" render={({ field }) => (
+                    <FormField control={createForm.control} name="department" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Afdeling</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -191,6 +394,13 @@ export default function PersonaliaPage() {
                       </FormItem>
                     )} />
                   </div>
+                  <FormField control={createForm.control} name="startDate" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Datum in Dienst</FormLabel>
+                      <FormControl><Input {...field} type="date" data-testid="input-user-startdate" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-user">
                     {createMutation.isPending ? "Opslaan..." : "Medewerker Opslaan"}
                   </Button>
@@ -200,6 +410,23 @@ export default function PersonaliaPage() {
           </Dialog>
         )}
       </div>
+
+      {editUser && (
+        <EditDialog
+          user={editUser}
+          departments={departments}
+          open={!!editUser}
+          onOpenChange={(open) => { if (!open) setEditUser(null); }}
+        />
+      )}
+
+      {deactivateUser && (
+        <DeactivateDialog
+          user={deactivateUser}
+          open={!!deactivateUser}
+          onOpenChange={(open) => { if (!open) setDeactivateUser(null); }}
+        />
+      )}
 
       {(!users || users.length === 0) ? (
         <Card>
@@ -219,15 +446,16 @@ export default function PersonaliaPage() {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Afdeling</TableHead>
                     <TableHead>Rol</TableHead>
+                    <TableHead>In Dienst</TableHead>
                     <TableHead>Status</TableHead>
-                    {currentUser?.role === "admin" && <TableHead className="w-12"></TableHead>}
+                    {currentUser?.role === "admin" && <TableHead className="text-right">Acties</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((u) => {
                     const initials = u.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
                     return (
-                      <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
+                      <TableRow key={u.id} className={!u.active ? "opacity-60" : ""} data-testid={`row-user-${u.id}`}>
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
@@ -261,17 +489,61 @@ export default function PersonaliaPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={u.active ? "default" : "outline"} className="text-xs">
+                          <div className="flex flex-col gap-0.5">
+                            {u.startDate ? (
+                              <span className="flex items-center gap-1 text-sm">
+                                <CalendarDays className="h-3 w-3 text-muted-foreground" />
+                                {format(new Date(u.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                            {u.endDate && (
+                              <span className="text-xs text-muted-foreground">
+                                Uit: {format(new Date(u.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={u.active ? "default" : "outline"} className="text-xs" data-testid={`status-user-${u.id}`}>
                             {u.active ? "Actief" : "Inactief"}
                           </Badge>
                         </TableCell>
                         {currentUser?.role === "admin" && (
                           <TableCell>
-                            {u.id !== currentUser.id && (
-                              <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(u.id)} data-testid={`button-delete-user-${u.id}`}>
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setEditUser(u)}
+                                data-testid={`button-edit-user-${u.id}`}
+                              >
+                                <Pencil className="h-4 w-4 text-muted-foreground" />
                               </Button>
-                            )}
+                              {u.id !== currentUser.id && (
+                                u.active ? (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => setDeactivateUser(u)}
+                                    data-testid={`button-deactivate-user-${u.id}`}
+                                  >
+                                    <UserX className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => activateMutation.mutate(u.id)}
+                                    disabled={activateMutation.isPending}
+                                    data-testid={`button-activate-user-${u.id}`}
+                                  >
+                                    <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                )
+                              )}
+                            </div>
                           </TableCell>
                         )}
                       </TableRow>

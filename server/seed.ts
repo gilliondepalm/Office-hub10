@@ -24,6 +24,8 @@ export async function seedDatabase() {
     avatar: null,
     active: true,
     permissions: ALL_MODULES,
+    startDate: "2018-03-01",
+    endDate: null,
   });
 
   const manager = await storage.createUser({
@@ -36,6 +38,8 @@ export async function seedDatabase() {
     avatar: null,
     active: true,
     permissions: MANAGER_MODULES,
+    startDate: "2019-06-15",
+    endDate: null,
   });
 
   const emp1 = await storage.createUser({
@@ -48,6 +52,8 @@ export async function seedDatabase() {
     avatar: null,
     active: true,
     permissions: EMPLOYEE_MODULES,
+    startDate: "2021-01-10",
+    endDate: null,
   });
 
   const emp2 = await storage.createUser({
@@ -60,6 +66,8 @@ export async function seedDatabase() {
     avatar: null,
     active: true,
     permissions: EMPLOYEE_MODULES,
+    startDate: "2020-09-01",
+    endDate: null,
   });
 
   const emp3 = await storage.createUser({
@@ -72,6 +80,8 @@ export async function seedDatabase() {
     avatar: null,
     active: true,
     permissions: EMPLOYEE_MODULES,
+    startDate: "2024-11-01",
+    endDate: null,
   });
 
   await storage.createDepartment({ name: "IT", description: "Informatie technologie en systeembeheer", managerId: admin.id });
