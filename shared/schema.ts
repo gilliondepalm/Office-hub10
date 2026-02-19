@@ -81,6 +81,7 @@ export const applications = pgTable("applications", {
   name: text("name").notNull(),
   description: text("description"),
   url: text("url"),
+  path: text("path"),
   icon: text("icon"),
 });
 

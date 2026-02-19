@@ -461,6 +461,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/applications", requireAuth, async (req, res) => {
+    if ((req as any).user.role !== "admin") return res.status(403).json({ message: "Alleen admin" });
     try {
       const parsed = insertApplicationSchema.parse(req.body);
       const app2 = await storage.createApplication(parsed);
@@ -471,6 +472,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/applications/:id", requireAuth, async (req, res) => {
+    if ((req as any).user.role !== "admin") return res.status(403).json({ message: "Alleen admin" });
     try {
       const app2 = await storage.updateApplication(req.params.id, req.body);
       res.json(app2);
@@ -480,6 +482,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/applications/:id", requireAuth, async (req, res) => {
+    if ((req as any).user.role !== "admin") return res.status(403).json({ message: "Alleen admin" });
     await storage.deleteApplication(req.params.id);
     res.json({ message: "Verwijderd" });
   });
@@ -490,6 +493,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/app-access", requireAuth, async (req, res) => {
+    if ((req as any).user.role !== "admin") return res.status(403).json({ message: "Alleen admin" });
     try {
       const parsed = insertAppAccessSchema.parse(req.body);
       const access = await storage.createAppAccess(parsed);
@@ -500,6 +504,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/app-access/:id", requireAuth, async (req, res) => {
+    if ((req as any).user.role !== "admin") return res.status(403).json({ message: "Alleen admin" });
     await storage.deleteAppAccess(req.params.id);
     res.json({ message: "Verwijderd" });
   });

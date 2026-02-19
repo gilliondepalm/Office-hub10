@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -25,7 +24,7 @@ import {
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, AppWindow, Shield, ExternalLink, Trash2, UserPlus } from "lucide-react";
+import { Plus, AppWindow, ExternalLink, Trash2, UserPlus, FolderOpen, Monitor } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Application, AppAccess, User } from "@shared/schema";
@@ -35,7 +34,7 @@ const appFormSchema = z.object({
   name: z.string().min(1, "Naam is verplicht"),
   description: z.string().optional(),
   url: z.string().optional(),
-  icon: z.string().optional(),
+  path: z.string().optional(),
 });
 
 const accessFormSchema = z.object({
@@ -49,6 +48,7 @@ export default function ApplicatiesPage() {
   const [accessOpen, setAccessOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const { data: applications, isLoading } = useQuery<Application[]>({
     queryKey: ["/api/applications"],
@@ -64,7 +64,7 @@ export default function ApplicatiesPage() {
 
   const appForm = useForm<z.infer<typeof appFormSchema>>({
     resolver: zodResolver(appFormSchema),
-    defaultValues: { name: "", description: "", url: "", icon: "" },
+    defaultValues: { name: "", description: "", url: "", path: "" },
   });
 
   const accessForm = useForm<z.infer<typeof accessFormSchema>>({
@@ -78,7 +78,8 @@ export default function ApplicatiesPage() {
         ...data,
         description: data.description || null,
         url: data.url || null,
-        icon: data.icon || null,
+        path: data.path || null,
+        icon: null,
       });
     },
     onSuccess: () => {
@@ -128,11 +129,26 @@ export default function ApplicatiesPage() {
     },
   });
 
-  const accessLevelLabels: Record<string, string> = {
-    read: "Lezen",
-    write: "Schrijven",
-    admin: "Beheerder",
-  };
+  const myAccesses = accesses?.filter(a => a.userId === user?.id) || [];
+  const myApps = myAccesses.map(a => {
+    const app = applications?.find(ap => ap.id === a.applicationId);
+    return app ? { ...app, accessId: a.id, accessLevel: a.accessLevel } : null;
+  }).filter(Boolean) as (Application & { accessId: string; accessLevel: string })[];
+
+  const userGroups = (() => {
+    if (!accesses || !users || !applications) return [];
+    const grouped = new Map<string, { user: User; apps: (Application & { accessId: string; accessLevel: string })[] }>();
+    for (const access of accesses) {
+      const u = users.find(usr => usr.id === access.userId);
+      const app = applications.find(a => a.id === access.applicationId);
+      if (!u || !app) continue;
+      if (!grouped.has(u.id)) {
+        grouped.set(u.id, { user: u, apps: [] });
+      }
+      grouped.get(u.id)!.apps.push({ ...app, accessId: access.id, accessLevel: access.accessLevel });
+    }
+    return Array.from(grouped.values()).sort((a, b) => a.user.fullName.localeCompare(b.user.fullName, "nl"));
+  })();
 
   if (isLoading) {
     return (
@@ -148,20 +164,22 @@ export default function ApplicatiesPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-applicaties-title">Applicaties</h1>
-          <p className="text-muted-foreground text-sm">Beheer applicaties en toegangsrechten</p>
+          <p className="text-muted-foreground text-sm">
+            {isAdmin ? "Beheer applicaties en wijs ze toe aan gebruikers" : "Uw beschikbare applicaties op het netwerk"}
+          </p>
         </div>
-        {user?.role === "admin" && (
+        {isAdmin && (
           <div className="flex gap-2 flex-wrap">
             <Dialog open={accessOpen} onOpenChange={setAccessOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="button-grant-access">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Toegang Verlenen
+                  Toewijzen aan Gebruiker
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Toegang Verlenen</DialogTitle>
+                  <DialogTitle>Applicatie Toewijzen</DialogTitle>
                 </DialogHeader>
                 <Form {...accessForm}>
                   <form onSubmit={accessForm.handleSubmit((d) => grantAccessMutation.mutate(d))} className="space-y-4">
@@ -171,7 +189,7 @@ export default function ApplicatiesPage() {
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger data-testid="select-access-user"><SelectValue placeholder="Selecteer gebruiker" /></SelectTrigger></FormControl>
                           <SelectContent>
-                            {users?.map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>)}
+                            {users?.sort((a, b) => a.fullName.localeCompare(b.fullName, "nl")).map((u) => <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>)}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -189,22 +207,8 @@ export default function ApplicatiesPage() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={accessForm.control} name="accessLevel" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Toegangsniveau</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger data-testid="select-access-level"><SelectValue /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="read">Lezen</SelectItem>
-                            <SelectItem value="write">Schrijven</SelectItem>
-                            <SelectItem value="admin">Beheerder</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
                     <Button type="submit" className="w-full" disabled={grantAccessMutation.isPending} data-testid="button-submit-access">
-                      {grantAccessMutation.isPending ? "Verlenen..." : "Toegang Verlenen"}
+                      {grantAccessMutation.isPending ? "Toewijzen..." : "Toewijzen"}
                     </Button>
                   </form>
                 </Form>
@@ -226,21 +230,28 @@ export default function ApplicatiesPage() {
                     <FormField control={appForm.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Naam</FormLabel>
-                        <FormControl><Input {...field} data-testid="input-app-name" /></FormControl>
+                        <FormControl><Input {...field} placeholder="Bijv. SAP, Excel Rapportage" data-testid="input-app-name" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={appForm.control} name="description" render={({ field }) => (
+                    <FormField control={appForm.control} name="path" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Beschrijving</FormLabel>
-                        <FormControl><Textarea {...field} data-testid="input-app-description" /></FormControl>
+                        <FormLabel>Netwerkpad</FormLabel>
+                        <FormControl><Input {...field} placeholder="Bijv. \\server\apps\programma.exe" data-testid="input-app-path" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={appForm.control} name="url" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>URL</FormLabel>
-                        <FormControl><Input {...field} placeholder="https://..." data-testid="input-app-url" /></FormControl>
+                        <FormLabel>URL (optioneel)</FormLabel>
+                        <FormControl><Input {...field} placeholder="Bijv. http://192.168.1.10:8080" data-testid="input-app-url" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={appForm.control} name="description" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Beschrijving (optioneel)</FormLabel>
+                        <FormControl><Textarea {...field} placeholder="Korte beschrijving van de applicatie" data-testid="input-app-description" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -255,118 +266,192 @@ export default function ApplicatiesPage() {
         )}
       </div>
 
-      <Tabs defaultValue="apps">
-        <TabsList>
-          <TabsTrigger value="apps" data-testid="tab-apps">Applicaties</TabsTrigger>
-          <TabsTrigger value="access" data-testid="tab-access">Toegangsrechten</TabsTrigger>
-        </TabsList>
+      {isAdmin ? (
+        <Tabs defaultValue="per-user">
+          <TabsList>
+            <TabsTrigger value="per-user" data-testid="tab-per-user">Per Gebruiker</TabsTrigger>
+            <TabsTrigger value="apps" data-testid="tab-apps">Alle Applicaties</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="apps" className="mt-4">
-          {(!applications || applications.length === 0) ? (
+          <TabsContent value="per-user" className="mt-4">
+            {userGroups.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <UserPlus className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nog geen applicaties toegewezen</p>
+                  <p className="text-muted-foreground text-xs mt-1">Gebruik "Toewijzen aan Gebruiker" om applicaties toe te wijzen</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {userGroups.map(({ user: u, apps }) => (
+                  <Card key={u.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary">
+                          <Monitor className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-sm" data-testid={`text-user-apps-${u.id}`}>{u.fullName}</h3>
+                          <p className="text-xs text-muted-foreground">{u.department || "Geen afdeling"} - {u.role}</p>
+                        </div>
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Applicatie</TableHead>
+                            <TableHead>Netwerkpad</TableHead>
+                            <TableHead>URL</TableHead>
+                            <TableHead className="w-12"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {apps.map(app => (
+                            <TableRow key={app.accessId} data-testid={`row-user-app-${app.accessId}`}>
+                              <TableCell className="font-medium text-sm">{app.name}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground font-mono">
+                                {app.path || "-"}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {app.url ? (
+                                  <a href={app.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1" data-testid={`link-app-url-${app.id}`}>
+                                    <ExternalLink className="h-3 w-3" />
+                                    {app.url}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <Button size="icon" variant="ghost" onClick={() => revokeAccessMutation.mutate(app.accessId)} data-testid={`button-revoke-${app.accessId}`}>
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="apps" className="mt-4">
+            {(!applications || applications.length === 0) ? (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <AppWindow className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Geen applicaties aangemaakt</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Naam</TableHead>
+                          <TableHead>Netwerkpad</TableHead>
+                          <TableHead>URL</TableHead>
+                          <TableHead>Beschrijving</TableHead>
+                          <TableHead>Gebruikers</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {applications.map(app => {
+                          const appAccessCount = accesses?.filter(a => a.applicationId === app.id).length || 0;
+                          return (
+                            <TableRow key={app.id} data-testid={`row-app-${app.id}`}>
+                              <TableCell className="font-medium text-sm">{app.name}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground font-mono">{app.path || "-"}</TableCell>
+                              <TableCell className="text-sm">
+                                {app.url ? (
+                                  <a href={app.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                                    <ExternalLink className="h-3 w-3" />
+                                    Openen
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground max-w-48 truncate">{app.description || "-"}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs">{appAccessCount}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Button size="icon" variant="ghost" onClick={() => deleteAppMutation.mutate(app.id)} data-testid={`button-delete-app-${app.id}`}>
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div>
+          {myApps.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center py-12">
                 <AppWindow className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Geen applicaties gevonden</p>
+                <p className="text-muted-foreground">U heeft nog geen applicaties toegewezen gekregen</p>
+                <p className="text-muted-foreground text-xs mt-1">Neem contact op met uw systeembeheerder</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {applications.map((app) => {
-                const appAccessCount = accesses?.filter((a) => a.applicationId === app.id).length || 0;
-                return (
-                  <Card key={app.id} className="hover-elevate">
-                    <CardContent className="p-5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-                            <AppWindow className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-sm" data-testid={`text-app-${app.id}`}>{app.name}</h3>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                              <Shield className="h-3 w-3" />
-                              {appAccessCount} {appAccessCount === 1 ? "gebruiker" : "gebruikers"}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-1">
-                          {app.url && (
-                            <Button size="icon" variant="ghost" asChild>
-                              <a href={app.url} target="_blank" rel="noopener noreferrer" data-testid={`link-app-${app.id}`}>
-                                <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                              </a>
-                            </Button>
-                          )}
-                          {user?.role === "admin" && (
-                            <Button size="icon" variant="ghost" onClick={() => deleteAppMutation.mutate(app.id)} data-testid={`button-delete-app-${app.id}`}>
-                              <Trash2 className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          )}
-                        </div>
+              {myApps.map(app => (
+                <Card key={app.accessId} className="hover-elevate" data-testid={`card-my-app-${app.id}`}>
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <AppWindow className="h-5 w-5" />
                       </div>
-                      {app.description && (
-                        <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{app.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-sm truncate">{app.name}</h3>
+                        {app.description && (
+                          <p className="text-xs text-muted-foreground truncate">{app.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    {app.path && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <FolderOpen className="h-3 w-3 shrink-0" />
+                        <span className="font-mono truncate">{app.path}</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2 flex-wrap">
+                      {app.url && (
+                        <Button size="sm" variant="default" asChild>
+                          <a href={app.url} target="_blank" rel="noopener noreferrer" data-testid={`button-launch-url-${app.id}`}>
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Openen
+                          </a>
+                        </Button>
                       )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      {app.path && (
+                        <Button size="sm" variant="outline" onClick={() => {
+                          navigator.clipboard.writeText(app.path!);
+                          toast({ title: "Pad gekopieerd", description: app.path! });
+                        }} data-testid={`button-copy-path-${app.id}`}>
+                          <FolderOpen className="h-3 w-3 mr-1" />
+                          Pad Kopiëren
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="access" className="mt-4">
-          {(!accesses || accesses.length === 0) ? (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <Shield className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Geen toegangsrechten geconfigureerd</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Gebruiker</TableHead>
-                        <TableHead>Applicatie</TableHead>
-                        <TableHead>Toegangsniveau</TableHead>
-                        {user?.role === "admin" && <TableHead className="w-12"></TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {accesses.map((access) => (
-                        <TableRow key={access.id} data-testid={`row-access-${access.id}`}>
-                          <TableCell className="font-medium text-sm">
-                            {(access as any).userName || "Gebruiker"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {(access as any).appName || "Applicatie"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="text-xs">
-                              {accessLevelLabels[access.accessLevel] || access.accessLevel}
-                            </Badge>
-                          </TableCell>
-                          {user?.role === "admin" && (
-                            <TableCell>
-                              <Button size="icon" variant="ghost" onClick={() => revokeAccessMutation.mutate(access.id)} data-testid={`button-revoke-access-${access.id}`}>
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }
