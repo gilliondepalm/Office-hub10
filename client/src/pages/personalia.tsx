@@ -804,20 +804,22 @@ function InlinePositionHistory({ user }: { user: User }) {
                   <p className="text-sm font-medium">{entry.functionTitle}</p>
                   {!entry.endDate && <Badge variant="default" className="text-xs">Huidig</Badge>}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  <CalendarDays className="h-3 w-3 inline mr-1" />
-                  {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
-                  {" - "}
-                  {entry.endDate
-                    ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
-                    : "heden"}
-                </p>
-                {entry.salary && (
-                  <p className="text-xs font-medium mt-1 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                    {new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(entry.salary)} /mnd
-                  </p>
-                )}
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <CalendarDays className="h-3 w-3" />
+                    {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                    {" - "}
+                    {entry.endDate
+                      ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                      : "heden"}
+                  </span>
+                  {entry.salary && (
+                    <span className="text-xs font-medium flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                      {new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(entry.salary)} /mnd
+                    </span>
+                  )}
+                </div>
                 {entry.notes && <p className="text-xs text-muted-foreground mt-1">{entry.notes}</p>}
               </div>
             ))}
@@ -1150,12 +1152,6 @@ export default function PersonaliaPage() {
 
           return (
             <div className="space-y-6">
-              {currentUser?.role !== "admin" && currentUser && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InlinePositionHistory user={currentUser as User} />
-                  <InlinePersonalDevelopment user={currentUser as User} />
-                </div>
-              )}
               {sortedDeptNames.map((deptName) => (
                 <div key={deptName}>
                   <div className="flex items-center gap-2 mb-3">
@@ -1307,6 +1303,12 @@ export default function PersonaliaPage() {
                   </Card>
                 </div>
               ))}
+              {currentUser?.role !== "admin" && currentUser && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InlinePositionHistory user={currentUser as User} />
+                  <InlinePersonalDevelopment user={currentUser as User} />
+                </div>
+              )}
             </div>
           );
         }
