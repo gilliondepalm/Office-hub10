@@ -1,40 +1,78 @@
-# Kantoor Dashboard - Lokaal Draaien
+# Kantoor Dashboard - Lokaal Installeren
 
-## Vereiste Software
+## Vereisten
 
-1. **Node.js** (versie 20 of nieuwer)
-   - Download van [nodejs.org](https://nodejs.org)
-   - Dit installeert ook npm (de pakketbeheerder)
+Installeer de volgende software op uw computer:
 
-2. **PostgreSQL** (versie 14 of nieuwer)
-   - Download van [postgresql.org](https://www.postgresql.org/download/)
-   - Maak na installatie een database aan (bijv. `kantoor_dashboard`)
+- **Node.js** (versie 20 of hoger) - https://nodejs.org
+- **PostgreSQL** (versie 14 of hoger) - https://www.postgresql.org/download/
+- **Git** (optioneel, om de code van GitHub te klonen)
 
-## Omgevingsvariabelen
+## Stap 1: Code ophalen
 
-Maak een `.env` bestand aan in de hoofdmap van het project, of stel deze variabelen in via je terminal:
+```bash
+git clone https://github.com/gilliondepalm/Office-hub1.git
+cd Office-hub1
+```
 
-| Variabele | Doel | Voorbeeld |
-|---|---|---|
-| `DATABASE_URL` | Verbindingsstring voor je PostgreSQL database | `postgresql://gebruiker:wachtwoord@localhost:5432/kantoor_dashboard` |
-| `SESSION_SECRET` | Willekeurige tekst om sessies te beveiligen | `mijn-geheime-sleutel-12345` |
+## Stap 2: Dependencies installeren
 
-## Installatie & Opstarten
+```bash
+npm install
+```
 
-1. Kopieer alle projectbestanden naar een map op je computer
-2. Open een terminal in die map
-3. Voer uit: `npm install` — downloadt alle benodigde bibliotheken
-4. Voer uit: `npm run db:push` — maakt de databasetabellen aan
-5. Voer uit: `npm run dev` — start de applicatie in ontwikkelmodus
+Dit installeert automatisch alle benodigde packages, waaronder:
+- Express (webserver)
+- React + Vite (frontend)
+- Drizzle ORM (database)
+- bcryptjs (wachtwoorden)
+- connect-pg-simple (sessies)
+- TanStack React Query (data fetching)
+- Tailwind CSS + shadcn/ui (styling)
 
-De applicatie is dan beschikbaar op **http://localhost:5000**
+## Stap 3: PostgreSQL database aanmaken
+
+Open een terminal of command prompt en maak een nieuwe database aan:
+
+```bash
+createdb kantoor_dashboard
+```
+
+## Stap 4: Omgevingsvariabelen instellen
+
+Maak een `.env` bestand aan in de hoofdmap van het project met de volgende inhoud:
+
+```
+DATABASE_URL=postgresql://gebruikersnaam:wachtwoord@localhost:5432/kantoor_dashboard
+SESSION_SECRET=een_willekeurige_lange_tekst_hier
+```
+
+Vervang `gebruikersnaam` en `wachtwoord` door uw PostgreSQL-inloggegevens.
+
+## Stap 5: Database tabellen aanmaken
+
+```bash
+npm run db:push
+```
+
+Dit maakt automatisch alle benodigde tabellen aan in de database.
+
+## Stap 6: Applicatie starten
+
+```bash
+npm run dev
+```
+
+De applicatie draait nu op **http://localhost:5000**
 
 ## Productie
 
-1. Voer uit: `npm run build` — maakt een geoptimaliseerde versie
-2. Voer uit: `npm start` — draait de productieversie
+Voor een geoptimaliseerde versie:
 
-## Overzicht Commando's
+1. `npm run build` — maakt een productieversie
+2. `npm start` — draait de productieversie
+
+## Overzicht commando's
 
 | Commando | Wat het doet |
 |---|---|
@@ -44,18 +82,28 @@ De applicatie is dan beschikbaar op **http://localhost:5000**
 | `npm run build` | Maakt een productieversie |
 | `npm start` | Draait de productieversie |
 
-## Standaard Inloggegevens
+## Inloggegevens
 
-De app vult de database automatisch met voorbeelddata bij de eerste start. Je kunt inloggen met:
+Bij de eerste keer starten wordt automatisch voorbeelddata aangemaakt. U kunt inloggen met:
 
 | Gebruikersnaam | Wachtwoord | Rol |
 |---|---|---|
 | admin | admin123 | Beheerder (volledige toegang) |
 | manager | user123 | Manager |
+| diana | user123 | Manager |
 | pieter | user123 | Medewerker |
 | sophie | user123 | Medewerker |
 | thomas | user123 | Medewerker |
+| lisa | user123 | Medewerker |
+| kevin | user123 | Medewerker |
+| annemarie | user123 | Medewerker |
+| ricardo | user123 | Medewerker |
 
-## Opmerking
+## Belangrijke opmerkingen
 
-Het bestand `vite.config.ts` bevat enkele Replit-specifieke plugins (dev banner, cartographer). Deze worden alleen geladen op het Replit-platform en worden lokaal automatisch overgeslagen — ze veroorzaken geen problemen.
+- De applicatie draait op **poort 5000** (frontend en backend samen)
+- De PostgreSQL database moet draaien voordat u de applicatie start
+- Alle database-tabellen worden automatisch aangemaakt via `npm run db:push`
+- Voorbeelddata (gebruikers, afdelingen, evenementen, etc.) wordt automatisch geladen bij de eerste start
+- Het `file:///` protocol voor lokale documenten (zoals de Registration PDF onder Wetgeving) werkt alleen wanneer de app lokaal draait, niet vanuit Replit
+- Het bestand `vite.config.ts` bevat enkele Replit-specifieke plugins die lokaal automatisch worden overgeslagen en geen problemen veroorzaken
