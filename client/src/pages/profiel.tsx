@@ -218,7 +218,7 @@ export default function ProfielPage() {
                   {entry.salary && (
                     <span className="text-sm font-medium shrink-0 flex items-center gap-1">
                       <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                      {new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(entry.salary)} /mnd
+                      XCG {new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 }).format(entry.salary)} /mnd
                     </span>
                   )}
                 </div>
