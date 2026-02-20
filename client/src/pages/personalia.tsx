@@ -364,7 +364,7 @@ function PositionHistoryDialog({
 
   const formatCurrency = (amount: number | null) => {
     if (!amount) return "-";
-    return new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(amount);
+    return "XCG " + new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 }).format(amount);
   };
 
   return (
@@ -816,7 +816,7 @@ function InlinePositionHistory({ user }: { user: User }) {
                   {entry.salary && (
                     <span className="text-xs font-medium flex items-center gap-1">
                       <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                      {new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(entry.salary)} /mnd
+                      XCG {new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 }).format(entry.salary)} /mnd
                     </span>
                   )}
                 </div>
