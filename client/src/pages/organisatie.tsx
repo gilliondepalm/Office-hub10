@@ -51,7 +51,7 @@ const instructionFormSchema = z.object({
 
 const legislationFormSchema = z.object({
   title: z.string().min(1, "Titel is verplicht"),
-  url: z.string().url("Geldige URL verplicht"),
+  url: z.string().min(1, "Pad of URL is verplicht"),
   description: z.string().optional(),
   category: z.string().min(1, "Categorie is verplicht"),
 });
@@ -852,8 +852,8 @@ function WetgevingTab() {
                   )} />
                   <FormField control={form.control} name="url" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>URL</FormLabel>
-                      <FormControl><Input {...field} placeholder="https://..." data-testid="input-legislation-url" /></FormControl>
+                      <FormLabel>Document pad of URL</FormLabel>
+                      <FormControl><Input {...field} placeholder="file:///C:/pad/naar/document.pdf of https://..." data-testid="input-legislation-url" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -912,17 +912,33 @@ function WetgevingTab() {
               <div className="space-y-3">
                 {catLinks.map((link) => (
                   <div key={link.id} className="flex items-start justify-between gap-3 group" data-testid={`legislation-${link.id}`}>
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => {
+                        const url = link.url;
+                        if (url.startsWith("file:///") || url.startsWith("\\\\") || /^[A-Za-z]:\\/.test(url)) {
+                          const filePath = url.startsWith("file:///") ? url : "file:///" + url.replace(/\\/g, "/");
+                          const opened = window.open(filePath, "_blank");
+                          if (!opened) {
+                            const a = document.createElement("a");
+                            a.href = filePath;
+                            a.target = "_blank";
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }
+                        } else {
+                          window.open(url, "_blank", "noopener,noreferrer");
+                        }
+                      }}
+                    >
+                      <span
                         className="text-sm font-medium hover:underline flex items-center gap-1"
                         data-testid={`link-legislation-${link.id}`}
                       >
                         {link.title}
                         <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
+                      </span>
                       {link.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{link.description}</p>
                       )}
@@ -932,7 +948,7 @@ function WetgevingTab() {
                         size="icon"
                         variant="ghost"
                         className="shrink-0 invisible group-hover:visible"
-                        onClick={() => deleteMutation.mutate(link.id)}
+                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(link.id); }}
                         data-testid={`button-delete-legislation-${link.id}`}
                       >
                         <Trash2 className="h-3 w-3 text-muted-foreground" />
