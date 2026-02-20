@@ -106,6 +106,16 @@ export async function registerRoutes(
   }
 
   const express = await import("express");
+
+  app.get("/uploads/public/:filename", (req, res) => {
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
+    const filePath = path.join(uploadsDir, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Bestand niet gevonden" });
+    }
+    res.sendFile(filePath);
+  });
+
   app.use("/uploads", requireAuth, express.default.static(uploadsDir));
 
   app.post("/api/upload/pdf", requireAuth, uploadPdf.single("pdf"), (req: any, res) => {
@@ -792,9 +802,20 @@ export async function registerRoutes(
     res.json({ message: "Verwijderd" });
   });
 
+  const publicSettingKeys = ["login_photo"];
+  const authSettingKeys = ["dashboard_photo"];
+
+  app.get("/api/site-settings/public/:key", async (req, res) => {
+    if (!publicSettingKeys.includes(req.params.key)) {
+      return res.status(404).json({ message: "Instelling niet gevonden" });
+    }
+    const value = await storage.getSiteSetting(req.params.key);
+    res.json({ value });
+  });
+
   app.get("/api/site-settings/:key", requireAuth, async (req, res) => {
-    const allowedKeys = ["dashboard_photo"];
-    if (!allowedKeys.includes(req.params.key)) {
+    const allKeys = [...publicSettingKeys, ...authSettingKeys];
+    if (!allKeys.includes(req.params.key)) {
       return res.status(404).json({ message: "Instelling niet gevonden" });
     }
     const value = await storage.getSiteSetting(req.params.key);
@@ -813,6 +834,24 @@ export async function registerRoutes(
       }
       const photoUrl = `/uploads/${req.file.filename}`;
       await storage.setSiteSetting("dashboard_photo", photoUrl);
+      res.json({ value: photoUrl });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Upload mislukt" });
+    }
+  });
+
+  app.post("/api/site-settings/login-photo", requireAuth, uploadImage.single("photo"), async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "Geen afbeelding geüpload" });
+      }
+      const photoUrl = `/uploads/public/${req.file.filename}`;
+      await storage.setSiteSetting("login_photo", photoUrl);
       res.json({ value: photoUrl });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Upload mislukt" });

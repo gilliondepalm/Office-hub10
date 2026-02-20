@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
 import {
   Avatar, AvatarFallback,
 } from "@/components/ui/avatar";
-import { Shield, Settings, Save, Users } from "lucide-react";
+import { Shield, Settings, Save, Users, Camera, ImageIcon } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
@@ -121,10 +121,49 @@ function PermissionsDialog({
 
 export default function BeheerPage() {
   const [editUser, setEditUser] = useState<SafeUser | null>(null);
+  const loginPhotoInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const { data: allUsers, isLoading } = useQuery<SafeUser[]>({
     queryKey: ["/api/users"],
   });
+
+  const { data: loginPhoto } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/site-settings", "login_photo"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings/login_photo", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const uploadLoginPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch("/api/site-settings/login-photo", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Upload mislukt");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/site-settings", "login_photo"] });
+      toast({ title: "Inlogfoto bijgewerkt", description: "De achtergrondafbeelding van de inlogpagina is gewijzigd." });
+    },
+    onError: () => {
+      toast({ title: "Fout", description: "Het uploaden van de foto is mislukt.", variant: "destructive" });
+    },
+  });
+
+  const handleLoginPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadLoginPhotoMutation.mutate(file);
+    }
+  };
 
   const roleLabels: Record<string, string> = {
     admin: "Beheerder",
@@ -225,6 +264,49 @@ export default function BeheerPage() {
                 </div>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 pb-3">
+          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-semibold text-sm">Inlogpagina Achtergrondafbeelding</h3>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex items-center gap-4">
+            <div className="relative w-48 h-28 rounded-lg overflow-hidden border border-border bg-muted shrink-0">
+              <img
+                src={loginPhoto?.value || "/images/login-hero.jpg"}
+                alt="Inlogpagina achtergrond"
+                className="w-full h-full object-cover"
+                data-testid="img-login-photo-preview"
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Deze afbeelding wordt getoond als achtergrond op de inlogpagina.
+              </p>
+              <input
+                ref={loginPhotoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLoginPhotoChange}
+                data-testid="input-login-photo"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => loginPhotoInputRef.current?.click()}
+                disabled={uploadLoginPhotoMutation.isPending}
+                data-testid="button-change-login-photo"
+              >
+                <Camera className="h-4 w-4" />
+                {uploadLoginPhotoMutation.isPending ? "Uploaden..." : "Foto wijzigen"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

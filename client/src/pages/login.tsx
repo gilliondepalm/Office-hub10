@@ -5,6 +5,7 @@ import { loginSchema } from "@shared/schema";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,15 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
+
+  const { data: loginPhoto } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/site-settings/public", "login_photo"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings/public/login_photo");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -43,9 +53,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img
-          src="/images/login-hero.jpg"
+          src={loginPhoto?.value || "/images/login-hero.jpg"}
           alt="Kantoor"
           className="absolute inset-0 w-full h-full object-cover"
+          data-testid="img-login-photo"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[hsl(152,40%,20%/0.85)] to-[hsl(152,50%,12%/0.9)]" />
         <div className="relative z-10 flex flex-col justify-between p-12 text-white">
