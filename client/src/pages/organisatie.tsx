@@ -816,6 +816,29 @@ function WetgevingTab() {
 
   return (
     <div className="space-y-4">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <a
+            href="file:///C:/Users/g.depalm/Registration_.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 group"
+            data-testid="link-registration-pdf"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm group-hover:underline flex items-center gap-1">
+                Registration Document
+                <ExternalLink className="h-3 w-3" />
+              </h3>
+              <p className="text-xs text-muted-foreground">Klik om het PDF-document te openen</p>
+            </div>
+          </a>
+        </CardContent>
+      </Card>
+
       {isAdmin && (
         <div className="flex justify-end">
           <Dialog open={open} onOpenChange={setOpen}>
