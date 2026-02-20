@@ -300,14 +300,14 @@ export default function VerzuimPage() {
                     <FormField control={form.control} name="startDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Startdatum</FormLabel>
-                        <FormControl><Input type="date" {...field} data-testid="input-absence-startdate" /></FormControl>
+                        <FormControl><Input type="date" {...field} className="[&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-startdate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="endDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Einddatum</FormLabel>
-                        <FormControl><Input type="date" {...field} data-testid="input-absence-enddate" /></FormControl>
+                        <FormControl><Input type="date" {...field} className="[&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-enddate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
