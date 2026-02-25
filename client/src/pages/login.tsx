@@ -166,11 +166,6 @@ export default function LoginPage() {
                   </Button>
                 </form>
               </Form>
-              <div className="mt-6 p-3 rounded-md bg-accent/50 border border-accent">
-                <p className="text-xs text-accent-foreground text-center">
-                  Demo: <strong>admin</strong> / <strong>admin123</strong>
-                </p>
-              </div>
             </CardContent>
           </Card>
         </div>
