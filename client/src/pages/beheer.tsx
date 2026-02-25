@@ -23,6 +23,7 @@ const ALL_MODULES = [
   { key: "organisatie", label: "Organisatie" },
   { key: "personalia", label: "Personalia" },
   { key: "verzuim", label: "Verzuim" },
+  { key: "beloningen", label: "Beloningen" },
   { key: "applicaties", label: "Applicaties" },
   { key: "beheer", label: "Beheer (Admin)" },
 ];
