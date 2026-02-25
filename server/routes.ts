@@ -124,6 +124,8 @@ export async function registerRoutes(
       if (fs.existsSync(filePath)) {
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "inline");
+        res.setHeader("X-Frame-Options", "SAMEORIGIN");
+        res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
         return res.sendFile(filePath);
       }
     }

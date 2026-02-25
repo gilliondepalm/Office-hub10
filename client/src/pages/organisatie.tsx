@@ -968,27 +968,48 @@ function WetgevingTab() {
   }
 
   if (viewingPdf) {
+    const pdfSrc = viewingPdf.pdfUrl || viewingPdf.url || "";
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setViewingPdf(null)} data-testid="button-back-legislation">
-            <ChevronRight className="h-4 w-4 rotate-180 mr-1" />
-            Terug
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setViewingPdf(null)} data-testid="button-back-legislation">
+              <ChevronRight className="h-4 w-4 rotate-180 mr-1" />
+              Terug
+            </Button>
+            <h3 className="font-semibold text-lg">{viewingPdf.title}</h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(pdfSrc, "_blank")}
+            data-testid="button-open-pdf-newtab"
+          >
+            <ExternalLink className="h-4 w-4 mr-1" />
+            Openen in nieuw tabblad
           </Button>
-          <h3 className="font-semibold text-lg">{viewingPdf.title}</h3>
         </div>
         {viewingPdf.description && (
           <p className="text-sm text-muted-foreground">{viewingPdf.description}</p>
         )}
         <Card>
           <CardContent className="p-0">
-            <iframe
-              src={viewingPdf.pdfUrl || viewingPdf.url || ""}
-              className="w-full border-0 rounded-lg"
+            <object
+              data={pdfSrc}
+              type="application/pdf"
+              className="w-full rounded-lg"
               style={{ height: "80vh" }}
-              title={viewingPdf.title}
-              data-testid="iframe-legislation-pdf"
-            />
+              data-testid="object-legislation-pdf"
+            >
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <FileText className="h-16 w-16 text-muted-foreground" />
+                <p className="text-muted-foreground">PDF kan niet inline worden weergegeven</p>
+                <Button onClick={() => window.open(pdfSrc, "_blank")} data-testid="button-fallback-open-pdf">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  PDF Openen
+                </Button>
+              </div>
+            </object>
           </CardContent>
         </Card>
       </div>
