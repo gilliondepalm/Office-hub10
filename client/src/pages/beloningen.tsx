@@ -39,7 +39,6 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
     terugblikResultaten: "",
     terugblikKnelpunten: "",
     werkinhoud: "",
-    werkbelasting: "",
     samenwerking: "",
     communicatie: "",
     leidinggeven: "",
@@ -245,17 +244,6 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 placeholder="Hoe ervaart u uw huidige takenpakket?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-werkinhoud"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground print:text-black">Werkbelasting</label>
-              <Textarea
-                value={formData.werkbelasting}
-                onChange={(e) => updateField("werkbelasting", e.target.value)}
-                rows={2}
-                placeholder="Is de werkbelasting passend?"
-                className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
-                data-testid="input-func-werkbelasting"
               />
             </div>
             <div className="space-y-1">
