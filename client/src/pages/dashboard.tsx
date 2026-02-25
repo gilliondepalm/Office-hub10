@@ -201,8 +201,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="p-6 space-y-6">
-        <div className={`grid grid-cols-1 ${isAdmin ? "sm:grid-cols-2" : "sm:grid-cols-1"} gap-4`}>
-          {isAdmin ? (
+        {isAdmin ? (
+          <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
             <Card className="overflow-hidden border border-border/60">
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-4">
@@ -230,18 +230,135 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
-          ) : null}
-          <StatCard
-            title="Afwezigheden"
-            value={isAdmin ? (stats?.activeAbsences || 0) : (absences?.filter(a => a.status === "approved" || a.status === "pending").length || 0)}
-            icon={Clock}
-            description={isAdmin ? `${stats?.pendingAbsences || 0} in afwachting` : `${pendingAbsences.length} in afwachting`}
-            color="text-amber-600 dark:text-amber-400"
-            iconBg="bg-amber-100 dark:bg-amber-900/30"
-          />
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            <StatCard
+              title="Afwezigheden"
+              value={absences?.filter(a => a.status === "approved" || a.status === "pending").length || 0}
+              icon={Clock}
+              description={`${pendingAbsences.length} in afwachting`}
+              color="text-amber-600 dark:text-amber-400"
+              iconBg="bg-amber-100 dark:bg-amber-900/30"
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {isAdmin ? (
+            <Card className="border border-border/60">
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+                    <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="font-semibold text-sm">Afwezigheden Personeel</h3>
+                </div>
+                <Badge variant="secondary" className="text-xs">{(() => { const ya = (absences || []).filter(a => new Date(a.startDate).getFullYear() === currentYear); return ya.length; })()}</Badge>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                {(() => {
+                  const yearAbsences = (absences || []).filter(a => new Date(a.startDate).getFullYear() === currentYear);
+                  const byCat: Record<string, number> = {};
+                  yearAbsences.forEach(a => { byCat[a.type] = (byCat[a.type] || 0) + 1; });
+                  const catLabels: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", bvvd: "Bijzonder verlof", other: "Overig" };
+                  const catOrder = ["sick", "vacation", "bvvd", "personal", "other"];
+                  const cats = catOrder.filter(c => byCat[c]);
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2" data-testid="admin-absence-overview">
+                        <div className="rounded-lg border border-border/60 p-3 col-span-2">
+                          <p className="text-xs text-muted-foreground font-medium">Totaal meldingen personeel {currentYear}</p>
+                          <p className="text-2xl font-bold mt-1">{yearAbsences.length}</p>
+                        </div>
+                        {cats.map(cat => (
+                          <div key={cat} className="rounded-lg border border-border/60 p-2.5" data-testid={`stat-cat-${cat}`}>
+                            <p className="text-xs text-muted-foreground font-medium">{catLabels[cat]}</p>
+                            <p className="text-lg font-bold mt-0.5">{byCat[cat]}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {cats.length === 0 && (
+                        <div className="flex flex-col items-center py-4 text-center">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-2">
+                            <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <p className="text-sm text-muted-foreground">Geen meldingen dit jaar</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border border-border/60">
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+                    <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="font-semibold text-sm">Mijn Afwezigheden</h3>
+                </div>
+                <Badge variant="secondary" className="text-xs">{absences?.length || 0}</Badge>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-border/60 p-3" data-testid="stat-sick-count">
+                    <p className="text-xs text-muted-foreground font-medium">Ziekte meldingen {currentYear}</p>
+                    <p className="text-2xl font-bold mt-1">{myBalance?.sickDays ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 p-3" data-testid="stat-vacation-balance">
+                    <p className="text-xs text-muted-foreground font-medium">Saldo vakantiedagen {currentYear}</p>
+                    <p className="text-2xl font-bold mt-1">{myBalance?.remainingDays ?? 0} <span className="text-sm font-normal text-muted-foreground">/ {myBalance?.totalDays ?? 0}</span></p>
+                  </div>
+                </div>
+                {(absences || []).length === 0 ? (
+                  <div className="flex flex-col items-center py-6 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-3">
+                      <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Geen afwezigheden</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(absences || []).slice(0, 5).map((absence) => {
+                      const statusColors: Record<string, string> = {
+                        pending: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
+                        approved: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
+                        rejected: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+                      };
+                      const statusLabels: Record<string, string> = {
+                        pending: "In afwachting",
+                        approved: "Goedgekeurd",
+                        rejected: "Afgewezen",
+                      };
+                      const typeLabels: Record<string, string> = {
+                        sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", bvvd: "Bijzonder verlof", other: "Overig",
+                      };
+                      return (
+                        <div key={absence.id} className="flex items-center gap-3 p-2.5 rounded-lg hover-elevate" data-testid={`absence-item-${absence.id}`}>
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">{typeLabels[absence.type] || absence.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(absence.startDate), "d MMM", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM", { locale: nl })}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className={`shrink-0 text-xs ${statusColors[absence.status] || ""}`}>
+                            {statusLabels[absence.status] || absence.status}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border border-border/60">
             <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
               <div className="flex items-center gap-2">
@@ -285,108 +402,57 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-
-          <Card className="border border-border/60">
-            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
-                  <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <h3 className="font-semibold text-sm">{isAdmin ? "Afwezigheden Personeel" : "Mijn Afwezigheden"}</h3>
-              </div>
-              <Badge variant="secondary" className="text-xs">{isAdmin ? (() => { const ya = (absences || []).filter(a => new Date(a.startDate).getFullYear() === currentYear); return ya.length; })() : (absences?.length || 0)}</Badge>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-4">
-              {isAdmin ? (() => {
-                const yearAbsences = (absences || []).filter(a => new Date(a.startDate).getFullYear() === currentYear);
-                const byCat: Record<string, number> = {};
-                yearAbsences.forEach(a => { byCat[a.type] = (byCat[a.type] || 0) + 1; });
-                const catLabels: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", bvvd: "Bijzonder verlof", other: "Overig" };
-                const catOrder = ["sick", "vacation", "bvvd", "personal", "other"];
-                const cats = catOrder.filter(c => byCat[c]);
-                return (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2" data-testid="admin-absence-overview">
-                      <div className="rounded-lg border border-border/60 p-3 col-span-2">
-                        <p className="text-xs text-muted-foreground font-medium">Totaal meldingen personeel {currentYear}</p>
-                        <p className="text-2xl font-bold mt-1">{yearAbsences.length}</p>
-                      </div>
-                      {cats.map(cat => (
-                        <div key={cat} className="rounded-lg border border-border/60 p-2.5" data-testid={`stat-cat-${cat}`}>
-                          <p className="text-xs text-muted-foreground font-medium">{catLabels[cat]}</p>
-                          <p className="text-lg font-bold mt-0.5">{byCat[cat]}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {cats.length === 0 && (
-                      <div className="flex flex-col items-center py-4 text-center">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-2">
-                          <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">Geen meldingen dit jaar</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })() : (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-border/60 p-3" data-testid="stat-sick-count">
-                      <p className="text-xs text-muted-foreground font-medium">Ziekte meldingen {currentYear}</p>
-                      <p className="text-2xl font-bold mt-1">{myBalance?.sickDays ?? 0}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 p-3" data-testid="stat-vacation-balance">
-                      <p className="text-xs text-muted-foreground font-medium">Saldo vakantiedagen {currentYear}</p>
-                      <p className="text-2xl font-bold mt-1">{myBalance?.remainingDays ?? 0} <span className="text-sm font-normal text-muted-foreground">/ {myBalance?.totalDays ?? 0}</span></p>
-                    </div>
-                  </div>
-                  {(absences || []).length === 0 ? (
-                    <div className="flex flex-col items-center py-6 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-3">
-                        <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">Geen afwezigheden</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {(absences || []).slice(0, 5).map((absence) => {
-                        const statusColors: Record<string, string> = {
-                          pending: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800",
-                          approved: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800",
-                          rejected: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
-                        };
-                        const statusLabels: Record<string, string> = {
-                          pending: "In afwachting",
-                          approved: "Goedgekeurd",
-                          rejected: "Afgewezen",
-                        };
-                        const typeLabels: Record<string, string> = {
-                          sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", bvvd: "Bijzonder verlof", other: "Overig",
-                        };
-                        return (
-                          <div key={absence.id} className="flex items-center gap-3 p-2.5 rounded-lg hover-elevate" data-testid={`absence-item-${absence.id}`}>
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium">{typeLabels[absence.type] || absence.type}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(absence.startDate), "d MMM", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM", { locale: nl })}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className={`shrink-0 text-xs ${statusColors[absence.status] || ""}`}>
-                              {statusLabels[absence.status] || absence.status}
-                            </Badge>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
         </div>
+
+        {isAdmin && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border border-border/60">
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+                    <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h3 className="font-semibold text-sm">Verzoek in Afwachting</h3>
+                </div>
+                <Badge variant="secondary" className="text-xs">{pendingAbsences.length}</Badge>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {pendingAbsences.length === 0 ? (
+                  <div className="flex flex-col items-center py-6 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-3">
+                      <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Geen openstaande verzoeken</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingAbsences.map((absence) => {
+                      const typeLabels: Record<string, string> = {
+                        sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", bvvd: "Bijzonder verlof", other: "Overig",
+                      };
+                      return (
+                        <div key={absence.id} className="flex items-center gap-3 p-2.5 rounded-lg hover-elevate" data-testid={`pending-absence-${absence.id}`}>
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">{(absence as any).userName || "Medewerker"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {typeLabels[absence.type] || absence.type} - {format(new Date(absence.startDate), "d MMM", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM", { locale: nl })}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="shrink-0 text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+                            In afwachting
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
