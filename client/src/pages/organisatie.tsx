@@ -23,7 +23,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Plus, Building2, Users, Trash2, FileText, ExternalLink,
+  Plus, Building2, Users, Trash2, FileText, ExternalLink, Upload,
   BookOpen, Network, Scale, ChevronRight, ClipboardList, Pencil,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -886,89 +886,61 @@ function CaoInfoTab() {
 }
 
 function WetgevingTab() {
-  const [open, setOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<{ name: string; path: string } | null>(null);
-  const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
-  const [viewingPdf, setViewingPdf] = useState<LegislationLink | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<{ name: string; path: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: links, isLoading } = useQuery<LegislationLink[]>({
-    queryKey: ["/api/legislation"],
+  type WetgevingFile = { name: string; path: string; size: number; modified: string };
+
+  const { data: files, isLoading } = useQuery<WetgevingFile[]>({
+    queryKey: ["/api/uploads/wetgeving"],
   });
 
-  const { data: uploadedFiles } = useQuery<{ name: string; path: string; size: number; modified: string }[]>({
-    queryKey: ["/api/uploads/list"],
-    enabled: fileBrowserOpen,
-  });
-
-  const form = useForm<z.infer<typeof legislationFormSchema>>({
-    resolver: zodResolver(legislationFormSchema),
-    defaultValues: { title: "", url: "", description: "", category: "arbeidsrecht" },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof legislationFormSchema>) => {
-      const res = await fetch("/api/legislation", {
+  const handleUpload = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      toast({ title: "Alleen PDF-bestanden toegestaan", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+      const res = await fetch("/api/uploads/wetgeving", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          url: data.url || "",
-          description: data.description || null,
-          pdfUrl: selectedFile?.path || null,
-        }),
+        body: formData,
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Opslaan mislukt");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/legislation"] });
-      toast({ title: "Wetgeving document toegevoegd" });
-      setOpen(false);
-      form.reset();
-      setSelectedFile(null);
-    },
-    onError: () => {
-      toast({ title: "Fout bij toevoegen", variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/legislation/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/legislation"] });
-      toast({ title: "Document verwijderd" });
-    },
-  });
-
-  const categories = ["arbeidsrecht", "arbeidsomstandigheden", "verlof", "privacy", "medezeggenschap"];
-  const categoryLabels: Record<string, string> = {
-    arbeidsrecht: "Arbeidsrecht",
-    arbeidsomstandigheden: "Arbeidsomstandigheden",
-    verlof: "Verlof & Zorg",
-    privacy: "Privacy & Gegevensbescherming",
-    medezeggenschap: "Medezeggenschap",
-    algemeen: "Algemeen",
+      if (!res.ok) throw new Error("Upload mislukt");
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/wetgeving"] });
+      toast({ title: "Document toegevoegd" });
+    } catch {
+      toast({ title: "Fout bij uploaden", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const groupedLinks = links?.reduce((acc, link) => {
-    const cat = link.category || "algemeen";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(link);
-    return acc;
-  }, {} as Record<string, LegislationLink[]>) || {};
+  const handleDelete = async (filename: string) => {
+    try {
+      const res = await fetch(`/api/uploads/wetgeving/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Verwijderen mislukt");
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/wetgeving"] });
+      toast({ title: "Document verwijderd" });
+    } catch {
+      toast({ title: "Fout bij verwijderen", variant: "destructive" });
+    }
+  };
 
   if (isLoading) {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}</div>;
   }
 
   if (viewingPdf) {
-    const pdfSrc = viewingPdf.pdfUrl || viewingPdf.url || "";
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -977,25 +949,22 @@ function WetgevingTab() {
               <ChevronRight className="h-4 w-4 rotate-180 mr-1" />
               Terug
             </Button>
-            <h3 className="font-semibold text-lg">{viewingPdf.title}</h3>
+            <h3 className="font-semibold text-lg">{viewingPdf.name.replace(/\.pdf$/i, "")}</h3>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open(pdfSrc, "_blank")}
+            onClick={() => window.open(viewingPdf.path, "_blank")}
             data-testid="button-open-pdf-newtab"
           >
             <ExternalLink className="h-4 w-4 mr-1" />
             Openen in nieuw tabblad
           </Button>
         </div>
-        {viewingPdf.description && (
-          <p className="text-sm text-muted-foreground">{viewingPdf.description}</p>
-        )}
         <Card>
           <CardContent className="p-0">
             <object
-              data={pdfSrc}
+              data={viewingPdf.path}
               type="application/pdf"
               className="w-full rounded-lg"
               style={{ height: "80vh" }}
@@ -1004,7 +973,7 @@ function WetgevingTab() {
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <FileText className="h-16 w-16 text-muted-foreground" />
                 <p className="text-muted-foreground">PDF kan niet inline worden weergegeven</p>
-                <Button onClick={() => window.open(pdfSrc, "_blank")} data-testid="button-fallback-open-pdf">
+                <Button onClick={() => window.open(viewingPdf.path, "_blank")} data-testid="button-fallback-open-pdf">
                   <ExternalLink className="h-4 w-4 mr-2" />
                   PDF Openen
                 </Button>
@@ -1020,126 +989,30 @@ function WetgevingTab() {
     <div className="space-y-4">
       {isAdmin && (
         <div className="flex justify-end">
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelectedFile(null); }}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-legislation">
-                <Plus className="h-4 w-4 mr-2" />
-                Nieuw Document
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Wetgeving Document Toevoegen</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
-                  <FormField control={form.control} name="title" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Titel</FormLabel>
-                      <FormControl><Input {...field} data-testid="input-legislation-title" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <div>
-                    <label className="text-sm font-medium">PDF Document</label>
-                    <div className="mt-1.5">
-                      {selectedFile ? (
-                        <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
-                          <FileText className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-sm truncate flex-1">{selectedFile.name}</span>
-                          <Button type="button" size="icon" variant="ghost" onClick={() => setSelectedFile(null)} data-testid="button-remove-legislation-pdf">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => setFileBrowserOpen(true)}
-                          data-testid="button-browse-legislation-pdf"
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Bestand Kiezen
-                        </Button>
-                      )}
-                      <Dialog open={fileBrowserOpen} onOpenChange={setFileBrowserOpen}>
-                        <DialogContent className="max-w-lg">
-                          <DialogHeader>
-                            <DialogTitle>Kies een PDF uit Uploads</DialogTitle>
-                          </DialogHeader>
-                          <div className="max-h-[400px] overflow-y-auto space-y-1">
-                            {!uploadedFiles || uploadedFiles.length === 0 ? (
-                              <p className="text-sm text-muted-foreground text-center py-8">Geen PDF-bestanden gevonden in de uploads map</p>
-                            ) : (
-                              uploadedFiles.map((file) => (
-                                <div
-                                  key={file.name}
-                                  className="flex items-center gap-3 p-2.5 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
-                                  onClick={() => {
-                                    setSelectedFile({ name: file.name, path: file.path });
-                                    setFileBrowserOpen(false);
-                                  }}
-                                  data-testid={`file-pick-${file.name}`}
-                                >
-                                  <FileText className="h-5 w-5 text-primary shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{file.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {(file.size / 1024).toFixed(0)} KB
-                                    </p>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                  <FormField control={form.control} name="url" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Externe URL (optioneel)</FormLabel>
-                      <FormControl><Input {...field} placeholder="https://wetten.overheid.nl/..." data-testid="input-legislation-url" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="description" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Beschrijving</FormLabel>
-                      <FormControl><Textarea {...field} data-testid="input-legislation-description" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categorie</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-legislation-category">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c} value={c}>{categoryLabels[c]}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-legislation">
-                    {createMutation.isPending ? "Opslaan..." : "Document Opslaan"}
-                  </Button>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button
+            onClick={() => document.getElementById("wetgeving-upload-input")?.click()}
+            disabled={uploading}
+            data-testid="button-add-legislation"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {uploading ? "Uploaden..." : "Nieuw Document"}
+          </Button>
+          <input
+            id="wetgeving-upload-input"
+            type="file"
+            className="hidden"
+            accept=".pdf,application/pdf"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file);
+              e.target.value = "";
+            }}
+            data-testid="input-wetgeving-upload"
+          />
         </div>
       )}
 
-      {Object.keys(groupedLinks).length === 0 ? (
+      {!files || files.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12">
             <Scale className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1147,65 +1020,47 @@ function WetgevingTab() {
           </CardContent>
         </Card>
       ) : (
-        Object.entries(groupedLinks).sort(([a], [b]) => a.localeCompare(b)).map(([category, catLinks]) => (
-          <Card key={category}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Scale className="h-4 w-4 text-primary" />
-                {categoryLabels[category] || category}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {catLinks.map((link) => (
-                  <div key={link.id} className="flex items-start justify-between gap-3 group" data-testid={`legislation-${link.id}`}>
-                    <div
-                      className="flex-1 min-w-0 cursor-pointer"
-                      onClick={() => {
-                        if (link.pdfUrl) {
-                          setViewingPdf(link);
-                        } else if (link.url) {
-                          const url = link.url;
-                          if (url.startsWith("/PDF/") || url.startsWith("/uploads/")) {
-                            setViewingPdf(link);
-                          } else if (url.startsWith("file:///") || url.startsWith("\\\\") || /^[A-Za-z]:\\/.test(url)) {
-                            const filePath = url.startsWith("file:///") ? url : "file:///" + url.replace(/\\/g, "/");
-                            window.open(filePath, "_blank");
-                          } else {
-                            window.open(url, "_blank", "noopener,noreferrer");
-                          }
-                        }
-                      }}
-                    >
-                      <span
-                        className="text-sm font-medium hover:underline flex items-center gap-1"
-                        data-testid={`link-legislation-${link.id}`}
-                      >
-                        {link.pdfUrl && <FileText className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        {link.title}
-                        {!link.pdfUrl && link.url && <ExternalLink className="h-3 w-3 shrink-0" />}
-                      </span>
-                      {link.description && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{link.description}</p>
-                      )}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Scale className="h-4 w-4 text-primary" />
+              Documenten ({files.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {files.map((file) => (
+                <div
+                  key={file.name}
+                  className="flex items-center justify-between gap-3 p-2.5 rounded-md group hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => setViewingPdf({ name: file.name, path: file.path })}
+                  data-testid={`legislation-file-${file.name}`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <FileText className="h-5 w-5 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" data-testid={`link-legislation-${file.name}`}>
+                        {file.name.replace(/\.pdf$/i, "")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
-                    {isAdmin && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="shrink-0 invisible group-hover:visible"
-                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(link.id); }}
-                        data-testid={`button-delete-legislation-${link.id}`}
-                      >
-                        <Trash2 className="h-3 w-3 text-muted-foreground" />
-                      </Button>
-                    )}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))
+                  {isAdmin && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="shrink-0 invisible group-hover:visible"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}
+                      data-testid={`button-delete-legislation-${file.name}`}
+                    >
+                      <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

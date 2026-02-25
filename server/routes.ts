@@ -140,6 +140,11 @@ export async function registerRoutes(
     res.json({ pdfUrl });
   });
 
+  const wetgevingDir = path.join(uploadsDir, "Wetgeving");
+  if (!fs.existsSync(wetgevingDir)) {
+    fs.mkdirSync(wetgevingDir, { recursive: true });
+  }
+
   app.get("/api/uploads/list", requireAuth, (_req, res) => {
     try {
       const files = fs.readdirSync(uploadsDir)
@@ -152,6 +157,60 @@ export async function registerRoutes(
       res.json(files);
     } catch {
       res.json([]);
+    }
+  });
+
+  app.get("/api/uploads/wetgeving", requireAuth, (_req, res) => {
+    try {
+      const files = fs.readdirSync(wetgevingDir)
+        .filter((f: string) => f.toLowerCase().endsWith(".pdf"))
+        .map((f: string) => {
+          const stat = fs.statSync(path.join(wetgevingDir, f));
+          return { name: f, path: `/uploads/Wetgeving/${f}`, size: stat.size, modified: stat.mtime };
+        })
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+      res.json(files);
+    } catch {
+      res.json([]);
+    }
+  });
+
+  const wetgevingUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req: any, _file: any, cb: any) => cb(null, wetgevingDir),
+      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+    }),
+    fileFilter: (_req: any, file: any, cb: any) => {
+      if (file.mimetype === "application/pdf") cb(null, true);
+      else cb(new Error("Alleen PDF-bestanden"));
+    },
+  });
+
+  app.post("/api/uploads/wetgeving", requireAuth, wetgevingUpload.single("pdf"), async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Alleen beheerders" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
+    }
+    res.json({ name: req.file.originalname, path: `/uploads/Wetgeving/${req.file.originalname}` });
+  });
+
+  app.delete("/api/uploads/wetgeving/:filename", requireAuth, async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Alleen beheerders" });
+    }
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
+    const filePath = path.join(wetgevingDir, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      res.json({ message: "Verwijderd" });
+    } else {
+      res.status(404).json({ message: "Bestand niet gevonden" });
     }
   });
 
