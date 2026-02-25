@@ -18,7 +18,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import { Plus, Award, Star, TrendingUp } from "lucide-react";
+import { Plus, Award, Star, TrendingUp, ClipboardCheck, UserCheck, Gift } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -34,6 +34,7 @@ const rewardFormSchema = z.object({
 
 export default function BeloningenPage() {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("functionering");
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -87,13 +88,13 @@ export default function BeloningenPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
+    <div className="p-6 space-y-4 overflow-auto h-full">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-beloningen-title">Beloningsysteem</h1>
-          <p className="text-muted-foreground text-sm">Punten toekennen en ranglijst bekijken</p>
+          <h1 className="text-2xl font-bold" data-testid="text-beloningen-title">Beloningen</h1>
+          <p className="text-muted-foreground text-sm">Functionering, beoordeling en beloningsysteem</p>
         </div>
-        {(user?.role === "admin" || user?.role === "manager") && (
+        {activeTab === "beloningsysteem" && (user?.role === "admin" || user?.role === "manager") && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-reward">
@@ -147,81 +148,140 @@ export default function BeloningenPage() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-3">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm">Ranglijst</h3>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {(!leaderboard || leaderboard.length === 0) ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nog geen punten toegekend</p>
-            ) : (
-              <div className="space-y-3">
-                {leaderboard.map((entry, i) => {
-                  const initials = entry.userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-                  return (
-                    <div key={entry.userId} className="flex items-center gap-3 p-2 rounded-md hover-elevate" data-testid={`leaderboard-${entry.userId}`}>
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        i === 0 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                        : i === 1 ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                        : i === 2 ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
-                        : "bg-muted text-muted-foreground"
-                      }`}>
-                        {i + 1}
-                      </div>
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{entry.userName}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 text-yellow-500" />
-                        <span className="text-sm font-bold">{entry.totalPoints}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-3">
-            <Award className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm">Recente Beloningen</h3>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {(!rewards || rewards.length === 0) ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nog geen beloningen</p>
-            ) : (
-              <div className="space-y-3">
-                {rewards.slice(0, 10).map((reward) => (
-                  <div key={reward.id} className="flex items-start gap-3 p-2 rounded-md hover-elevate" data-testid={`reward-item-${reward.id}`}>
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
-                      <Award className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium">{(reward as any).userName || "Medewerker"}</p>
-                        <Badge variant="secondary" className="text-xs gap-1">
-                          <Star className="h-3 w-3" /> +{reward.points}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{reward.reason}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(reward.awardedAt), "d MMM yyyy", { locale: nl })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex gap-1 border-b">
+        <button
+          onClick={() => setActiveTab("functionering")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "functionering"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-functionering"
+        >
+          <ClipboardCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Functionering
+        </button>
+        <button
+          onClick={() => setActiveTab("beoordeling")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "beoordeling"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-beoordeling"
+        >
+          <UserCheck className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Beoordeling
+        </button>
+        <button
+          onClick={() => setActiveTab("beloningsysteem")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "beloningsysteem"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-beloningsysteem"
+        >
+          <Gift className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Beloningsysteem
+        </button>
       </div>
+
+      {activeTab === "functionering" && (
+        <Card>
+          <CardContent className="flex flex-col items-center py-10">
+            <ClipboardCheck className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-muted-foreground text-sm">Functioneringsgesprekken — binnenkort beschikbaar</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "beoordeling" && (
+        <Card>
+          <CardContent className="flex flex-col items-center py-10">
+            <UserCheck className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-muted-foreground text-sm">Beoordelingen — binnenkort beschikbaar</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "beloningsysteem" && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-2 pb-3">
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm">Ranglijst</h3>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {(!leaderboard || leaderboard.length === 0) ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Nog geen punten toegekend</p>
+              ) : (
+                <div className="space-y-3">
+                  {leaderboard.map((entry, i) => {
+                    const initials = entry.userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+                    return (
+                      <div key={entry.userId} className="flex items-center gap-3 p-2 rounded-md hover-elevate" data-testid={`leaderboard-${entry.userId}`}>
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                          i === 0 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                          : i === 1 ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                          : i === 2 ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+                          : "bg-muted text-muted-foreground"
+                        }`}>
+                          {i + 1}
+                        </div>
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{entry.userName}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 text-yellow-500" />
+                          <span className="text-sm font-bold">{entry.totalPoints}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-2 pb-3">
+              <Award className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm">Recente Beloningen</h3>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {(!rewards || rewards.length === 0) ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Nog geen beloningen</p>
+              ) : (
+                <div className="space-y-3">
+                  {rewards.slice(0, 10).map((reward) => (
+                    <div key={reward.id} className="flex items-start gap-3 p-2 rounded-md hover-elevate" data-testid={`reward-item-${reward.id}`}>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+                        <Award className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium">{(reward as any).userName || "Medewerker"}</p>
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Star className="h-3 w-3" /> +{reward.points}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{reward.reason}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(reward.awardedAt), "d MMM yyyy", { locale: nl })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
