@@ -17,7 +17,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 4. **Organisatie** - Department management with tabs: Afdelingen (department cards with manager info), AO-Procedures (admin-managed procedures with step-by-step instructions per department), Organogram (visual org chart), CAO Info (collective labor agreement overview), Wetgeving (legislation links grouped by category)
 5. **Personalia** - Employee directory with roles and departments
 6. **Verzuim** - Absence/leave management with approval workflow, BVVD (bijzonder verlof) with predefined reasons, vacation day balance tracking per employee, admin vacation day allowance management
-7. **Beloningen** - Three sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures per-employee competencies with 1-5 normering descriptions, managers score employees, employees see scores only without normering text), and Beloningssysteem (points-based rewards with leaderboard)
+7. **Beloningen** - Three sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures 5-6 competencies per functie, each scored 1-5 with auto-calculated total and average), and Beloningssysteem (points-based rewards with leaderboard)
 8. **Applicaties** - Application access management with user permissions
 9. **Beheer** - Admin-only user permissions management (toggle module access per user)
 10. **Mijn Profiel** - Personal profile page with own absences, rewards, and access overview
@@ -55,8 +55,9 @@ All routes prefixed with `/api/` and require authentication except login.
 - POST /api/functionering - Create or update review (upsert by userId+year)
 - PUT /api/functionering/:id - Update specific review
 - DELETE /api/functionering/:id - Delete review
-- GET /api/competencies/:userId - Competencies for a user
-- POST /api/competencies - Create competency (admin/manager): { userId, name, norm1-norm5, sortOrder, createdBy }
+- GET /api/competencies - All competencies
+- GET /api/competencies/functie/:functie - Competencies for a function
+- POST /api/competencies - Create competency (admin/manager): { functie, name, sortOrder }
 - PUT /api/competencies/:id - Update competency (admin/manager)
 - DELETE /api/competencies/:id - Delete competency and associated scores (admin/manager)
 - GET /api/beoordeling?year=YYYY - Beoordeling reviews, optionally filtered by year

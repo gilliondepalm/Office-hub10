@@ -852,8 +852,13 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  app.get("/api/competencies/:userId", requireAuth, async (req, res) => {
-    const comps = await storage.getCompetenciesByUser(req.params.userId);
+  app.get("/api/competencies", requireAuth, async (_req, res) => {
+    const comps = await storage.getAllCompetencies();
+    res.json(comps);
+  });
+
+  app.get("/api/competencies/functie/:functie", requireAuth, async (req, res) => {
+    const comps = await storage.getCompetenciesByFunctie(req.params.functie);
     res.json(comps);
   });
 

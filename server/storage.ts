@@ -122,7 +122,8 @@ export interface IStorage {
   updateFunctioneringReview(id: string, data: Partial<InsertFunctioneringReview>): Promise<FunctioneringReview>;
   deleteFunctioneringReview(id: string): Promise<void>;
 
-  getCompetenciesByUser(userId: string): Promise<Competency[]>;
+  getCompetenciesByFunctie(functie: string): Promise<Competency[]>;
+  getAllCompetencies(): Promise<Competency[]>;
   createCompetency(comp: InsertCompetency): Promise<Competency>;
   updateCompetency(id: string, data: Partial<InsertCompetency>): Promise<Competency>;
   deleteCompetency(id: string): Promise<void>;
@@ -729,10 +730,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(functioneringReviews).where(eq(functioneringReviews.id, id));
   }
 
-  async getCompetenciesByUser(userId: string): Promise<Competency[]> {
+  async getCompetenciesByFunctie(functie: string): Promise<Competency[]> {
     return db.select().from(competencies)
-      .where(eq(competencies.userId, userId))
+      .where(eq(competencies.functie, functie))
       .orderBy(competencies.sortOrder);
+  }
+
+  async getAllCompetencies(): Promise<Competency[]> {
+    return db.select().from(competencies).orderBy(competencies.functie, competencies.sortOrder);
   }
 
   async createCompetency(comp: InsertCompetency): Promise<Competency> {

@@ -674,12 +674,13 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   const isAdmin = currentUser?.role === "admin" || currentUser?.role === "manager";
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"overview" | "form" | "competencies">(isAdmin ? "overview" : "overview");
+  const [selectedFunctie, setSelectedFunctie] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"overview" | "form" | "competencies">("overview");
   const [viewingReview, setViewingReview] = useState<BeoordelingReview | null>(null);
-  const [competencyUserId, setCompetencyUserId] = useState<string>("");
-  const [newComp, setNewComp] = useState({ name: "", norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
+  const [compFunctie, setCompFunctie] = useState<string>("");
+  const [newCompName, setNewCompName] = useState("");
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
-  const [editComp, setEditComp] = useState({ name: "", norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
+  const [editCompName, setEditCompName] = useState("");
   const [formScores, setFormScores] = useState<Record<string, { score: number | null; toelichting: string }>>({});
   const [formData, setFormData] = useState({
     beoordelaar: "",
@@ -688,7 +689,6 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
     afspraken: "",
     opmerkingMedewerker: "",
     opmerkingBeoordelaar: "",
-    totalScore: "",
   });
 
   const { data: reviewsByYear, isLoading: loadingReviews } = useQuery<(BeoordelingReview & { userName?: string })[]>({
@@ -706,25 +706,32 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
     enabled: !isAdmin,
   });
 
-  const { data: userCompetencies } = useQuery<Competency[]>({
-    queryKey: ["/api/competencies", selectedUserId],
+  const { data: functieCompetencies } = useQuery<Competency[]>({
+    queryKey: ["/api/competencies/functie", selectedFunctie],
     queryFn: async () => {
-      const res = await fetch(`/api/competencies/${selectedUserId}`, { credentials: "include" });
+      const res = await fetch(`/api/competencies/functie/${encodeURIComponent(selectedFunctie)}`, { credentials: "include" });
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: !!selectedUserId && viewMode === "form",
+    enabled: !!selectedFunctie && viewMode === "form",
   });
 
   const { data: manageCompetencies } = useQuery<Competency[]>({
-    queryKey: ["/api/competencies", competencyUserId],
+    queryKey: ["/api/competencies/functie", compFunctie],
     queryFn: async () => {
-      const res = await fetch(`/api/competencies/${competencyUserId}`, { credentials: "include" });
+      const res = await fetch(`/api/competencies/functie/${encodeURIComponent(compFunctie)}`, { credentials: "include" });
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: !!competencyUserId && viewMode === "competencies",
+    enabled: !!compFunctie && viewMode === "competencies",
   });
+
+  const { data: allCompetencies } = useQuery<Competency[]>({
+    queryKey: ["/api/competencies"],
+    enabled: viewMode === "competencies",
+  });
+
+  const existingFuncties = [...new Set(allCompetencies?.map(c => c.functie) || [])].sort();
 
   const saveMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
@@ -755,8 +762,9 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       await apiRequest("POST", "/api/competencies", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/competencies", competencyUserId] });
-      setNewComp({ name: "", norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/competencies/functie", compFunctie] });
+      queryClient.invalidateQueries({ queryKey: ["/api/competencies"] });
+      setNewCompName("");
       toast({ title: "Competentie toegevoegd" });
     },
     onError: () => {
@@ -769,7 +777,8 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       await apiRequest("PUT", `/api/competencies/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/competencies", competencyUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/competencies/functie", compFunctie] });
+      queryClient.invalidateQueries({ queryKey: ["/api/competencies"] });
       setEditingCompId(null);
       toast({ title: "Competentie bijgewerkt" });
     },
@@ -780,16 +789,23 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       await apiRequest("DELETE", `/api/competencies/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/competencies", competencyUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/competencies/functie", compFunctie] });
+      queryClient.invalidateQueries({ queryKey: ["/api/competencies"] });
       toast({ title: "Competentie verwijderd" });
     },
   });
 
+  const scoreValues = Object.values(formScores).filter(s => s.score !== null).map(s => s.score as number);
+  const totalScore = scoreValues.reduce((a, b) => a + b, 0);
+  const averageScore = scoreValues.length > 0 ? (totalScore / scoreValues.length) : 0;
+
   const handleSelectEmployee = (userId: string) => {
     setSelectedUserId(userId);
+    setFormScores({});
     const emp = users?.find(u => u.id === userId);
     if (emp) {
-      setFormScores({});
+      const functie = emp.role === "admin" ? "Beheerder" : emp.role === "manager" ? "Manager" : "Medewerker";
+      setSelectedFunctie(functie);
     }
   };
 
@@ -809,12 +825,12 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       userId: selectedUserId,
       year,
       medewerker: emp?.fullName || "",
-      functie: emp?.role === "admin" ? "Beheerder" : emp?.role === "manager" ? "Manager" : "Medewerker",
+      functie: selectedFunctie,
       afdeling: emp?.department || "",
       beoordelaar: formData.beoordelaar,
       datum: formData.datum,
       periode: formData.periode,
-      totalScore: formData.totalScore,
+      totalScore: scoreValues.length > 0 ? `Totaal: ${totalScore} / Gemiddeld: ${averageScore.toFixed(1)}` : "",
       afspraken: formData.afspraken,
       opmerkingMedewerker: formData.opmerkingMedewerker,
       opmerkingBeoordelaar: formData.opmerkingBeoordelaar,
@@ -826,6 +842,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   const handleViewReview = async (review: BeoordelingReview) => {
     setViewingReview(review);
     setSelectedUserId(review.userId);
+    setSelectedFunctie(review.functie || "");
     setFormData({
       beoordelaar: review.beoordelaar || "",
       datum: review.datum,
@@ -833,7 +850,6 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       afspraken: review.afspraken || "",
       opmerkingMedewerker: review.opmerkingMedewerker || "",
       opmerkingBeoordelaar: review.opmerkingBeoordelaar || "",
-      totalScore: review.totalScore || "",
     });
     try {
       const res = await fetch(`/api/beoordeling/${review.id}/scores`, { credentials: "include" });
@@ -850,9 +866,10 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   };
 
   const handleNewForm = () => {
-    setFormData({ beoordelaar: "", datum: format(new Date(), "yyyy-MM-dd"), periode: "", afspraken: "", opmerkingMedewerker: "", opmerkingBeoordelaar: "", totalScore: "" });
+    setFormData({ beoordelaar: "", datum: format(new Date(), "yyyy-MM-dd"), periode: "", afspraken: "", opmerkingMedewerker: "", opmerkingBeoordelaar: "" });
     setFormScores({});
     setSelectedUserId("");
+    setSelectedFunctie("");
     setViewingReview(null);
     setViewMode("form");
   };
@@ -862,6 +879,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
     setViewingReview(null);
     setFormScores({});
     setSelectedUserId("");
+    setSelectedFunctie("");
   };
 
   const scoreLabels: Record<number, string> = {
@@ -883,70 +901,67 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
               <ChevronLeft className="h-4 w-4 mr-1" />
               Overzicht
             </Button>
-            <h3 className="font-semibold text-sm">Competenties beheren</h3>
+            <h3 className="font-semibold text-sm">Competenties per functie beheren</h3>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Selecteer medewerker</label>
-          <Select onValueChange={(val) => setCompetencyUserId(val)} value={competencyUserId}>
-            <SelectTrigger data-testid="select-comp-user">
-              <SelectValue placeholder="Kies een medewerker..." />
-            </SelectTrigger>
-            <SelectContent>
-              {users?.filter(u => u.active).map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Card className="border border-border/60">
+          <CardContent className="p-4 space-y-3">
+            <label className="text-xs font-medium text-muted-foreground">Functie</label>
+            <div className="flex gap-2">
+              <Input
+                value={compFunctie}
+                onChange={e => setCompFunctie(e.target.value)}
+                placeholder="Typ een functienaam (bijv. Manager, Medewerker, Beheerder)"
+                data-testid="input-comp-functie"
+              />
+            </div>
+            {existingFuncties.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                <span className="text-xs text-muted-foreground mr-1">Bestaand:</span>
+                {existingFuncties.map(f => (
+                  <Badge
+                    key={f}
+                    variant={compFunctie === f ? "default" : "outline"}
+                    className="text-xs cursor-pointer"
+                    onClick={() => setCompFunctie(f)}
+                  >
+                    {f}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {competencyUserId && (
+        {compFunctie && (
           <>
             {manageCompetencies && manageCompetencies.length > 0 && (
               <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">{manageCompetencies.length} competentie(s) voor "{compFunctie}" (max 6)</p>
                 {manageCompetencies.map((comp, i) => (
                   <Card key={comp.id} className="border border-border/60" data-testid={`comp-card-${comp.id}`}>
-                    <CardContent className="p-4">
+                    <CardContent className="p-3 flex items-center justify-between">
                       {editingCompId === comp.id ? (
-                        <div className="space-y-3">
-                          <Input value={editComp.name} onChange={e => setEditComp(prev => ({ ...prev, name: e.target.value }))} placeholder="Naam competentie" data-testid="input-edit-comp-name" />
-                          {[1, 2, 3, 4, 5].map(n => (
-                            <div key={n} className="flex items-start gap-2">
-                              <Badge variant="outline" className="mt-1 shrink-0 w-8 justify-center">{n}</Badge>
-                              <Input value={(editComp as any)[`norm${n}`]} onChange={e => setEditComp(prev => ({ ...prev, [`norm${n}`]: e.target.value }))} placeholder={`Normering ${n} - ${scoreLabels[n]}`} data-testid={`input-edit-norm-${n}`} />
-                            </div>
-                          ))}
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => updateCompMutation.mutate({ id: comp.id, data: editComp })} data-testid="button-save-edit-comp">Opslaan</Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingCompId(null)}>Annuleren</Button>
-                          </div>
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input value={editCompName} onChange={e => setEditCompName(e.target.value)} className="flex-1" data-testid="input-edit-comp-name" />
+                          <Button size="sm" onClick={() => updateCompMutation.mutate({ id: comp.id, data: { name: editCompName } })} data-testid="button-save-edit-comp">Opslaan</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingCompId(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
                       ) : (
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{i + 1}. {comp.name}</p>
-                            <div className="mt-2 space-y-1">
-                              {[1, 2, 3, 4, 5].map(n => (
-                                <div key={n} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <Badge variant="outline" className="shrink-0 w-6 justify-center text-[10px]">{n}</Badge>
-                                  <span>{(comp as any)[`norm${n}`]}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                        <>
+                          <p className="text-sm font-medium">{i + 1}. {comp.name}</p>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => {
-                              setEditingCompId(comp.id);
-                              setEditComp({ name: comp.name, norm1: comp.norm1, norm2: comp.norm2, norm3: comp.norm3, norm4: comp.norm4, norm5: comp.norm5 });
-                            }} data-testid={`button-edit-comp-${comp.id}`}>
+                            <Button variant="ghost" size="sm" onClick={() => { setEditingCompId(comp.id); setEditCompName(comp.name); }} data-testid={`button-edit-comp-${comp.id}`}>
                               <Settings className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => deleteCompMutation.mutate(comp.id)} data-testid={`button-delete-comp-${comp.id}`}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        </div>
+                        </>
                       )}
                     </CardContent>
                   </Card>
@@ -954,33 +969,35 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
               </div>
             )}
 
-            <Card className="border border-dashed border-border/60">
-              <CardContent className="p-4 space-y-3">
-                <h4 className="text-sm font-medium">Nieuwe competentie toevoegen</h4>
-                <Input value={newComp.name} onChange={e => setNewComp(prev => ({ ...prev, name: e.target.value }))} placeholder="Naam competentie (bijv. Leiderschap)" data-testid="input-new-comp-name" />
-                {[1, 2, 3, 4, 5].map(n => (
-                  <div key={n} className="flex items-start gap-2">
-                    <Badge variant="outline" className="mt-1 shrink-0 w-8 justify-center">{n}</Badge>
-                    <Input value={(newComp as any)[`norm${n}`]} onChange={e => setNewComp(prev => ({ ...prev, [`norm${n}`]: e.target.value }))} placeholder={`Normering ${n} - ${scoreLabels[n]}`} data-testid={`input-new-norm-${n}`} />
+            {(!manageCompetencies || manageCompetencies.length < 6) && (
+              <Card className="border border-dashed border-border/60">
+                <CardContent className="p-4 space-y-3">
+                  <h4 className="text-sm font-medium">Nieuwe competentie toevoegen</h4>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newCompName}
+                      onChange={e => setNewCompName(e.target.value)}
+                      placeholder="Naam competentie (bijv. Leiderschap, Communicatie)"
+                      data-testid="input-new-comp-name"
+                    />
+                    <Button size="sm" onClick={() => {
+                      if (!newCompName.trim()) {
+                        toast({ title: "Vul een naam in", variant: "destructive" });
+                        return;
+                      }
+                      createCompMutation.mutate({
+                        functie: compFunctie,
+                        name: newCompName.trim(),
+                        sortOrder: manageCompetencies?.length || 0,
+                      });
+                    }} disabled={createCompMutation.isPending} data-testid="button-add-comp">
+                      <PlusCircle className="h-4 w-4 mr-1" />
+                      Toevoegen
+                    </Button>
                   </div>
-                ))}
-                <Button size="sm" onClick={() => {
-                  if (!newComp.name || !newComp.norm1 || !newComp.norm2 || !newComp.norm3 || !newComp.norm4 || !newComp.norm5) {
-                    toast({ title: "Vul alle velden in", variant: "destructive" });
-                    return;
-                  }
-                  createCompMutation.mutate({
-                    userId: competencyUserId,
-                    ...newComp,
-                    sortOrder: (manageCompetencies?.length || 0),
-                    createdBy: currentUser?.id,
-                  });
-                }} disabled={createCompMutation.isPending} data-testid="button-add-comp">
-                  <PlusCircle className="h-4 w-4 mr-1" />
-                  Toevoegen
-                </Button>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
@@ -1078,7 +1095,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
     );
   }
 
-  const compList = userCompetencies || [];
+  const compList = functieCompetencies || [];
   const isReadOnly = !isAdmin;
 
   return (
@@ -1139,6 +1156,20 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                 </div>
               )}
               <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground print:text-black">Functie</label>
+                {isAdmin ? (
+                  <Input
+                    value={selectedFunctie}
+                    onChange={e => setSelectedFunctie(e.target.value)}
+                    placeholder="Functie medewerker"
+                    className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
+                    data-testid="input-beoor-functie"
+                  />
+                ) : (
+                  <Input value={viewingReview?.functie || ""} readOnly className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none" />
+                )}
+              </div>
+              <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground print:text-black">Beoordelaar</label>
                 <div className="flex gap-2">
                   <Input
@@ -1189,78 +1220,109 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
           </CardContent>
         </Card>
 
-        {(selectedUserId || viewingReview) && (
+        {(selectedFunctie || viewingReview) && (
           <Card className="border border-border/60 print:border print:shadow-none">
             <CardContent className="p-6 print:p-4 space-y-4">
-              <h3 className="font-semibold text-sm border-b pb-2 print:text-base">Competentiebeoordeling</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm border-b pb-2 print:text-base flex-1">Competentiebeoordeling — {selectedFunctie || viewingReview?.functie}</h3>
+              </div>
               {compList.length === 0 && !viewingReview ? (
                 <div className="text-center py-6">
-                  <p className="text-sm text-muted-foreground">Geen competenties gevonden voor deze medewerker.</p>
+                  <p className="text-sm text-muted-foreground">Geen competenties gevonden voor functie "{selectedFunctie}".</p>
                   {isAdmin && (
                     <Button variant="link" onClick={() => {
-                      setCompetencyUserId(selectedUserId);
+                      setCompFunctie(selectedFunctie);
                       setViewMode("competencies");
                     }} className="mt-1">
-                      Competenties instellen
+                      Competenties instellen voor deze functie
                     </Button>
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {compList.map((comp, i) => {
-                    const currentScore = formScores[comp.id]?.score || null;
-                    const currentToelichting = formScores[comp.id]?.toelichting || "";
-                    return (
-                      <div key={comp.id} className="border rounded-lg p-4 space-y-3" data-testid={`beoor-comp-${comp.id}`}>
-                        <p className="text-sm font-medium">{i + 1}. {comp.name}</p>
-                        {isAdmin && (
-                          <div className="space-y-1">
-                            {[1, 2, 3, 4, 5].map(n => (
-                              <div key={n} className="flex items-center gap-2">
-                                <Badge variant={currentScore === n ? "default" : "outline"} className="shrink-0 w-6 justify-center text-[10px] cursor-pointer" onClick={() => {
-                                  if (!isReadOnly) setFormScores(prev => ({ ...prev, [comp.id]: { ...prev[comp.id], score: n, toelichting: prev[comp.id]?.toelichting || "" } }));
-                                }}>
-                                  {n}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">{(comp as any)[`norm${n}`]}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {!isAdmin && currentScore && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">Score:</span>
-                            <Badge variant="default" className="text-sm">{currentScore}</Badge>
-                            <span className="text-sm text-muted-foreground">({scoreLabels[currentScore]})</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          {isAdmin && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs font-medium text-muted-foreground">Score:</span>
-                              <Badge variant={currentScore ? "default" : "outline"} className="text-xs">
-                                {currentScore ? `${currentScore} - ${scoreLabels[currentScore]}` : "Niet beoordeeld"}
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
-                        {isAdmin && (
-                          <Textarea
-                            value={currentToelichting}
-                            onChange={e => setFormScores(prev => ({ ...prev, [comp.id]: { ...prev[comp.id], score: prev[comp.id]?.score || null, toelichting: e.target.value } }))}
-                            rows={2}
-                            placeholder="Toelichting (optioneel)"
-                            className="text-xs"
-                            data-testid={`input-beoor-toelichting-${comp.id}`}
-                          />
-                        )}
-                        {!isAdmin && currentToelichting && (
-                          <p className="text-xs text-muted-foreground"><span className="font-medium">Toelichting:</span> {currentToelichting}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground w-8">#</th>
+                          <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Competentie</th>
+                          <th className="text-center py-2 px-3 text-xs font-medium text-muted-foreground w-[180px]">Score (1-5)</th>
+                          <th className="text-left py-2 px-3 text-xs font-medium text-muted-foreground">Toelichting</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {compList.map((comp, i) => {
+                          const currentScore = formScores[comp.id]?.score || null;
+                          const currentToelichting = formScores[comp.id]?.toelichting || "";
+                          return (
+                            <tr key={comp.id} className="border-b last:border-0" data-testid={`beoor-comp-${comp.id}`}>
+                              <td className="py-3 px-3 text-muted-foreground">{i + 1}</td>
+                              <td className="py-3 px-3 font-medium">{comp.name}</td>
+                              <td className="py-3 px-3">
+                                <div className="flex items-center justify-center gap-1">
+                                  {[1, 2, 3, 4, 5].map(n => (
+                                    <button
+                                      key={n}
+                                      type="button"
+                                      disabled={isReadOnly}
+                                      onClick={() => {
+                                        if (!isReadOnly) setFormScores(prev => ({
+                                          ...prev,
+                                          [comp.id]: { score: n, toelichting: prev[comp.id]?.toelichting || "" }
+                                        }));
+                                      }}
+                                      className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${
+                                        currentScore === n
+                                          ? "bg-primary text-primary-foreground"
+                                          : "bg-muted text-muted-foreground hover:bg-primary/20"
+                                      } ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
+                                      data-testid={`button-score-${comp.id}-${n}`}
+                                    >
+                                      {n}
+                                    </button>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
+                                {isAdmin ? (
+                                  <Input
+                                    value={currentToelichting}
+                                    onChange={e => setFormScores(prev => ({
+                                      ...prev,
+                                      [comp.id]: { score: prev[comp.id]?.score || null, toelichting: e.target.value }
+                                    }))}
+                                    placeholder="Optioneel"
+                                    className="text-xs h-8"
+                                    data-testid={`input-beoor-toelichting-${comp.id}`}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">{currentToelichting || "—"}</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-6 pt-2 border-t">
+                    <div className="flex items-center gap-2" data-testid="text-beoor-total">
+                      <span className="text-sm font-medium text-muted-foreground">Totaal:</span>
+                      <span className="text-lg font-bold">{totalScore}</span>
+                      <span className="text-sm text-muted-foreground">/ {compList.length * 5}</span>
+                    </div>
+                    <div className="flex items-center gap-2" data-testid="text-beoor-average">
+                      <span className="text-sm font-medium text-muted-foreground">Gemiddelde:</span>
+                      <Badge variant={averageScore >= 4 ? "default" : averageScore >= 3 ? "secondary" : "destructive"} className="text-sm px-3 py-1">
+                        {scoreValues.length > 0 ? averageScore.toFixed(1) : "—"}
+                      </Badge>
+                      {scoreValues.length > 0 && (
+                        <span className="text-xs text-muted-foreground">({scoreLabels[Math.round(averageScore)] || ""})</span>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -1268,30 +1330,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
 
         <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
-            <h3 className="font-semibold text-sm border-b pb-2 print:text-base">Totaalbeoordeling en afspraken</h3>
-            {isAdmin && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground print:text-black">Totaalbeoordeling</label>
-                <Select onValueChange={val => setFormData(prev => ({ ...prev, totalScore: val }))} value={formData.totalScore}>
-                  <SelectTrigger data-testid="select-beoor-total">
-                    <SelectValue placeholder="Selecteer totaalbeoordeling" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1 - Onvoldoende">1 - Onvoldoende</SelectItem>
-                    <SelectItem value="2 - Matig">2 - Matig</SelectItem>
-                    <SelectItem value="3 - Voldoende">3 - Voldoende</SelectItem>
-                    <SelectItem value="4 - Goed">4 - Goed</SelectItem>
-                    <SelectItem value="5 - Uitstekend">5 - Uitstekend</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {!isAdmin && formData.totalScore && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground print:text-black">Totaalbeoordeling</label>
-                <p className="text-sm font-medium">{formData.totalScore}</p>
-              </div>
-            )}
+            <h3 className="font-semibold text-sm border-b pb-2 print:text-base">Afspraken en opmerkingen</h3>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground print:text-black">Gemaakte afspraken</label>
               <Textarea

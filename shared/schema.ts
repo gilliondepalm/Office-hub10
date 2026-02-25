@@ -193,15 +193,9 @@ export const functioneringReviews = pgTable("functionering_reviews", {
 
 export const competencies = pgTable("competencies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  functie: text("functie").notNull(),
   name: text("name").notNull(),
-  norm1: text("norm_1").notNull(),
-  norm2: text("norm_2").notNull(),
-  norm3: text("norm_3").notNull(),
-  norm4: text("norm_4").notNull(),
-  norm5: text("norm_5").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdBy: varchar("created_by").references(() => users.id),
 });
 
 export const beoordelingReviews = pgTable("beoordeling_reviews", {
