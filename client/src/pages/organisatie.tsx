@@ -51,7 +51,7 @@ const instructionFormSchema = z.object({
 
 const legislationFormSchema = z.object({
   title: z.string().min(1, "Titel is verplicht"),
-  url: z.string().min(1, "Pad of URL is verplicht"),
+  url: z.string().optional().default(""),
   description: z.string().optional(),
   category: z.string().min(1, "Categorie is verplicht"),
 });
@@ -887,6 +887,8 @@ function CaoInfoTab() {
 
 function WetgevingTab() {
   const [open, setOpen] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<LegislationLink | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -902,16 +904,28 @@ function WetgevingTab() {
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof legislationFormSchema>) => {
-      await apiRequest("POST", "/api/legislation", {
-        ...data,
-        description: data.description || null,
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("url", data.url || "");
+      formData.append("description", data.description || "");
+      formData.append("category", data.category);
+      if (pdfFile) {
+        formData.append("pdf", pdfFile);
+      }
+      const res = await fetch("/api/legislation", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
       });
+      if (!res.ok) throw new Error("Upload mislukt");
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/legislation"] });
-      toast({ title: "Wetgeving link toegevoegd" });
+      toast({ title: "Wetgeving document toegevoegd" });
       setOpen(false);
       form.reset();
+      setPdfFile(null);
     },
     onError: () => {
       toast({ title: "Fout bij toevoegen", variant: "destructive" });
@@ -924,7 +938,7 @@ function WetgevingTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/legislation"] });
-      toast({ title: "Link verwijderd" });
+      toast({ title: "Document verwijderd" });
     },
   });
 
@@ -949,53 +963,48 @@ function WetgevingTab() {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}</div>;
   }
 
+  if (viewingPdf) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => setViewingPdf(null)} data-testid="button-back-legislation">
+            <ChevronRight className="h-4 w-4 rotate-180 mr-1" />
+            Terug
+          </Button>
+          <h3 className="font-semibold text-lg">{viewingPdf.title}</h3>
+        </div>
+        {viewingPdf.description && (
+          <p className="text-sm text-muted-foreground">{viewingPdf.description}</p>
+        )}
+        <Card>
+          <CardContent className="p-0">
+            <iframe
+              src={viewingPdf.pdfUrl || ""}
+              className="w-full border-0 rounded-lg"
+              style={{ height: "80vh" }}
+              title={viewingPdf.title}
+              data-testid="iframe-legislation-pdf"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <Card
-        className="border-primary/20 bg-primary/5 hover-elevate cursor-pointer"
-        data-testid="link-registration-pdf"
-        onClick={() => {
-          const pdfPath = "file:///C:/Users/g.depalm/Registration_.pdf";
-          const opened = window.open(pdfPath, "_blank");
-          if (!opened) {
-            const link = document.createElement("a");
-            link.href = pdfPath;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
-        }}
-      >
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-sm flex items-center gap-1">
-                Registration Document
-                <ExternalLink className="h-3 w-3" />
-              </h3>
-              <p className="text-xs text-muted-foreground">Klik om het PDF-document te openen</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {isAdmin && (
         <div className="flex justify-end">
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPdfFile(null); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-legislation">
                 <Plus className="h-4 w-4 mr-2" />
-                Nieuwe Link
+                Nieuw Document
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Wetgeving Link Toevoegen</DialogTitle>
+                <DialogTitle>Wetgeving Document Toevoegen</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
@@ -1006,10 +1015,47 @@ function WetgevingTab() {
                       <FormMessage />
                     </FormItem>
                   )} />
+                  <div>
+                    <label className="text-sm font-medium">PDF Document</label>
+                    <div className="mt-1.5">
+                      {pdfFile ? (
+                        <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-sm truncate flex-1">{pdfFile.name}</span>
+                          <Button type="button" size="icon" variant="ghost" onClick={() => setPdfFile(null)} data-testid="button-remove-legislation-pdf">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => document.getElementById("legislation-pdf-input")?.click()}
+                          data-testid="button-upload-legislation-pdf"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          PDF Uploaden
+                        </Button>
+                      )}
+                      <input
+                        id="legislation-pdf-input"
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,application/pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && file.type === "application/pdf") setPdfFile(file);
+                          e.target.value = "";
+                        }}
+                        data-testid="input-legislation-pdf-file"
+                      />
+                    </div>
+                  </div>
                   <FormField control={form.control} name="url" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Document pad of URL</FormLabel>
-                      <FormControl><Input {...field} placeholder="file:///C:/pad/naar/document.pdf of https://..." data-testid="input-legislation-url" /></FormControl>
+                      <FormLabel>Externe URL (optioneel)</FormLabel>
+                      <FormControl><Input {...field} placeholder="https://wetten.overheid.nl/..." data-testid="input-legislation-url" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -1039,7 +1085,7 @@ function WetgevingTab() {
                     </FormItem>
                   )} />
                   <Button type="submit" className="w-full" disabled={createMutation.isPending} data-testid="button-submit-legislation">
-                    {createMutation.isPending ? "Opslaan..." : "Link Opslaan"}
+                    {createMutation.isPending ? "Opslaan..." : "Document Opslaan"}
                   </Button>
                 </form>
               </Form>
@@ -1052,7 +1098,7 @@ function WetgevingTab() {
         <Card>
           <CardContent className="flex flex-col items-center py-12">
             <Scale className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Geen wetgeving links gevonden</p>
+            <p className="text-muted-foreground">Geen wetgeving documenten gevonden</p>
           </CardContent>
         </Card>
       ) : (
@@ -1071,20 +1117,16 @@ function WetgevingTab() {
                     <div
                       className="flex-1 min-w-0 cursor-pointer"
                       onClick={() => {
-                        const url = link.url;
-                        if (url.startsWith("file:///") || url.startsWith("\\\\") || /^[A-Za-z]:\\/.test(url)) {
-                          const filePath = url.startsWith("file:///") ? url : "file:///" + url.replace(/\\/g, "/");
-                          const opened = window.open(filePath, "_blank");
-                          if (!opened) {
-                            const a = document.createElement("a");
-                            a.href = filePath;
-                            a.target = "_blank";
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
+                        if (link.pdfUrl) {
+                          setViewingPdf(link);
+                        } else if (link.url) {
+                          const url = link.url;
+                          if (url.startsWith("file:///") || url.startsWith("\\\\") || /^[A-Za-z]:\\/.test(url)) {
+                            const filePath = url.startsWith("file:///") ? url : "file:///" + url.replace(/\\/g, "/");
+                            window.open(filePath, "_blank");
+                          } else {
+                            window.open(url, "_blank", "noopener,noreferrer");
                           }
-                        } else {
-                          window.open(url, "_blank", "noopener,noreferrer");
                         }
                       }}
                     >
@@ -1092,8 +1134,9 @@ function WetgevingTab() {
                         className="text-sm font-medium hover:underline flex items-center gap-1"
                         data-testid={`link-legislation-${link.id}`}
                       >
+                        {link.pdfUrl && <FileText className="h-3.5 w-3.5 text-primary shrink-0" />}
                         {link.title}
-                        <ExternalLink className="h-3 w-3 shrink-0" />
+                        {!link.pdfUrl && link.url && <ExternalLink className="h-3 w-3 shrink-0" />}
                       </span>
                       {link.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{link.description}</p>

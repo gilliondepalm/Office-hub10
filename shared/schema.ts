@@ -145,6 +145,7 @@ export const legislationLinks = pgTable("legislation_links", {
   url: text("url").notNull(),
   description: text("description"),
   category: text("category").notNull().default("algemeen"),
+  pdfUrl: text("pdf_url"),
 });
 
 export const caoDocuments = pgTable("cao_documents", {

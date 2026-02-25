@@ -767,14 +767,21 @@ export async function registerRoutes(
     res.json(all);
   });
 
-  app.post("/api/legislation", requireAuth, async (req, res) => {
+  app.post("/api/legislation", requireAuth, uploadPdf.single("pdf"), async (req: any, res) => {
     try {
       const userId = (req.session as any).userId;
       const user = await storage.getUser(userId);
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Alleen beheerders" });
       }
-      const parsed = insertLegislationLinkSchema.parse(req.body);
+      const body = {
+        title: req.body.title,
+        url: req.body.url || "",
+        description: req.body.description || null,
+        category: req.body.category,
+        pdfUrl: req.file ? `/uploads/${req.file.filename}` : (req.body.pdfUrl || null),
+      };
+      const parsed = insertLegislationLinkSchema.parse(body);
       const link = await storage.createLegislationLink(parsed);
       res.json(link);
     } catch (err: any) {
