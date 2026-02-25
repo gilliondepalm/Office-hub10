@@ -29,10 +29,10 @@ import { useAuth } from "@/lib/auth";
 
 function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
   const { toast } = useToast();
-  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "manager";
+  const isAdmin = currentUser?.role === "admin";
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"form" | "overview">(isAdmin ? "overview" : "form");
+  const [viewMode, setViewMode] = useState<"form" | "overview">("overview");
   const [viewingReview, setViewingReview] = useState<FunctioneringReview | null>(null);
 
   const emptyForm = {
@@ -110,6 +110,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
   });
 
   const updateField = (field: string, value: string) => {
+    if (!isAdmin) return;
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -280,21 +281,23 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
     <div className="space-y-4">
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button variant="ghost" size="sm" onClick={handleBackToOverview} data-testid="button-back-overview">
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Overzicht
-            </Button>
-          )}
+          <Button variant="ghost" size="sm" onClick={handleBackToOverview} data-testid="button-back-overview">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Overzicht
+          </Button>
           <p className="text-sm text-muted-foreground">
-            {viewingReview ? "Bekijk of bewerk het functioneringsgesprek" : "Vul het formulier in en sla op"}
+            {isAdmin
+              ? (viewingReview ? "Bekijk of bewerk het functioneringsgesprek" : "Vul het formulier in en sla op")
+              : "Bekijk het functioneringsgesprek"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-functionering">
-            <Save className="h-4 w-4 mr-2" />
-            {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
-          </Button>
+          {isAdmin && (
+            <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-functionering">
+              <Save className="h-4 w-4 mr-2" />
+              {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
+            </Button>
+          )}
           <Button onClick={handlePrint} variant="outline" data-testid="button-print-functionering">
             <Printer className="h-4 w-4 mr-2" />
             Afdrukken
@@ -338,8 +341,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 ) : (
                   <Input
                     value={formData.medewerker}
-                    onChange={(e) => updateField("medewerker", e.target.value)}
-                    placeholder="Naam medewerker"
+                    readOnly
                     className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                     data-testid="input-func-medewerker"
                   />
@@ -350,6 +352,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 <Input
                   value={formData.functie}
                   onChange={(e) => updateField("functie", e.target.value)}
+                  readOnly={!isAdmin}
                   placeholder="Functie"
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-functie"
@@ -360,6 +363,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 <Input
                   value={formData.afdeling}
                   onChange={(e) => updateField("afdeling", e.target.value)}
+                  readOnly={!isAdmin}
                   placeholder="Afdeling"
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-afdeling"
@@ -367,25 +371,34 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground print:text-black">Leidinggevende</label>
-                <div className="flex gap-2">
+                {isAdmin ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={formData.leidinggevende}
+                      onChange={(e) => updateField("leidinggevende", e.target.value)}
+                      placeholder="Naam leidinggevende"
+                      className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
+                      data-testid="input-func-leidinggevende"
+                    />
+                    <Select onValueChange={(val) => { const mgr = users?.find(u => u.id === val); if (mgr) updateField("leidinggevende", mgr.fullName); }}>
+                      <SelectTrigger className="w-[140px] print:hidden" data-testid="select-func-leidinggevende">
+                        <SelectValue placeholder="Kies..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users?.filter(u => u.active && (u.role === "manager" || u.role === "admin")).map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
                   <Input
                     value={formData.leidinggevende}
-                    onChange={(e) => updateField("leidinggevende", e.target.value)}
-                    placeholder="Naam leidinggevende"
+                    readOnly
                     className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                     data-testid="input-func-leidinggevende"
                   />
-                  <Select onValueChange={(val) => { const mgr = users?.find(u => u.id === val); if (mgr) updateField("leidinggevende", mgr.fullName); }}>
-                    <SelectTrigger className="w-[140px] print:hidden" data-testid="select-func-leidinggevende">
-                      <SelectValue placeholder="Kies..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users?.filter(u => u.active && (u.role === "manager" || u.role === "admin")).map(u => (
-                        <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground print:text-black">Datum gesprek</label>
@@ -393,6 +406,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                   type="date"
                   value={formData.datum}
                   onChange={(e) => updateField("datum", e.target.value)}
+                  readOnly={!isAdmin}
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-datum"
                 />
@@ -402,6 +416,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 <Input
                   value={formData.periode}
                   onChange={(e) => updateField("periode", e.target.value)}
+                  readOnly={!isAdmin}
                   placeholder="bijv. jan 2025 - dec 2025"
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-periode"
@@ -419,6 +434,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.terugblikTaken}
                 onChange={(e) => updateField("terugblikTaken", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-terugblik-taken"
@@ -429,6 +445,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.terugblikResultaten}
                 onChange={(e) => updateField("terugblikResultaten", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-terugblik-resultaten"
@@ -439,6 +456,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.terugblikKnelpunten}
                 onChange={(e) => updateField("terugblikKnelpunten", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-terugblik-knelpunten"
@@ -455,6 +473,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.werkinhoud}
                 onChange={(e) => updateField("werkinhoud", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 placeholder="Hoe ervaart u uw huidige takenpakket?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -466,6 +485,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.arbeidsomstandigheden}
                 onChange={(e) => updateField("arbeidsomstandigheden", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 placeholder="Hoe ervaart u de werkomgeving en faciliteiten?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -483,6 +503,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.samenwerking}
                 onChange={(e) => updateField("samenwerking", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 placeholder="Hoe verloopt de samenwerking binnen en buiten de afdeling?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -494,6 +515,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.communicatie}
                 onChange={(e) => updateField("communicatie", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 placeholder="Hoe ervaart u de communicatie met leidinggevende en collega's?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -505,6 +527,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.leidinggeven}
                 onChange={(e) => updateField("leidinggeven", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 placeholder="Hoe ervaart u de stijl van leidinggeven?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -522,6 +545,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.persoonlijkeOntwikkeling}
                 onChange={(e) => updateField("persoonlijkeOntwikkeling", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 placeholder="Welke competenties wilt u verder ontwikkelen?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -533,6 +557,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.scholingswensen}
                 onChange={(e) => updateField("scholingswensen", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 placeholder="Welke cursussen of opleidingen heeft u nodig?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -544,6 +569,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.loopbaanwensen}
                 onChange={(e) => updateField("loopbaanwensen", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 placeholder="Wat zijn uw loopbaanwensen en ambities?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -564,6 +590,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                     <Textarea
                       value={(formData as any)[`doelstelling${n}`]}
                       onChange={(e) => updateField(`doelstelling${n}`, e.target.value)}
+                      readOnly={!isAdmin}
                       rows={2}
                       placeholder={`Omschrijving doelstelling ${n}`}
                       className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -575,6 +602,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                     <Input
                       value={(formData as any)[`doelstelling${n}Termijn`]}
                       onChange={(e) => updateField(`doelstelling${n}Termijn`, e.target.value)}
+                      readOnly={!isAdmin}
                       placeholder="bijv. Q2 2026"
                       className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                       data-testid={`input-func-termijn-${n}`}
@@ -594,6 +622,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.afspraken}
                 onChange={(e) => updateField("afspraken", e.target.value)}
+                readOnly={!isAdmin}
                 rows={3}
                 placeholder="Welke concrete afspraken zijn er gemaakt?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -605,6 +634,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.opmerkingMedewerker}
                 onChange={(e) => updateField("opmerkingMedewerker", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-opmerking-medewerker"
@@ -615,6 +645,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.opmerkingLeidinggevende}
                 onChange={(e) => updateField("opmerkingLeidinggevende", e.target.value)}
+                readOnly={!isAdmin}
                 rows={2}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-opmerking-leidinggevende"
@@ -656,10 +687,12 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
       </div>
 
       <div className="flex justify-end gap-2 print:hidden">
-        <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-functionering-bottom">
-          <Save className="h-4 w-4 mr-2" />
-          {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-functionering-bottom">
+            <Save className="h-4 w-4 mr-2" />
+            {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
+          </Button>
+        )}
         <Button onClick={handlePrint} variant="outline" data-testid="button-print-functionering-bottom">
           <Printer className="h-4 w-4 mr-2" />
           Afdrukken
@@ -671,7 +704,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
 
 function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
   const { toast } = useToast();
-  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "manager";
+  const isAdmin = currentUser?.role === "admin";
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedFunctie, setSelectedFunctie] = useState<string>("");
