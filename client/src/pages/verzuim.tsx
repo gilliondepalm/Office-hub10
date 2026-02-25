@@ -21,10 +21,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from "@/components/ui/tabs";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -93,6 +90,7 @@ export default function VerzuimPage() {
 
   const watchType = form.watch("type");
   const [dateFocused, setDateFocused] = useState(false);
+  const [activeTab, setActiveTab] = useState("meldingen");
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -180,7 +178,7 @@ export default function VerzuimPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
+    <div className="p-6 space-y-4 overflow-auto h-full">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-verzuim-title">Verzuim</h1>
@@ -349,16 +347,54 @@ export default function VerzuimPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="meldingen">
-        <TabsList>
-          <TabsTrigger value="meldingen" data-testid="tab-meldingen">Meldingen</TabsTrigger>
-          {isAdminOrManager && <TabsTrigger value="vakantiesaldo" data-testid="tab-vakantiesaldo">Vakantiesaldo</TabsTrigger>}
-        </TabsList>
+      <div className="flex gap-1 border-b">
+        <button
+          onClick={() => setActiveTab("meldingen")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "meldingen"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-meldingen"
+        >
+          <ClipboardList className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Meldingen
+        </button>
+        {isAdminOrManager && (
+          <button
+            onClick={() => setActiveTab("overzicht")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "overzicht"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-overzicht"
+          >
+            <Eye className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+            Overzicht
+          </button>
+        )}
+        {isAdminOrManager && (
+          <button
+            onClick={() => setActiveTab("vakantiesaldo")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "vakantiesaldo"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-vakantiesaldo"
+          >
+            <Palmtree className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+            Vakantiesaldo
+          </button>
+        )}
+      </div>
 
-        <TabsContent value="meldingen" className="space-y-4 mt-4">
+      {activeTab === "meldingen" && (
+        <div className="space-y-3">
           {myBalance && (
             <Card>
-              <CardContent className="flex items-center gap-6 p-4 flex-wrap">
+              <CardContent className="flex items-center gap-6 p-3 flex-wrap">
                 <Palmtree className="h-5 w-5 text-muted-foreground" />
                 <div className="text-sm">
                   <span className="text-muted-foreground">Mijn vakantiesaldo:</span>{" "}
@@ -377,184 +413,277 @@ export default function VerzuimPage() {
             </Card>
           )}
 
-          {(!absences || absences.length === 0) ? (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Geen verzuimmeldingen</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Medewerker</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Periode</TableHead>
-                        <TableHead>Reden</TableHead>
-                        <TableHead>Status</TableHead>
-                        {isAdminOrManager && <TableHead>Actie</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const sorted = [...absences].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl"));
-                        const colCount = isAdminOrManager ? 6 : 5;
-                        const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
-                        return depts.map(dept => (
-                          <>{isAdminOrManager && (
-                            <TableRow key={`dept-${dept}`}>
-                              <TableCell colSpan={colCount} className="bg-muted/50 font-bold text-sm py-2">
-                                {dept}
-                              </TableCell>
-                            </TableRow>
-                          )}
-                          {sorted.filter(a => ((a as any).userDepartment || "Geen afdeling") === dept).map((absence) => {
-                        const sc = statusConfig[absence.status] || statusConfig.pending;
-                        const StatusIcon = sc.icon;
-                        const displayReason = absence.type === "bvvd" && absence.bvvdReason
-                          ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
-                          : absence.reason || "-";
-                        return (
-                          <TableRow key={absence.id} data-testid={`row-absence-${absence.id}`}>
-                            <TableCell className={`font-medium text-sm ${isAdminOrManager ? "pl-6" : ""}`}>
-                              {(absence as any).userName || "Medewerker"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
-                              {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
-                              {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
-                              {displayReason}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={sc.variant} className="text-xs gap-1">
-                                <StatusIcon className="h-3 w-3" />
-                                {sc.label}
-                              </Badge>
-                            </TableCell>
-                            {isAdminOrManager && (
-                              <TableCell>
-                                {absence.status === "pending" && absence.userId !== user?.id && (
-                                  user?.role === "admin" ||
-                                  (user?.role === "manager" && (absence as any).userRole === "employee")
-                                ) && (
-                                  <div className="flex gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => updateStatusMutation.mutate({ id: absence.id, status: "approved" })}
-                                      data-testid={`button-approve-absence-${absence.id}`}
-                                    >
-                                      <CheckCircle className="h-3 w-3 mr-1" />
-                                      Goed
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => updateStatusMutation.mutate({ id: absence.id, status: "rejected" })}
-                                      data-testid={`button-reject-absence-${absence.id}`}
-                                    >
-                                      <XCircle className="h-3 w-3 mr-1" />
-                                      Afwijzen
-                                    </Button>
-                                  </div>
-                                )}
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
-                      </>
-                        ));
-                      })()}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="vakantiesaldo" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-2 pb-3">
-              <Palmtree className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-sm">Vakantiesaldo Overzicht {new Date().getFullYear()}</h3>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loadingBalances ? (
-                <div className="p-4"><Skeleton className="h-32" /></div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Medewerker</TableHead>
-                        <TableHead className="text-right">Totaal</TableHead>
-                        <TableHead className="text-right">Gepland</TableHead>
-                        <TableHead className="text-right">Toegekend</TableHead>
-                        <TableHead className="text-right">Opgenomen</TableHead>
-                        <TableHead className="text-right">Ziek</TableHead>
-                        <TableHead className="text-right">Resterend</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const sorted = [...(vacationBalances || [])].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
-                        const departments = Array.from(new Set(sorted.map(b => b.department))).sort((a, b) => a.localeCompare(b, "nl"));
-                        return departments.map(dept => (
-                          <>
-                            <TableRow key={`dept-${dept}`}>
-                              <TableCell colSpan={7} className="bg-muted/50 font-bold text-sm py-2">
-                                {dept}
-                              </TableCell>
-                            </TableRow>
-                            {sorted.filter(b => b.department === dept).map(b => (
-                              <TableRow key={b.userId} data-testid={`row-balance-${b.userId}`}>
-                                <TableCell className="font-medium text-sm pl-6">{b.userName}</TableCell>
-                                <TableCell className="text-right text-sm">{b.totalDays}</TableCell>
-                                <TableCell className="text-right text-sm">
-                                  {b.geplandDays > 0 ? (
-                                    <Badge variant="outline" className="text-xs">{b.geplandDays}</Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground">0</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right text-sm">{b.toegekendDays}</TableCell>
-                                <TableCell className="text-right text-sm">{b.opgenomenDays}</TableCell>
-                                <TableCell className="text-right text-sm">
-                                  {b.sickDays > 0 ? (
-                                    <Badge variant="destructive" className="text-xs">{b.sickDays}</Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground">0</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
-                                    {b.remainingDays}
-                                  </Badge>
+          {(() => {
+            const filtered = isAdminOrManager
+              ? (absences || []).filter(a => a.status === "pending")
+              : (absences || []);
+            if (filtered.length === 0) {
+              return (
+                <Card>
+                  <CardContent className="flex flex-col items-center py-10">
+                    <Clock className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground text-sm">
+                      {isAdminOrManager ? "Geen verzoeken in afwachting" : "Geen verzuimmeldingen"}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Medewerker</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Periode</TableHead>
+                          <TableHead>Reden</TableHead>
+                          <TableHead>Status</TableHead>
+                          {isAdminOrManager && <TableHead>Actie</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const sorted = [...filtered].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl"));
+                          const colCount = isAdminOrManager ? 6 : 5;
+                          const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
+                          return depts.map(dept => (
+                            <>{isAdminOrManager && (
+                              <TableRow key={`dept-${dept}`}>
+                                <TableCell colSpan={colCount} className="bg-muted/50 font-bold text-sm py-1.5">
+                                  {dept}
                                 </TableCell>
                               </TableRow>
-                            ))}
-                          </>
-                        ));
-                      })()}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                            )}
+                            {sorted.filter(a => ((a as any).userDepartment || "Geen afdeling") === dept).map((absence) => {
+                              const sc = statusConfig[absence.status] || statusConfig.pending;
+                              const StatusIcon = sc.icon;
+                              const displayReason = absence.type === "bvvd" && absence.bvvdReason
+                                ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
+                                : absence.reason || "-";
+                              return (
+                                <TableRow key={absence.id} data-testid={`row-absence-${absence.id}`}>
+                                  <TableCell className={`font-medium text-sm ${isAdminOrManager ? "pl-6" : ""}`}>
+                                    {(absence as any).userName || "Medewerker"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                    {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
+                                    {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
+                                    {displayReason}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={sc.variant} className="text-xs gap-1">
+                                      <StatusIcon className="h-3 w-3" />
+                                      {sc.label}
+                                    </Badge>
+                                  </TableCell>
+                                  {isAdminOrManager && (
+                                    <TableCell>
+                                      {absence.status === "pending" && absence.userId !== user?.id && (
+                                        user?.role === "admin" ||
+                                        (user?.role === "manager" && (absence as any).userRole === "employee")
+                                      ) && (
+                                        <div className="flex gap-1">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => updateStatusMutation.mutate({ id: absence.id, status: "approved" })}
+                                            data-testid={`button-approve-absence-${absence.id}`}
+                                          >
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            Goed
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => updateStatusMutation.mutate({ id: absence.id, status: "rejected" })}
+                                            data-testid={`button-reject-absence-${absence.id}`}
+                                          >
+                                            <XCircle className="h-3 w-3 mr-1" />
+                                            Afwijzen
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              );
+                            })}
+                            </>
+                          ));
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </div>
+      )}
+
+      {activeTab === "overzicht" && isAdminOrManager && (
+        <div className="space-y-3">
+          {(() => {
+            const processed = (absences || []).filter(a => a.status === "approved" || a.status === "rejected");
+            if (processed.length === 0) {
+              return (
+                <Card>
+                  <CardContent className="flex flex-col items-center py-10">
+                    <Eye className="h-10 w-10 text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground text-sm">Geen verwerkte meldingen</p>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Medewerker</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Periode</TableHead>
+                          <TableHead>Reden</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const sorted = [...processed].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl"));
+                          const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
+                          return depts.map(dept => (
+                            <>
+                              <TableRow key={`dept-${dept}`}>
+                                <TableCell colSpan={5} className="bg-muted/50 font-bold text-sm py-1.5">
+                                  {dept}
+                                </TableCell>
+                              </TableRow>
+                              {sorted.filter(a => ((a as any).userDepartment || "Geen afdeling") === dept).map((absence) => {
+                                const sc = statusConfig[absence.status] || statusConfig.pending;
+                                const StatusIcon = sc.icon;
+                                const displayReason = absence.type === "bvvd" && absence.bvvdReason
+                                  ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
+                                  : absence.reason || "-";
+                                return (
+                                  <TableRow key={absence.id} data-testid={`row-overzicht-${absence.id}`}>
+                                    <TableCell className="font-medium text-sm pl-6">
+                                      {(absence as any).userName || "Medewerker"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                      {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
+                                      {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
+                                      {displayReason}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant={sc.variant} className="text-xs gap-1">
+                                        <StatusIcon className="h-3 w-3" />
+                                        {sc.label}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </>
+                          ));
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </div>
+      )}
+
+      {activeTab === "vakantiesaldo" && isAdminOrManager && (
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <Palmtree className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold text-sm">Vakantiesaldo Overzicht {new Date().getFullYear()}</h3>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loadingBalances ? (
+              <div className="p-4"><Skeleton className="h-32" /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Medewerker</TableHead>
+                      <TableHead className="text-right">Totaal</TableHead>
+                      <TableHead className="text-right">Gepland</TableHead>
+                      <TableHead className="text-right">Toegekend</TableHead>
+                      <TableHead className="text-right">Opgenomen</TableHead>
+                      <TableHead className="text-right">Ziek</TableHead>
+                      <TableHead className="text-right">Resterend</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const sorted = [...(vacationBalances || [])].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
+                      const departments = Array.from(new Set(sorted.map(b => b.department))).sort((a, b) => a.localeCompare(b, "nl"));
+                      return departments.map(dept => (
+                        <>
+                          <TableRow key={`dept-${dept}`}>
+                            <TableCell colSpan={7} className="bg-muted/50 font-bold text-sm py-1.5">
+                              {dept}
+                            </TableCell>
+                          </TableRow>
+                          {sorted.filter(b => b.department === dept).map(b => (
+                            <TableRow key={b.userId} data-testid={`row-balance-${b.userId}`}>
+                              <TableCell className="font-medium text-sm pl-6">{b.userName}</TableCell>
+                              <TableCell className="text-right text-sm">{b.totalDays}</TableCell>
+                              <TableCell className="text-right text-sm">
+                                {b.geplandDays > 0 ? (
+                                  <Badge variant="outline" className="text-xs">{b.geplandDays}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">{b.toegekendDays}</TableCell>
+                              <TableCell className="text-right text-sm">{b.opgenomenDays}</TableCell>
+                              <TableCell className="text-right text-sm">
+                                {b.sickDays > 0 ? (
+                                  <Badge variant="destructive" className="text-xs">{b.sickDays}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
+                                  {b.remainingDays}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </>
+                      ));
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
