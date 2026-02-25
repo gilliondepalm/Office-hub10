@@ -972,6 +972,9 @@ function WetgevingTab() {
 }
 
 export default function OrganisatiePage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   return (
     <div className="p-6 space-y-6 overflow-auto h-full">
       <div>
@@ -979,19 +982,21 @@ export default function OrganisatiePage() {
         <p className="text-muted-foreground text-sm">Afdelingen, procedures, organogram en wetgeving</p>
       </div>
 
-      <Tabs defaultValue="afdelingen" className="w-full">
+      <Tabs defaultValue="organogram" className="w-full">
         <TabsList className="flex-wrap" data-testid="tabs-organisatie">
-          <TabsTrigger value="afdelingen" data-testid="tab-afdelingen">
-            <Building2 className="h-4 w-4 mr-1.5" />
-            Afdelingen
-          </TabsTrigger>
-          <TabsTrigger value="ao-procedures" data-testid="tab-ao-procedures">
-            <ClipboardList className="h-4 w-4 mr-1.5" />
-            AO-Procedures
-          </TabsTrigger>
           <TabsTrigger value="organogram" data-testid="tab-organogram">
             <Network className="h-4 w-4 mr-1.5" />
             Organogram
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="afdelingen" data-testid="tab-afdelingen">
+              <Building2 className="h-4 w-4 mr-1.5" />
+              Afdelingen
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="ao-procedures" data-testid="tab-ao-procedures">
+            <ClipboardList className="h-4 w-4 mr-1.5" />
+            AO-Procedures
           </TabsTrigger>
           <TabsTrigger value="cao" data-testid="tab-cao">
             <BookOpen className="h-4 w-4 mr-1.5" />
@@ -1003,14 +1008,16 @@ export default function OrganisatiePage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="afdelingen" className="mt-4">
-          <AfdelingenTab />
-        </TabsContent>
-        <TabsContent value="ao-procedures" className="mt-4">
-          <AoProceduresTab />
-        </TabsContent>
         <TabsContent value="organogram" className="mt-4">
           <OrganogramTab />
+        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="afdelingen" className="mt-4">
+            <AfdelingenTab />
+          </TabsContent>
+        )}
+        <TabsContent value="ao-procedures" className="mt-4">
+          <AoProceduresTab />
         </TabsContent>
         <TabsContent value="cao" className="mt-4">
           <CaoInfoTab />
