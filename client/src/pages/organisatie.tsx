@@ -887,7 +887,8 @@ function CaoInfoTab() {
 
 function WetgevingTab() {
   const [open, setOpen] = useState(false);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; path: string } | null>(null);
+  const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   const [viewingPdf, setViewingPdf] = useState<LegislationLink | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -897,6 +898,11 @@ function WetgevingTab() {
     queryKey: ["/api/legislation"],
   });
 
+  const { data: uploadedFiles } = useQuery<{ name: string; path: string; size: number; modified: string }[]>({
+    queryKey: ["/api/uploads/list"],
+    enabled: fileBrowserOpen,
+  });
+
   const form = useForm<z.infer<typeof legislationFormSchema>>({
     resolver: zodResolver(legislationFormSchema),
     defaultValues: { title: "", url: "", description: "", category: "arbeidsrecht" },
@@ -904,20 +910,18 @@ function WetgevingTab() {
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof legislationFormSchema>) => {
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("url", data.url || "");
-      formData.append("description", data.description || "");
-      formData.append("category", data.category);
-      if (pdfFile) {
-        formData.append("pdf", pdfFile);
-      }
       const res = await fetch("/api/legislation", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          url: data.url || "",
+          description: data.description || null,
+          pdfUrl: selectedFile?.path || null,
+        }),
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Upload mislukt");
+      if (!res.ok) throw new Error("Opslaan mislukt");
       return res.json();
     },
     onSuccess: () => {
@@ -925,7 +929,7 @@ function WetgevingTab() {
       toast({ title: "Wetgeving document toegevoegd" });
       setOpen(false);
       form.reset();
-      setPdfFile(null);
+      setSelectedFile(null);
     },
     onError: () => {
       toast({ title: "Fout bij toevoegen", variant: "destructive" });
@@ -995,7 +999,7 @@ function WetgevingTab() {
     <div className="space-y-4">
       {isAdmin && (
         <div className="flex justify-end">
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPdfFile(null); }}>
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelectedFile(null); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-legislation">
                 <Plus className="h-4 w-4 mr-2" />
@@ -1018,11 +1022,11 @@ function WetgevingTab() {
                   <div>
                     <label className="text-sm font-medium">PDF Document</label>
                     <div className="mt-1.5">
-                      {pdfFile ? (
+                      {selectedFile ? (
                         <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
                           <FileText className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-sm truncate flex-1">{pdfFile.name}</span>
-                          <Button type="button" size="icon" variant="ghost" onClick={() => setPdfFile(null)} data-testid="button-remove-legislation-pdf">
+                          <span className="text-sm truncate flex-1">{selectedFile.name}</span>
+                          <Button type="button" size="icon" variant="ghost" onClick={() => setSelectedFile(null)} data-testid="button-remove-legislation-pdf">
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -1031,25 +1035,45 @@ function WetgevingTab() {
                           type="button"
                           variant="outline"
                           className="w-full"
-                          onClick={() => document.getElementById("legislation-pdf-input")?.click()}
-                          data-testid="button-upload-legislation-pdf"
+                          onClick={() => setFileBrowserOpen(true)}
+                          data-testid="button-browse-legislation-pdf"
                         >
                           <FileText className="h-4 w-4 mr-2" />
-                          PDF Uploaden
+                          Bestand Kiezen
                         </Button>
                       )}
-                      <input
-                        id="legislation-pdf-input"
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,application/pdf"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file && file.type === "application/pdf") setPdfFile(file);
-                          e.target.value = "";
-                        }}
-                        data-testid="input-legislation-pdf-file"
-                      />
+                      <Dialog open={fileBrowserOpen} onOpenChange={setFileBrowserOpen}>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Kies een PDF uit Uploads</DialogTitle>
+                          </DialogHeader>
+                          <div className="max-h-[400px] overflow-y-auto space-y-1">
+                            {!uploadedFiles || uploadedFiles.length === 0 ? (
+                              <p className="text-sm text-muted-foreground text-center py-8">Geen PDF-bestanden gevonden in de uploads map</p>
+                            ) : (
+                              uploadedFiles.map((file) => (
+                                <div
+                                  key={file.name}
+                                  className="flex items-center gap-3 p-2.5 rounded-md cursor-pointer hover:bg-muted/50 transition-colors"
+                                  onClick={() => {
+                                    setSelectedFile({ name: file.name, path: file.path });
+                                    setFileBrowserOpen(false);
+                                  }}
+                                  data-testid={`file-pick-${file.name}`}
+                                >
+                                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{file.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {(file.size / 1024).toFixed(0)} KB
+                                    </p>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                   <FormField control={form.control} name="url" render={({ field }) => (

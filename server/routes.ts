@@ -138,6 +138,21 @@ export async function registerRoutes(
     res.json({ pdfUrl });
   });
 
+  app.get("/api/uploads/list", requireAuth, (_req, res) => {
+    try {
+      const files = fs.readdirSync(uploadsDir)
+        .filter((f: string) => f.toLowerCase().endsWith(".pdf"))
+        .map((f: string) => {
+          const stat = fs.statSync(path.join(uploadsDir, f));
+          return { name: f, path: `/uploads/${f}`, size: stat.size, modified: stat.mtime };
+        })
+        .sort((a: any, b: any) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+      res.json(files);
+    } catch {
+      res.json([]);
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
