@@ -92,6 +92,7 @@ export default function VerzuimPage() {
   });
 
   const watchType = form.watch("type");
+  const [dateFocused, setDateFocused] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -300,18 +301,21 @@ export default function VerzuimPage() {
                     <FormField control={form.control} name="startDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Startdatum</FormLabel>
-                        <FormControl><Input type="date" {...field} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { try { e.target.showPicker(); } catch {} }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-startdate" /></FormControl>
+                        <FormControl><Input type="date" {...field} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { setDateFocused(true); try { e.target.showPicker(); } catch {} }} onBlur={(e) => { field.onBlur(); setDateFocused(false); }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-startdate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="endDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Einddatum</FormLabel>
-                        <FormControl><Input type="date" {...field} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { try { e.target.showPicker(); } catch {} }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-enddate" /></FormControl>
+                        <FormControl><Input type="date" {...field} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { setDateFocused(true); try { e.target.showPicker(); } catch {} }} onBlur={(e) => { field.onBlur(); setDateFocused(false); }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-enddate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                   </div>
+                  <p className={`text-xs text-muted-foreground italic transition-opacity duration-500 ${dateFocused ? "opacity-100" : "opacity-0"}`} data-testid="text-date-hint">
+                    Spatiebalk voor activeren kalender
+                  </p>
                   <FormField control={form.control} name="halfDay" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Dagdeel</FormLabel>
