@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/accordion";
 import {
   Plus, Building2, Users, Trash2, FileText, ExternalLink, Upload,
-  BookOpen, Network, Scale, ChevronRight, ClipboardList, Pencil,
+  BookOpen, Network, Scale, ChevronRight, ClipboardList, Pencil, FolderOpen,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -836,6 +836,178 @@ function CaoInfoTab() {
   );
 }
 
+function InstructiesTab() {
+  const [uploading, setUploading] = useState(false);
+  const [selectedDept, setSelectedDept] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const { data: departments } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+  });
+
+  type InstructieFile = { name: string; path: string; size: number; modified: string };
+
+  const { data: instructies, isLoading } = useQuery<Record<string, InstructieFile[]>>({
+    queryKey: ["/api/uploads/instructies"],
+  });
+
+  const handleUpload = async (dept: string, file: File) => {
+    if (file.type !== "application/pdf") {
+      toast({ title: "Alleen PDF-bestanden toegestaan", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+      const res = await fetch(`/api/uploads/instructies/${encodeURIComponent(dept)}`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Upload mislukt");
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/instructies"] });
+      toast({ title: "Instructie document toegevoegd" });
+    } catch {
+      toast({ title: "Fout bij uploaden", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (dept: string, filename: string) => {
+    try {
+      const res = await fetch(`/api/uploads/instructies/${encodeURIComponent(dept)}/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Verwijderen mislukt");
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads/instructies"] });
+      toast({ title: "Instructie document verwijderd" });
+    } catch {
+      toast({ title: "Fout bij verwijderen", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) {
+    return <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16" />)}</div>;
+  }
+
+  const deptNames = instructies ? Object.keys(instructies).sort() : [];
+
+  return (
+    <div className="space-y-4">
+      {isAdmin && (
+        <div className="flex items-center gap-3 justify-end">
+          <Select value={selectedDept || ""} onValueChange={(v) => setSelectedDept(v)}>
+            <SelectTrigger className="w-[220px]" data-testid="select-instructie-dept">
+              <SelectValue placeholder="Kies afdeling..." />
+            </SelectTrigger>
+            <SelectContent>
+              {departments?.map((d) => (
+                <SelectItem key={d.id} value={d.name} data-testid={`option-dept-${d.id}`}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => {
+              if (!selectedDept) {
+                toast({ title: "Selecteer eerst een afdeling", variant: "destructive" });
+                return;
+              }
+              document.getElementById("instructie-upload-input")?.click();
+            }}
+            disabled={uploading || !selectedDept}
+            data-testid="button-add-instructie"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {uploading ? "Uploaden..." : "Nieuw Document"}
+          </Button>
+          <input
+            id="instructie-upload-input"
+            type="file"
+            className="hidden"
+            accept=".pdf,application/pdf"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file && selectedDept) handleUpload(selectedDept, file);
+              e.target.value = "";
+            }}
+            data-testid="input-instructie-upload"
+          />
+        </div>
+      )}
+
+      {deptNames.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center py-12">
+            <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Geen instructie documenten gevonden</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Accordion type="multiple" defaultValue={deptNames} className="w-full">
+          {deptNames.map((dept) => {
+            const files = instructies![dept] || [];
+            return (
+              <AccordionItem key={dept} value={dept}>
+                <AccordionTrigger className="hover:no-underline" data-testid={`instructie-dept-${dept}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <Building2 className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-medium text-left">{dept}</span>
+                    {files.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">{files.length}</Badge>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="pl-11 space-y-2">
+                    {files.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">Geen documenten</p>
+                    ) : (
+                      files.map((file) => (
+                        <div
+                          key={file.name}
+                          className="flex items-center justify-between gap-3 p-2.5 rounded-md group hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => window.open(file.path, "_blank")}
+                          data-testid={`instructie-file-${file.name}`}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-5 w-5 text-primary shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name.replace(/\.pdf$/i, "")}</p>
+                              <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
+                            </div>
+                          </div>
+                          {isAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="shrink-0 invisible group-hover:visible"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(dept, file.name); }}
+                              data-testid={`button-delete-instructie-${file.name}`}
+                            >
+                              <Trash2 className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      )}
+    </div>
+  );
+}
+
 function WetgevingTab() {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
@@ -998,6 +1170,10 @@ export default function OrganisatiePage() {
             <ClipboardList className="h-4 w-4 mr-1.5" />
             AO-Procedures
           </TabsTrigger>
+          <TabsTrigger value="instructies" data-testid="tab-instructies">
+            <FolderOpen className="h-4 w-4 mr-1.5" />
+            Instructies
+          </TabsTrigger>
           <TabsTrigger value="cao" data-testid="tab-cao">
             <BookOpen className="h-4 w-4 mr-1.5" />
             CAO Info
@@ -1018,6 +1194,9 @@ export default function OrganisatiePage() {
         )}
         <TabsContent value="ao-procedures" className="mt-4">
           <AoProceduresTab />
+        </TabsContent>
+        <TabsContent value="instructies" className="mt-4">
+          <InstructiesTab />
         </TabsContent>
         <TabsContent value="cao" className="mt-4">
           <CaoInfoTab />

@@ -273,6 +273,95 @@ export async function registerRoutes(
     }
   });
 
+  const instructiesDir = path.join(uploadsDir, "Instructies");
+  if (!fs.existsSync(instructiesDir)) {
+    fs.mkdirSync(instructiesDir, { recursive: true });
+  }
+
+  app.get("/api/uploads/instructies", requireAuth, async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(401).json({ message: "Niet ingelogd" });
+
+    try {
+      const allDepts = fs.readdirSync(instructiesDir, { withFileTypes: true })
+        .filter((d: any) => d.isDirectory())
+        .map((d: any) => d.name)
+        .sort();
+
+      const visibleDepts = user.role === "admin"
+        ? allDepts
+        : allDepts.filter((d: string) => d === user.department);
+
+      const result: Record<string, any[]> = {};
+      for (const dept of visibleDepts) {
+        const deptPath = path.join(instructiesDir, dept);
+        const files = fs.readdirSync(deptPath)
+          .filter((f: string) => f.toLowerCase().endsWith(".pdf"))
+          .map((f: string) => {
+            const stat = fs.statSync(path.join(deptPath, f));
+            return { name: f, path: `/uploads/Instructies/${dept}/${f}`, size: stat.size, modified: stat.mtime };
+          })
+          .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        result[dept] = files;
+      }
+
+      if (user.role !== "admin" && user.department && !result[user.department]) {
+        result[user.department] = [];
+      }
+
+      res.json(result);
+    } catch {
+      res.json({});
+    }
+  });
+
+  const instructiesUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req: any, _file: any, cb: any) => {
+        const dept = req.params.department;
+        const deptPath = path.join(instructiesDir, dept);
+        if (!fs.existsSync(deptPath)) fs.mkdirSync(deptPath, { recursive: true });
+        cb(null, deptPath);
+      },
+      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+    }),
+    fileFilter: (_req: any, file: any, cb: any) => {
+      if (file.mimetype === "application/pdf") cb(null, true);
+      else cb(new Error("Alleen PDF-bestanden"));
+    },
+  });
+
+  app.post("/api/uploads/instructies/:department", requireAuth, instructiesUpload.single("pdf"), async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Alleen beheerders" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
+    }
+    const dept = req.params.department;
+    res.json({ name: req.file.originalname, path: `/uploads/Instructies/${dept}/${req.file.originalname}` });
+  });
+
+  app.delete("/api/uploads/instructies/:department/:filename", requireAuth, async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "Alleen beheerders" });
+    }
+    const dept = req.params.department;
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
+    const filePath = path.join(instructiesDir, dept, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      res.json({ message: "Verwijderd" });
+    } else {
+      res.status(404).json({ message: "Bestand niet gevonden" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
