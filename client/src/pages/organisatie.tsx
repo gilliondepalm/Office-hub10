@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -1174,6 +1173,16 @@ function WetgevingTab() {
 export default function OrganisatiePage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const [activeTab, setActiveTab] = useState("organogram");
+
+  const tabs = [
+    { key: "organogram", label: "Organogram", icon: Network },
+    ...(isAdmin ? [{ key: "afdelingen", label: "Afdelingen", icon: Building2 }] : []),
+    { key: "ao-procedures", label: "AO-Procedures", icon: ClipboardList },
+    { key: "instructies", label: "Instructies", icon: FolderOpen },
+    { key: "cao", label: "CAO Info", icon: BookOpen },
+    { key: "wetgeving", label: "Wetgeving", icon: Scale },
+  ];
 
   return (
     <div className="p-6 space-y-6 overflow-auto h-full">
@@ -1182,57 +1191,35 @@ export default function OrganisatiePage() {
         <p className="text-muted-foreground text-sm">Afdelingen, procedures, organogram en wetgeving</p>
       </div>
 
-      <Tabs defaultValue="organogram" className="w-full">
-        <TabsList className="flex-wrap" data-testid="tabs-organisatie">
-          <TabsTrigger value="organogram" data-testid="tab-organogram">
-            <Network className="h-4 w-4 mr-1.5" />
-            Organogram
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="afdelingen" data-testid="tab-afdelingen">
-              <Building2 className="h-4 w-4 mr-1.5" />
-              Afdelingen
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="ao-procedures" data-testid="tab-ao-procedures">
-            <ClipboardList className="h-4 w-4 mr-1.5" />
-            AO-Procedures
-          </TabsTrigger>
-          <TabsTrigger value="instructies" data-testid="tab-instructies">
-            <FolderOpen className="h-4 w-4 mr-1.5" />
-            Instructies
-          </TabsTrigger>
-          <TabsTrigger value="cao" data-testid="tab-cao">
-            <BookOpen className="h-4 w-4 mr-1.5" />
-            CAO Info
-          </TabsTrigger>
-          <TabsTrigger value="wetgeving" data-testid="tab-wetgeving">
-            <Scale className="h-4 w-4 mr-1.5" />
-            Wetgeving
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex gap-1 border-b" data-testid="tabs-organisatie">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`tab-${tab.key}`}
+            >
+              <Icon className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-        <TabsContent value="organogram" className="mt-4">
-          <OrganogramTab />
-        </TabsContent>
-        {isAdmin && (
-          <TabsContent value="afdelingen" className="mt-4">
-            <AfdelingenTab />
-          </TabsContent>
-        )}
-        <TabsContent value="ao-procedures" className="mt-4">
-          <AoProceduresTab />
-        </TabsContent>
-        <TabsContent value="instructies" className="mt-4">
-          <InstructiesTab />
-        </TabsContent>
-        <TabsContent value="cao" className="mt-4">
-          <CaoInfoTab />
-        </TabsContent>
-        <TabsContent value="wetgeving" className="mt-4">
-          <WetgevingTab />
-        </TabsContent>
-      </Tabs>
+      <div className="mt-4">
+        {activeTab === "organogram" && <OrganogramTab />}
+        {activeTab === "afdelingen" && isAdmin && <AfdelingenTab />}
+        {activeTab === "ao-procedures" && <AoProceduresTab />}
+        {activeTab === "instructies" && <InstructiesTab />}
+        {activeTab === "cao" && <CaoInfoTab />}
+        {activeTab === "wetgeving" && <WetgevingTab />}
+      </div>
     </div>
   );
 }
