@@ -191,6 +191,15 @@ function AfdelingenTab() {
         </div>
       )}
 
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            Afdelingen ({departments?.length || 0})
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
       {(!departments || departments.length === 0) ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12">
@@ -376,6 +385,15 @@ function AoProceduresTab() {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            Procedures ({filteredProcedures?.length || 0})
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
       {isAdmin && (
         <div className="flex gap-2 justify-end flex-wrap">
           <Dialog open={procOpen} onOpenChange={setProcOpen}>
@@ -758,7 +776,7 @@ function CaoInfoTab() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
-              CAO Informatie
+              Documenten ({caoFiles?.length || 0})
             </CardTitle>
             {isAdmin && (
               <>
@@ -896,9 +914,19 @@ function InstructiesTab() {
   }
 
   const deptNames = instructies ? Object.keys(instructies).sort() : [];
+  const totalInstructies = instructies ? Object.values(instructies).reduce((sum, files) => sum + files.length, 0) : 0;
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-primary" />
+            Documenten ({totalInstructies})
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
       {isAdmin && (
         <div className="flex items-center gap-3 justify-end">
           <Select value={selectedDept || ""} onValueChange={(v) => setSelectedDept(v)}>
