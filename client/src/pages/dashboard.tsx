@@ -233,14 +233,17 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            <StatCard
-              title="Afwezigheden"
-              value={absences?.filter(a => a.status === "approved" || a.status === "pending").length || 0}
-              icon={Clock}
-              description={`${pendingAbsences.length} in afwachting`}
-              color="text-amber-600 dark:text-amber-400"
-              iconBg="bg-amber-100 dark:bg-amber-900/30"
-            />
+            <Card className="border border-border/60">
+              <CardContent className="flex items-center gap-3 py-3 px-4">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-900/30">
+                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+                  <p className="text-xs text-muted-foreground">{new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
