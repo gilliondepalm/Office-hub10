@@ -304,6 +304,19 @@
     print-color-adjust: exact;
   }
 
+  .print-hide {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+  }
+
   [data-slot="sidebar"],
   [data-slot="sidebar-gap"],
   [data-slot="sidebar-container"],
@@ -320,6 +333,8 @@
     margin: 0 !important;
     overflow: hidden !important;
     visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
   }
 
   [data-slot="sidebar-wrapper"] {

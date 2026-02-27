@@ -1946,7 +1946,7 @@ export default function BeloningenPage() {
 
   return (
     <div className="p-6 space-y-4 overflow-auto h-full">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap print:hidden">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-beloningen-title">Beloningen</h1>
           <p className="text-muted-foreground text-sm">Functionering, beoordeling en beloning</p>
@@ -2005,7 +2005,7 @@ export default function BeloningenPage() {
         )}
       </div>
 
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1 border-b print:hidden">
         <button
           onClick={() => setActiveTab("functionering")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
