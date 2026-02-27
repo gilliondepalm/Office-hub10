@@ -1433,7 +1433,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
         )}
       </div>
 
-      <div id="beoordeling-form" className="space-y-6 print:space-y-4">
+      <div id="beoordeling-form" className="space-y-6 print:hidden">
         <Card className="border border-border/60 print:border print:shadow-none print:bg-white">
           <CardContent className="p-6 print:p-4">
             <h2 className="text-lg font-bold text-center mb-1 print:text-xl" data-testid="text-beoordeling-title">
@@ -1730,6 +1730,136 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                 <div>
                   <p className="text-xs font-medium text-muted-foreground print:text-black mb-1">Handtekening beoordelaar</p>
                   <div className="border-b border-dashed h-12 print:h-16"></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="hidden print:block print:space-y-4">
+        <Card className="border print:shadow-none print:bg-white">
+          <CardContent className="p-4">
+            <h2 className="text-xl font-bold text-center mb-1">BEOORDELINGSFORMULIER</h2>
+            <p className="text-sm text-center mb-4">Vertrouwelijk</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Medewerker</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{viewingReview?.medewerker || users?.find(u => u.id === selectedUserId)?.fullName || "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Functie</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{selectedFunctie || viewingReview?.functie || "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Afdeling</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{viewingReview?.afdeling || users?.find(u => u.id === selectedUserId)?.department || "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Beoordelaar</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{formData.beoordelaar || "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Datum</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{formData.datum ? format(new Date(formData.datum), "d MMMM yyyy", { locale: nl }) : "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Beoordelingsperiode</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{formData.periode || "-"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Beoordelingsjaar</label>
+                <p className="text-sm border-b border-gray-400 pb-1">{formData.beoordelingsJaar}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {compList.length > 0 && (
+          <Card className="border print:shadow-none print:bg-white">
+            <CardContent className="p-4 space-y-3">
+              <h3 className="font-semibold text-base border-b pb-2">Competentiebeoordeling — {selectedFunctie || viewingReview?.functie}</h3>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2 text-xs font-medium w-8">#</th>
+                    <th className="text-left py-2 px-2 text-xs font-medium">Competentie</th>
+                    <th className="text-center py-2 px-2 text-xs font-medium w-20">Score</th>
+                    <th className="text-left py-2 px-2 text-xs font-medium">Toelichting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {compList.map((comp, i) => {
+                    const s = formScores[comp.id]?.score;
+                    const t = formScores[comp.id]?.toelichting || "";
+                    const normText = s ? (comp as any)[`norm${s}`] : "";
+                    return (
+                      <tr key={comp.id} className="border-b last:border-0">
+                        <td className="py-2 px-2 align-top">{i + 1}</td>
+                        <td className="py-2 px-2 align-top">
+                          <p className="font-medium">{comp.name}</p>
+                          {normText && <p className="text-xs mt-0.5 text-gray-600">{normText}</p>}
+                        </td>
+                        <td className="py-2 px-2 align-top text-center font-bold">{s || "-"}</td>
+                        <td className="py-2 px-2 align-top text-xs">{t || "-"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="flex items-center justify-end gap-6 pt-2 border-t text-sm">
+                <span>Totaal: <strong>{totalScore}</strong> / {compList.length * 5}</span>
+                <span>Gemiddelde: <strong>{scoreValues.length > 0 ? averageScore.toFixed(1) : "—"}</strong>
+                  {scoreValues.length > 0 && ` (${scoreLabels[Math.round(averageScore)] || ""})`}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="border print:shadow-none print:bg-white print:break-inside-avoid">
+          <CardContent className="p-4 space-y-2">
+            <h3 className="font-semibold text-base border-b pb-2">Afspraken en opmerkingen</h3>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Gemaakte afspraken</label>
+              <p className="text-sm whitespace-pre-wrap">{formData.afspraken || "-"}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Opmerkingen medewerker</label>
+              <p className="text-sm whitespace-pre-wrap">{formData.opmerkingMedewerker || "-"}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Opmerkingen beoordelaar</label>
+              <p className="text-sm whitespace-pre-wrap">{formData.opmerkingBeoordelaar || "-"}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border print:shadow-none print:bg-white print:break-inside-avoid">
+          <CardContent className="p-4 space-y-4">
+            <h3 className="font-semibold text-base border-b pb-2">Ondertekening</h3>
+            <p className="text-xs">
+              Beide partijen verklaren dat deze beoordeling heeft plaatsgevonden en dat de inhoud van dit formulier een correcte weergave is van het besprokene.
+            </p>
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-12">
+                <div>
+                  <p className="text-xs font-medium mb-1">Datum</p>
+                  <div className="border-b border-dashed h-8"></div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium mb-1">Handtekening medewerker</p>
+                  <div className="border-b border-dashed h-16"></div>
+                </div>
+              </div>
+              <div className="space-y-12">
+                <div>
+                  <p className="text-xs font-medium mb-1">Datum</p>
+                  <div className="border-b border-dashed h-8"></div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium mb-1">Handtekening beoordelaar</p>
+                  <div className="border-b border-dashed h-16"></div>
                 </div>
               </div>
             </div>
