@@ -932,6 +932,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   const [compFunctie, setCompFunctie] = useState<string>("");
   const [newCompName, setNewCompName] = useState("");
   const [newCompNorms, setNewCompNorms] = useState({ norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
+  const [showCompDropdown, setShowCompDropdown] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
   const [editCompName, setEditCompName] = useState("");
   const [editCompNorms, setEditCompNorms] = useState({ norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
@@ -1283,12 +1284,60 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
               <Card className="border border-dashed border-border/60">
                 <CardContent className="p-4 space-y-3">
                   <h4 className="text-sm font-medium">Nieuwe competentie toevoegen</h4>
-                  <Input
-                    value={newCompName}
-                    onChange={e => setNewCompName(e.target.value)}
-                    placeholder="Naam competentie (bijv. Leiderschap, Communicatie)"
-                    data-testid="input-new-comp-name"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={newCompName}
+                      onChange={e => {
+                        setNewCompName(e.target.value);
+                        setShowCompDropdown(true);
+                      }}
+                      onFocus={() => setShowCompDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowCompDropdown(false), 200)}
+                      placeholder="Naam competentie (bijv. Leiderschap, Communicatie)"
+                      data-testid="input-new-comp-name"
+                    />
+                    {showCompDropdown && (() => {
+                      const existingNames = [...new Set(allCompetencies?.map(c => c.name) || [])].sort();
+                      const filtered = existingNames.filter(name =>
+                        name.toLowerCase().includes(newCompName.toLowerCase()) &&
+                        !manageCompetencies?.some(mc => mc.name === name)
+                      );
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto" data-testid="comp-name-dropdown">
+                          {filtered.map(name => {
+                            const usedIn = [...new Set(allCompetencies?.filter(c => c.name === name).map(c => c.functie) || [])];
+                            return (
+                              <button
+                                key={name}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center justify-between"
+                                data-testid={`comp-option-${name}`}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setNewCompName(name);
+                                  setShowCompDropdown(false);
+                                  const source = allCompetencies?.find(c => c.name === name);
+                                  if (source) {
+                                    setNewCompNorms({
+                                      norm1: source.norm1 || "",
+                                      norm2: source.norm2 || "",
+                                      norm3: source.norm3 || "",
+                                      norm4: source.norm4 || "",
+                                      norm5: source.norm5 || "",
+                                    });
+                                  }
+                                }}
+                              >
+                                <span>{name}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{usedIn.join(", ")}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">Normering omschrijvingen (optioneel):</p>
                     {[1, 2, 3, 4, 5].map(n => (
