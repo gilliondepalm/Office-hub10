@@ -2249,72 +2249,89 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
         </Card>
       ) : (
         <div className="space-y-4">
-          {Object.entries(groupedByUser).sort(([a], [b]) => a.localeCompare(b)).map(([userName, items]) => (
-            <Card key={userName} className="border border-border/60">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary">{userName.split(" ").map(n => n[0]).join("").slice(0, 2)}</AvatarFallback>
-                  </Avatar>
-                  <h3 className="text-sm font-semibold" data-testid={`jaarplan-user-${userName}`}>{userName}</h3>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm" data-testid={`jaarplan-table-${userName}`}>
-                    <thead>
-                      <tr className="border-b text-xs text-muted-foreground">
-                        <th className="text-left py-2 pr-3 font-medium">Plan</th>
-                        <th className="text-left py-2 px-3 font-medium whitespace-nowrap">Start</th>
-                        <th className="text-left py-2 px-3 font-medium whitespace-nowrap">Einde</th>
-                        <th className="text-left py-2 px-3 font-medium">Voortgang</th>
-                        <th className="text-left py-2 px-3 font-medium">Status</th>
-                        {isAdmin && <th className="text-right py-2 pl-3 font-medium w-20"></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map(item => {
-                        const statusOpt = statusOptions.find(s => s.value === item.status) || statusOptions[0];
-                        return (
-                          <tr key={item.id} className="border-b last:border-0" data-testid={`jaarplan-row-${item.id}`}>
-                            <td className="py-2 pr-3 max-w-[250px]">
-                              <p className="text-sm whitespace-pre-wrap">{item.afspraken}</p>
-                            </td>
-                            <td className="py-2 px-3 whitespace-nowrap text-xs text-muted-foreground">
-                              {item.startDatum ? format(new Date(item.startDatum), "d MMM yyyy", { locale: nl }) : "—"}
-                            </td>
-                            <td className="py-2 px-3 whitespace-nowrap text-xs text-muted-foreground">
-                              {item.eindDatum ? format(new Date(item.eindDatum), "d MMM yyyy", { locale: nl }) : "—"}
-                            </td>
-                            <td className="py-2 px-3 max-w-[200px]">
-                              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{item.voortgang || "—"}</p>
-                            </td>
-                            <td className="py-2 px-3">
-                              <Badge variant="outline" className={`text-[10px] ${statusOpt.color}`} data-testid={`jaarplan-status-${item.id}`}>
-                                {statusOpt.label}
-                              </Badge>
-                            </td>
-                            {isAdmin && (
-                              <td className="py-2 pl-3 text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="sm" onClick={() => handleEditItem(item)} data-testid={`button-edit-jaarplan-${item.id}`}>
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(item.id)} data-testid={`button-delete-jaarplan-${item.id}`}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+          {Object.entries(groupedByUser).sort(([a], [b]) => a.localeCompare(b)).map(([userName, items]) => {
+            const groupedByPlan = items.reduce((acc, item) => {
+              const plan = item.afspraken || "Zonder plan";
+              if (!acc[plan]) acc[plan] = [];
+              acc[plan].push(item);
+              return acc;
+            }, {} as Record<string, typeof items>);
+
+            return (
+              <Card key={userName} className="border border-border/60">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">{userName.split(" ").map(n => n[0]).join("").slice(0, 2)}</AvatarFallback>
+                    </Avatar>
+                    <h3 className="text-sm font-semibold" data-testid={`jaarplan-user-${userName}`}>{userName}</h3>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                  {Object.entries(groupedByPlan).sort(([a], [b]) => a.localeCompare(b)).map(([planName, planItems]) => {
+                    const sortedItems = [...planItems].sort((a, b) => {
+                      const da = a.startDatum ? new Date(a.startDatum).getTime() : 0;
+                      const db = b.startDatum ? new Date(b.startDatum).getTime() : 0;
+                      return da - db;
+                    });
+                    const latestStatus = sortedItems[sortedItems.length - 1];
+                    const latestStatusOpt = statusOptions.find(s => s.value === latestStatus?.status) || statusOptions[0];
+
+                    return (
+                      <div key={planName} className="border rounded-lg p-3" data-testid={`jaarplan-plan-${planName}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" />
+                            <h4 className="text-sm font-semibold">{planName}</h4>
+                          </div>
+                          <Badge variant="outline" className={`text-[10px] ${latestStatusOpt.color}`}>
+                            {latestStatusOpt.label}
+                          </Badge>
+                        </div>
+                        <div className="space-y-0">
+                          <div className="grid grid-cols-[100px_100px_1fr_auto] gap-2 text-xs text-muted-foreground font-medium border-b pb-1 mb-1">
+                            <span>Start</span>
+                            <span>Einde</span>
+                            <span>Voortgang</span>
+                            {isAdmin && <span className="w-16"></span>}
+                          </div>
+                          {sortedItems.map((item, idx) => {
+                            const statusOpt = statusOptions.find(s => s.value === item.status) || statusOptions[0];
+                            return (
+                              <div key={item.id} className={`grid grid-cols-[100px_100px_1fr_auto] gap-2 items-start py-1.5 ${idx < sortedItems.length - 1 ? "border-b border-border/40" : ""}`} data-testid={`jaarplan-row-${item.id}`}>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {item.startDatum ? format(new Date(item.startDatum), "d MMM yyyy", { locale: nl }) : "—"}
+                                </span>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {item.eindDatum ? format(new Date(item.eindDatum), "d MMM yyyy", { locale: nl }) : "—"}
+                                </span>
+                                <div className="flex items-start gap-2">
+                                  <p className="text-xs whitespace-pre-wrap flex-1">{item.voortgang || "—"}</p>
+                                  <Badge variant="outline" className={`text-[10px] shrink-0 ${statusOpt.color}`} data-testid={`jaarplan-status-${item.id}`}>
+                                    {statusOpt.label}
+                                  </Badge>
                                 </div>
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                                {isAdmin && (
+                                  <div className="flex items-center gap-0.5 w-16 justify-end">
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditItem(item)} data-testid={`button-edit-jaarplan-${item.id}`}>
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => deleteMutation.mutate(item.id)} data-testid={`button-delete-jaarplan-${item.id}`}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
