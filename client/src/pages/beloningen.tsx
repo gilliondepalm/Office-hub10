@@ -1999,7 +1999,15 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [editingItem, setEditingItem] = useState<(JaarplanItem & { userName?: string }) | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
+
+  const { data: departments } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/departments"],
+    enabled: isAdmin,
+  });
+
+  const filteredUsers = users?.filter(u => u.active && (selectedDepartment ? u.department === selectedDepartment : true)) || [];
   const [formData, setFormData] = useState({
     afspraken: "",
     startDatum: "",
@@ -2051,6 +2059,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingItem(null);
+    setSelectedDepartment("");
     setSelectedUserId("");
     setFormData({ afspraken: "", startDatum: "", eindDatum: "", voortgang: "", status: "niet gestart" });
   };
@@ -2062,6 +2071,8 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
 
   const handleEditItem = (item: JaarplanItem & { userName?: string }) => {
     setEditingItem(item);
+    const user = users?.find(u => u.id === item.userId);
+    if (user?.department) setSelectedDepartment(user.department);
     setSelectedUserId(item.userId);
     setFormData({
       afspraken: item.afspraken,
@@ -2130,14 +2141,27 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-xs font-medium text-muted-foreground">Medewerker</label>
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                  <SelectTrigger data-testid="select-jaarplan-user">
-                    <SelectValue placeholder="Selecteer medewerker" />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Afdeling</label>
+                <Select value={selectedDepartment} onValueChange={v => { setSelectedDepartment(v); setSelectedUserId(""); }}>
+                  <SelectTrigger data-testid="select-jaarplan-department">
+                    <SelectValue placeholder="Selecteer afdeling" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users?.filter(u => u.active).map(u => (
+                    {departments?.sort((a, b) => a.name.localeCompare(b.name)).map(d => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Medewerker</label>
+                <Select value={selectedUserId} onValueChange={setSelectedUserId} disabled={!selectedDepartment}>
+                  <SelectTrigger data-testid="select-jaarplan-user">
+                    <SelectValue placeholder={selectedDepartment ? "Selecteer medewerker" : "Selecteer eerst een afdeling"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredUsers.map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                     ))}
                   </SelectContent>
