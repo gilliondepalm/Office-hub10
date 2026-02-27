@@ -1,11 +1,14 @@
 import * as React from "react"
+import { useState } from "react"
 
 import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
-    // h-9 to match icon buttons and default buttons.
-    return (
+  ({ className, type, onFocus, onBlur, ...props }, ref) => {
+    const [isFocused, setIsFocused] = useState(false);
+    const isDate = type === "date";
+
+    const input = (
       <input
         type={type}
         className={cn(
@@ -13,9 +16,32 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        onFocus={(e) => {
+          if (isDate) setIsFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          if (isDate) setIsFocused(false);
+          onBlur?.(e);
+        }}
         {...props}
       />
-    )
+    );
+
+    if (isDate) {
+      return (
+        <div className="w-full">
+          {input}
+          {isFocused && (
+            <p className="text-[10px] text-muted-foreground mt-1 print:hidden">
+              Spatiebalk voor activeren kalender
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    return input;
   }
 )
 Input.displayName = "Input"
