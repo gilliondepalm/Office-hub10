@@ -1131,7 +1131,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   };
 
   const handleNewForm = () => {
-    setFormData({ beoordelaar: "", datum: format(new Date(), "yyyy-MM-dd"), periode: "", afspraken: "", opmerkingMedewerker: "", opmerkingBeoordelaar: "" });
+    setFormData({ beoordelaar: "", datum: format(new Date(), "yyyy-MM-dd"), periode: "", beoordelingsJaar: new Date().getFullYear(), afspraken: "", opmerkingMedewerker: "", opmerkingBeoordelaar: "" });
     setFormScores({});
     setSelectedUserId("");
     setSelectedFunctie("");
