@@ -412,7 +412,7 @@ function AoProceduresTab() {
                   <FormField control={procForm.control} name="departmentId" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Afdeling</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-procedure-department">
                             <SelectValue placeholder="Selecteer afdeling" />
