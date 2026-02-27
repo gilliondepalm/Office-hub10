@@ -312,12 +312,25 @@
     max-width: 100% !important;
   }
 
+  * {
+    background-color: transparent !important;
+    color: black !important;
+  }
+
+  .print\\:bg-white {
+    background-color: white !important;
+  }
+
   .print\\:border {
     border: 1px solid #ddd !important;
   }
 
   .print\\:shadow-none {
     box-shadow: none !important;
+  }
+
+  [class*="card"], [class*="Card"] {
+    background-color: white !important;
   }
 
   textarea, input {

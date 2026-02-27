@@ -28,6 +28,190 @@ import type { Reward, User, FunctioneringReview, Competency, BeoordelingReview, 
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 
+function ReadOnlyFunctioneringForm({ review }: { review: FunctioneringReview }) {
+  const fieldValue = (val: string | null | undefined) => val || "-";
+
+  return (
+    <div className="space-y-4 print:space-y-3 print:break-before-page">
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white bg-card">
+        <CardContent className="p-6 print:p-4">
+          <h2 className="text-lg font-bold text-center mb-1 print:text-xl">
+            GESPREKSFORMULIER FUNCTIONERINGSGESPREK
+          </h2>
+          <p className="text-xs text-muted-foreground text-center mb-6 print:text-sm print:text-black">
+            Vertrouwelijk
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground print:text-black">Medewerker</label>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{fieldValue(review.medewerker)}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground print:text-black">Functie</label>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{fieldValue(review.functie)}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground print:text-black">Afdeling</label>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{fieldValue(review.afdeling)}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground print:text-black">Leidinggevende</label>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{fieldValue(review.leidinggevende)}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground print:text-black">Datum gesprek</label>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{format(new Date(review.datum), "d MMMM yyyy", { locale: nl })}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground print:text-black">Beoordelingsperiode</label>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{fieldValue(review.periode)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-3 print:space-y-2">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">1. Terugblik vorige periode</h3>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Welke taken/werkzaamheden zijn uitgevoerd?</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.terugblikTaken)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Welke resultaten zijn behaald?</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.terugblikResultaten)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Welke knelpunten zijn er ervaren?</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.terugblikKnelpunten)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-3 print:space-y-2">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">2. Werk en werkomstandigheden</h3>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Werkinhoud en takenpakket</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.werkinhoud)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Arbeidsomstandigheden</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.arbeidsomstandigheden)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-3 print:space-y-2">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">3. Samenwerking en communicatie</h3>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Samenwerking met collega's</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.samenwerking)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Communicatie</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.communicatie)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Leidinggeven (indien van toepassing)</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.leidinggeven)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-3 print:space-y-2">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">4. Persoonlijke ontwikkeling</h3>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Persoonlijke ontwikkeling en competenties</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.persoonlijkeOntwikkeling)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Scholings- en opleidingswensen</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.scholingswensen)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Loopbaanwensen</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.loopbaanwensen)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-3 print:space-y-2">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">5. Doelstellingen komende periode</h3>
+          {[1, 2, 3].map((n) => {
+            const doel = (review as any)[`doelstelling${n}`];
+            const termijn = (review as any)[`doelstelling${n}Termijn`];
+            return (
+              <div key={n} className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground print:text-black">Doelstelling {n}</label>
+                  <p className="text-sm whitespace-pre-wrap">{fieldValue(doel)}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground print:text-black">Termijn</label>
+                  <p className="text-sm">{fieldValue(termijn)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-3 print:space-y-2">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">6. Afspraken en opmerkingen</h3>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Gemaakte afspraken</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.afspraken)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Opmerkingen medewerker</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.opmerkingMedewerker)}</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground print:text-black">Opmerkingen leidinggevende</label>
+            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.opmerkingLeidinggevende)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid bg-card">
+        <CardContent className="p-6 print:p-4 space-y-6 print:space-y-4">
+          <h3 className="font-semibold text-sm border-b pb-2 print:text-base">7. Ondertekening</h3>
+          <p className="text-xs text-muted-foreground print:text-black">
+            Beide partijen verklaren dat dit gesprek heeft plaatsgevonden en dat de inhoud van dit formulier een correcte weergave is van het besprokene.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-8 print:space-y-12">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground print:text-black mb-1">Datum</p>
+                <div className="border-b border-dashed h-6 print:h-8"></div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground print:text-black mb-1">Handtekening medewerker</p>
+                <div className="border-b border-dashed h-12 print:h-16"></div>
+              </div>
+            </div>
+            <div className="space-y-8 print:space-y-12">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground print:text-black mb-1">Datum</p>
+                <div className="border-b border-dashed h-6 print:h-8"></div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground print:text-black mb-1">Handtekening leidinggevende</p>
+                <div className="border-b border-dashed h-12 print:h-16"></div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
   const { toast } = useToast();
   const isAdmin = isAdminRole(currentUser?.role);
@@ -239,10 +423,10 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-8">
             {reviewsToShow.map((review) => (
-              <Card key={review.id} className="border border-border/60" data-testid={`review-card-${review.id}`}>
-                <CardContent className="p-4 flex items-center justify-between">
+              <div key={review.id} data-testid={`review-card-${review.id}`}>
+                <div className="flex items-center justify-between mb-3 print:hidden">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                       <ClipboardCheck className="h-4 w-4" />
@@ -259,18 +443,21 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleViewReview(review)} data-testid={`button-view-review-${review.id}`}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      Bekijken
-                    </Button>
                     {isAdmin && (
-                      <Button variant="outline" size="sm" onClick={() => deleteMutation.mutate(review.id)} data-testid={`button-delete-review-${review.id}`}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => handleViewReview(review)} data-testid={`button-edit-review-${review.id}`}>
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Bewerken
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => deleteMutation.mutate(review.id)} data-testid={`button-delete-review-${review.id}`}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <ReadOnlyFunctioneringForm review={review} />
+              </div>
             ))}
           </div>
         )}
@@ -307,7 +494,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
       </div>
 
       <div id="functionering-form" className="space-y-6 print:space-y-4">
-        <Card className="border border-border/60 print:border print:shadow-none">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white">
           <CardContent className="p-6 print:p-4">
             <h2 className="text-lg font-bold text-center mb-1 print:text-xl" data-testid="text-functionering-title">
               GESPREKSFORMULIER FUNCTIONERINGSGESPREK
@@ -427,7 +614,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">1. Terugblik vorige periode</h3>
             <div className="space-y-1">
@@ -466,7 +653,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">2. Werk en werkomstandigheden</h3>
             <div className="space-y-1">
@@ -496,7 +683,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">3. Samenwerking en communicatie</h3>
             <div className="space-y-1">
@@ -538,7 +725,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">4. Persoonlijke ontwikkeling</h3>
             <div className="space-y-1">
@@ -580,7 +767,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">5. Doelstellingen komende periode</h3>
             <div className="space-y-3 print:space-y-2">
@@ -615,7 +802,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-4 print:space-y-2">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">6. Afspraken en opmerkingen</h3>
             <div className="space-y-1">
@@ -655,7 +842,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 print:border print:shadow-none print:break-inside-avoid">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white print:break-inside-avoid">
           <CardContent className="p-6 print:p-4 space-y-6 print:space-y-4">
             <h3 className="font-semibold text-sm border-b pb-2 print:text-base">7. Ondertekening</h3>
             <p className="text-xs text-muted-foreground print:text-black">
@@ -1225,7 +1412,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       </div>
 
       <div id="beoordeling-form" className="space-y-6 print:space-y-4">
-        <Card className="border border-border/60 print:border print:shadow-none">
+        <Card className="border border-border/60 print:border print:shadow-none print:bg-white">
           <CardContent className="p-6 print:p-4">
             <h2 className="text-lg font-bold text-center mb-1 print:text-xl" data-testid="text-beoordeling-title">
               BEOORDELINGSFORMULIER
@@ -1324,7 +1511,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
         </Card>
 
         {(selectedFunctie || viewingReview) && (
-          <Card className="border border-border/60 print:border print:shadow-none">
+          <Card className="border border-border/60 print:border print:shadow-none print:bg-white">
             <CardContent className="p-6 print:p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm border-b pb-2 print:text-base flex-1">Competentiebeoordeling — {selectedFunctie || viewingReview?.functie}</h3>
