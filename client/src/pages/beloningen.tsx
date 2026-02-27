@@ -933,6 +933,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   const [newCompName, setNewCompName] = useState("");
   const [newCompNorms, setNewCompNorms] = useState({ norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
   const [showCompDropdown, setShowCompDropdown] = useState(false);
+  const [expandedDropdownComp, setExpandedDropdownComp] = useState<string | null>(null);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
   const [editCompName, setEditCompName] = useState("");
   const [editCompNorms, setEditCompNorms] = useState({ norm1: "", norm2: "", norm3: "", norm4: "", norm5: "" });
@@ -1303,50 +1304,68 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                       );
                       if (filtered.length === 0) return null;
                       return (
-                        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-72 overflow-y-auto" data-testid="comp-name-dropdown">
+                        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-80 overflow-y-auto" data-testid="comp-name-dropdown">
                           {filtered.map(name => {
                             const usedIn = [...new Set(allCompetencies?.filter(c => c.name === name).map(c => c.functie) || [])];
                             const source = allCompetencies?.find(c => c.name === name);
                             const hasNorms = source && (source.norm1 || source.norm2 || source.norm3 || source.norm4 || source.norm5);
+                            const isExpanded = expandedDropdownComp === name;
                             return (
-                              <button
-                                key={name}
-                                type="button"
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground border-b border-border/40 last:border-0"
-                                data-testid={`comp-option-${name}`}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setNewCompName(name);
-                                  setShowCompDropdown(false);
-                                  if (source) {
-                                    setNewCompNorms({
-                                      norm1: source.norm1 || "",
-                                      norm2: source.norm2 || "",
-                                      norm3: source.norm3 || "",
-                                      norm4: source.norm4 || "",
-                                      norm5: source.norm5 || "",
-                                    });
-                                  }
-                                }}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium">{name}</span>
-                                  <span className="text-xs text-muted-foreground ml-2">{usedIn.join(", ")}</span>
+                              <div key={name} className="border-b border-border/40 last:border-0" data-testid={`comp-option-${name}`}>
+                                <div className="flex items-center w-full">
+                                  <button
+                                    type="button"
+                                    className="flex-1 text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setNewCompName(name);
+                                      setShowCompDropdown(false);
+                                      setExpandedDropdownComp(null);
+                                      if (source) {
+                                        setNewCompNorms({
+                                          norm1: source.norm1 || "",
+                                          norm2: source.norm2 || "",
+                                          norm3: source.norm3 || "",
+                                          norm4: source.norm4 || "",
+                                          norm5: source.norm5 || "",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium">{name}</span>
+                                      <span className="text-xs text-muted-foreground ml-2">{usedIn.join(", ")}</span>
+                                    </div>
+                                  </button>
+                                  {hasNorms && (
+                                    <button
+                                      type="button"
+                                      className="px-2 py-2 text-muted-foreground hover:text-foreground shrink-0"
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setExpandedDropdownComp(isExpanded ? null : name);
+                                      }}
+                                      data-testid={`comp-toggle-${name}`}
+                                    >
+                                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                                    </button>
+                                  )}
                                 </div>
-                                {hasNorms && (
-                                  <div className="mt-1 space-y-0.5">
+                                {hasNorms && isExpanded && (
+                                  <div className="px-3 pb-2 space-y-0.5">
                                     {[1, 2, 3, 4, 5].map(n => {
                                       const nv = (source as any)[`norm${n}`];
                                       return nv ? (
                                         <div key={n} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
                                           <span className="shrink-0 font-medium w-3 text-center">{n}.</span>
-                                          <span className="truncate">{nv}</span>
+                                          <span>{nv}</span>
                                         </div>
                                       ) : null;
                                     })}
                                   </div>
                                 )}
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
