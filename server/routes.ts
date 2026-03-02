@@ -430,6 +430,43 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, newPassword } = req.body;
+      if (!email || !newPassword) {
+        return res.status(400).json({ message: "E-mail en nieuw wachtwoord zijn verplicht" });
+      }
+      if (newPassword.length < 4) {
+        return res.status(400).json({ message: "Wachtwoord moet minimaal 4 tekens zijn" });
+      }
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "Geen gebruiker gevonden met dit e-mailadres" });
+      }
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { password: hashed });
+      res.json({ username: user.username, fullName: user.fullName });
+    } catch (err) {
+      res.status(500).json({ message: "Serverfout" });
+    }
+  });
+
+  app.post("/api/auth/lookup-email", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "E-mail is verplicht" });
+      }
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "Geen gebruiker gevonden met dit e-mailadres" });
+      }
+      res.json({ username: user.username, fullName: user.fullName });
+    } catch (err) {
+      res.status(500).json({ message: "Serverfout" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;

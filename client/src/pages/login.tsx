@@ -11,13 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, User, Building2 } from "lucide-react";
+import { Lock, User, Building2, Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
+  const [showReset, setShowReset] = useState(false);
+  const [resetStep, setResetStep] = useState<"email" | "newPassword" | "done">("email");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [foundUser, setFoundUser] = useState<{ username: string; fullName: string } | null>(null);
 
   const { data: loginPhoto } = useQuery<{ value: string | null }>({
     queryKey: ["/api/site-settings/public", "login_photo"],
@@ -47,6 +54,77 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLookupEmail = async () => {
+    if (!resetEmail.trim()) {
+      toast({ title: "Vul uw e-mailadres in", variant: "destructive" });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/auth/lookup-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: data.message || "Geen gebruiker gevonden", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setFoundUser(data);
+      setResetStep("newPassword");
+    } catch {
+      toast({ title: "Er is een fout opgetreden", variant: "destructive" });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetNewPassword.trim()) {
+      toast({ title: "Vul een nieuw wachtwoord in", variant: "destructive" });
+      return;
+    }
+    if (resetNewPassword.length < 4) {
+      toast({ title: "Wachtwoord moet minimaal 4 tekens zijn", variant: "destructive" });
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast({ title: "Wachtwoorden komen niet overeen", variant: "destructive" });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail, newPassword: resetNewPassword }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast({ title: data.message || "Resetten mislukt", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setFoundUser(data);
+      setResetStep("done");
+    } catch {
+      toast({ title: "Er is een fout opgetreden", variant: "destructive" });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowReset(false);
+    setResetStep("email");
+    setResetEmail("");
+    setResetNewPassword("");
+    setResetConfirmPassword("");
+    setFoundUser(null);
   };
 
   return (
@@ -99,78 +177,219 @@ export default function LoginPage() {
 
       <div className="flex-1 flex items-center justify-center bg-background p-6">
         <div className="w-full max-w-sm space-y-8">
-          <div className="text-center space-y-3 lg:text-left">
-            <div className="flex justify-center lg:hidden">
-              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-lg">
-                KD
+          {!showReset ? (
+            <>
+              <div className="text-center space-y-3 lg:text-left">
+                <div className="flex justify-center lg:hidden">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-lg">
+                    KD
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">Welkom terug</h2>
+                <p className="text-muted-foreground text-sm">
+                  Voer uw gegevens in om toegang te krijgen tot het dashboard
+                </p>
               </div>
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Welkom terug</h2>
-            <p className="text-muted-foreground text-sm">
-              Voer uw gegevens in om toegang te krijgen tot het dashboard
-            </p>
-          </div>
 
-          <Card className="border-0 shadow-none bg-transparent">
-            <CardContent className="p-0">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Gebruikersnaam</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              {...field}
-                              placeholder="Voer gebruikersnaam in"
-                              className="pl-10 h-11 bg-card border-border"
-                              data-testid="input-username"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-sm font-medium">Wachtwoord</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              {...field}
-                              type="password"
-                              placeholder="Voer wachtwoord in"
-                              className="pl-10 h-11 bg-card border-border"
-                              data-testid="input-password"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <Card className="border-0 shadow-none bg-transparent">
+                <CardContent className="p-0">
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Gebruikersnaam</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  placeholder="Voer gebruikersnaam in"
+                                  className="pl-10 h-11 bg-card border-border"
+                                  data-testid="input-username"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Wachtwoord</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  {...field}
+                                  type="password"
+                                  placeholder="Voer wachtwoord in"
+                                  className="pl-10 h-11 bg-card border-border"
+                                  data-testid="input-password"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        className="w-full h-11 font-semibold text-sm"
+                        disabled={loading}
+                        data-testid="button-login"
+                      >
+                        <Building2 className="h-4 w-4 mr-2" />
+                        {loading ? "Inloggen..." : "Inloggen"}
+                      </Button>
+                    </form>
+                  </Form>
+                  <div className="mt-4 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowReset(true)}
+                      className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors"
+                      data-testid="button-forgot-password"
+                    >
+                      Wachtwoord of gebruikersnaam vergeten?
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <div className="space-y-6">
+              <button
+                type="button"
+                onClick={handleBackToLogin}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+                data-testid="button-back-to-login"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Terug naar inloggen
+              </button>
+
+              {resetStep === "email" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Gegevens herstellen</h2>
+                    <p className="text-muted-foreground text-sm">
+                      Vul uw e-mailadres in om uw gebruikersnaam op te zoeken en een nieuw wachtwoord in te stellen.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">E-mailadres</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        value={resetEmail}
+                        onChange={e => setResetEmail(e.target.value)}
+                        placeholder="Voer uw e-mailadres in"
+                        className="pl-10 h-11 bg-card border-border"
+                        onKeyDown={e => e.key === "Enter" && handleLookupEmail()}
+                        data-testid="input-reset-email"
+                      />
+                    </div>
+                  </div>
                   <Button
-                    type="submit"
                     className="w-full h-11 font-semibold text-sm"
-                    disabled={loading}
-                    data-testid="button-login"
+                    onClick={handleLookupEmail}
+                    disabled={resetLoading}
+                    data-testid="button-lookup-email"
                   >
-                    <Building2 className="h-4 w-4 mr-2" />
-                    {loading ? "Inloggen..." : "Inloggen"}
+                    {resetLoading ? "Zoeken..." : "Verder"}
                   </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                </div>
+              )}
+
+              {resetStep === "newPassword" && foundUser && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Nieuw wachtwoord</h2>
+                    <p className="text-muted-foreground text-sm">
+                      Account gevonden voor <span className="font-medium text-foreground">{foundUser.fullName}</span>
+                    </p>
+                    <div className="bg-muted/50 rounded-md p-3 border">
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Uw gebruikersnaam: </span>
+                        <span className="font-semibold" data-testid="text-found-username">{foundUser.username}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Nieuw wachtwoord</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          value={resetNewPassword}
+                          onChange={e => setResetNewPassword(e.target.value)}
+                          placeholder="Nieuw wachtwoord"
+                          className="pl-10 h-11 bg-card border-border"
+                          data-testid="input-reset-new-password"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Bevestig wachtwoord</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          value={resetConfirmPassword}
+                          onChange={e => setResetConfirmPassword(e.target.value)}
+                          placeholder="Herhaal wachtwoord"
+                          className="pl-10 h-11 bg-card border-border"
+                          onKeyDown={e => e.key === "Enter" && handleResetPassword()}
+                          data-testid="input-reset-confirm-password"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full h-11 font-semibold text-sm"
+                    onClick={handleResetPassword}
+                    disabled={resetLoading}
+                    data-testid="button-reset-password"
+                  >
+                    {resetLoading ? "Opslaan..." : "Wachtwoord resetten"}
+                  </Button>
+                </div>
+              )}
+
+              {resetStep === "done" && foundUser && (
+                <div className="space-y-4 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold tracking-tight">Wachtwoord gewijzigd</h2>
+                    <p className="text-muted-foreground text-sm">
+                      Uw wachtwoord is succesvol gewijzigd.
+                    </p>
+                    <div className="bg-muted/50 rounded-md p-3 border">
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Gebruikersnaam: </span>
+                        <span className="font-semibold">{foundUser.username}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full h-11 font-semibold text-sm"
+                    onClick={handleBackToLogin}
+                    data-testid="button-back-after-reset"
+                  >
+                    Terug naar inloggen
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
