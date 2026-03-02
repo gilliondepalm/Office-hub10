@@ -319,6 +319,17 @@ export type BeoordelingScore = typeof beoordelingScores.$inferSelect;
 export type InsertJaarplanItem = z.infer<typeof insertJaarplanItemSchema>;
 export type JaarplanItem = typeof jaarplanItems.$inferSelect;
 
+export const helpContentTable = pgTable("help_content", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pageRoute: varchar("page_route").notNull().unique(),
+  title: varchar("title").notNull(),
+  content: text("content").notNull(),
+});
+
+export const insertHelpContentSchema = createInsertSchema(helpContentTable).omit({ id: true });
+export type InsertHelpContent = z.infer<typeof insertHelpContentSchema>;
+export type HelpContent = typeof helpContentTable.$inferSelect;
+
 export function isAdminRole(role?: string | null): boolean {
   return role === "admin" || role === "directeur";
 }

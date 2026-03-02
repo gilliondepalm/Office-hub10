@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Switch, Route, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "./lib/queryClient";
+import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -10,8 +10,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Pencil, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { isAdminRole } from "@shared/schema";
+import type { HelpContent } from "@shared/schema";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
@@ -146,8 +150,30 @@ function Router() {
 
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
+  const { toast } = useToast();
   const [location] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+
+  const { data: dbHelpContent } = useQuery<HelpContent[]>({
+    queryKey: ["/api/help-content"],
+    enabled: !!user,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: { pageRoute: string; title: string; content: string }) => {
+      await apiRequest("PUT", "/api/help-content", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/help-content"] });
+      toast({ title: "Help-tekst opgeslagen" });
+      setEditing(false);
+    },
+    onError: () => {
+      toast({ title: "Opslaan mislukt", variant: "destructive" });
+    },
+  });
 
   if (loading) {
     return (
@@ -170,7 +196,23 @@ function AuthenticatedApp() {
     "--sidebar-width-icon": "3rem",
   };
 
-  const currentHelp = helpContent[location] || helpContent["/"];
+  const isAdmin = isAdminRole(user.role);
+  const fallback = helpContent[location] || helpContent["/"];
+  const dbEntry = dbHelpContent?.find(h => h.pageRoute === location);
+  const currentHelp = dbEntry ? { title: dbEntry.title, content: dbEntry.content } : fallback;
+
+  const handleEdit = () => {
+    setEditContent(currentHelp.content);
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      pageRoute: location,
+      title: currentHelp.title,
+      content: editContent,
+    });
+  };
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -183,7 +225,7 @@ function AuthenticatedApp() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setHelpOpen(true)}
+                onClick={() => { setHelpOpen(true); setEditing(false); }}
                 data-testid="button-help"
               >
                 <HelpCircle className="h-5 w-5 text-muted-foreground" />
@@ -205,9 +247,38 @@ function AuthenticatedApp() {
               Help — {currentHelp.title}
             </DialogTitle>
           </DialogHeader>
-          <div className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed" data-testid="text-help-content">
-            {currentHelp.content}
-          </div>
+          {editing ? (
+            <div className="space-y-3">
+              <Textarea
+                value={editContent}
+                onChange={e => setEditContent(e.target.value)}
+                rows={12}
+                className="text-sm"
+                data-testid="textarea-help-edit"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Annuleren</Button>
+                <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-help">
+                  <Save className="h-4 w-4 mr-1" />
+                  {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed" data-testid="text-help-content">
+                {currentHelp.content}
+              </div>
+              {isAdmin && (
+                <div className="flex justify-end pt-2 border-t">
+                  <Button variant="outline" size="sm" onClick={handleEdit} data-testid="button-edit-help">
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Bewerken
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </SidebarProvider>

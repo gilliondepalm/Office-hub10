@@ -24,6 +24,8 @@ import {
   type BeoordelingReview, type InsertBeoordelingReview,
   type BeoordelingScore, type InsertBeoordelingScore,
   type JaarplanItem, type InsertJaarplanItem,
+  type HelpContent, type InsertHelpContent,
+  helpContentTable,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -148,6 +150,9 @@ export interface IStorage {
   createJaarplanItem(item: InsertJaarplanItem): Promise<JaarplanItem>;
   updateJaarplanItem(id: string, data: Partial<InsertJaarplanItem>): Promise<JaarplanItem>;
   deleteJaarplanItem(id: string): Promise<void>;
+
+  getAllHelpContent(): Promise<HelpContent[]>;
+  upsertHelpContent(data: InsertHelpContent): Promise<HelpContent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -910,6 +915,20 @@ export class DatabaseStorage implements IStorage {
 
   async deleteJaarplanItem(id: string): Promise<void> {
     await db.delete(jaarplanItems).where(eq(jaarplanItems.id, id));
+  }
+
+  async getAllHelpContent(): Promise<HelpContent[]> {
+    return db.select().from(helpContentTable);
+  }
+
+  async upsertHelpContent(data: InsertHelpContent): Promise<HelpContent> {
+    const [existing] = await db.select().from(helpContentTable).where(eq(helpContentTable.pageRoute, data.pageRoute));
+    if (existing) {
+      const [updated] = await db.update(helpContentTable).set({ title: data.title, content: data.content }).where(eq(helpContentTable.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(helpContentTable).values(data).returning();
+    return created;
   }
 }
 

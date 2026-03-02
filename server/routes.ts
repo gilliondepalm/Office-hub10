@@ -17,6 +17,7 @@ import {
   insertFunctioneringReviewSchema,
   insertCompetencySchema, insertBeoordelingReviewSchema, insertBeoordelingScoreSchema,
   insertJaarplanItemSchema,
+  insertHelpContentSchema,
   isAdminRole,
 } from "@shared/schema";
 
@@ -1422,6 +1423,27 @@ export async function registerRoutes(
     }
     await storage.deleteJaarplanItem(req.params.id);
     res.json({ success: true });
+  });
+
+  app.get("/api/help-content", requireAuth, async (_req, res) => {
+    const items = await storage.getAllHelpContent();
+    res.json(items);
+  });
+
+  app.put("/api/help-content", requireAuth, async (req, res) => {
+    if (!isAdminRole((req as any).user.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    try {
+      const { pageRoute, title, content } = req.body;
+      if (!pageRoute || !title || !content) {
+        return res.status(400).json({ message: "Alle velden zijn verplicht" });
+      }
+      const updated = await storage.upsertHelpContent({ pageRoute, title, content });
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Fout bij opslaan" });
+    }
   });
 
   return httpServer;
