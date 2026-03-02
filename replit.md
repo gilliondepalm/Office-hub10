@@ -36,9 +36,15 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 - Beoordeling scores access restricted to own data, managers, and admins
 - Seed data (demo accounts) skipped in production environment
 
+## First-Run Setup
+- GET /api/setup/status returns { needsSetup: true } when no users exist
+- POST /api/setup/admin creates the first admin user (only works when no users exist, CSRF-exempt)
+- Frontend shows setup page automatically before login when needsSetup is true
+- Setup page at client/src/pages/setup.tsx
+
 ## Authentication & Permissions
 - Session-based with PostgreSQL session store
-- Demo credentials: admin/admin123, manager/user123, pieter/user123, sophie/user123, thomas/user123
+- Demo credentials (dev only): admin/admin123, manager/user123, pieter/user123, sophie/user123, thomas/user123
 - Roles: directeur, admin, manager, employee (different permissions per role)
 - `isAdminRole()` helper from `@shared/schema` checks for both "directeur" and "admin" roles
 - Directeur role has all admin privileges plus exclusive ability to approve manager/admin absence requests

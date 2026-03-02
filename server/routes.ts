@@ -103,9 +103,7 @@ export async function registerRoutes(
     })
   );
 
-  if (isProduction) {
-    app.set("trust proxy", 1);
-  }
+  app.set("trust proxy", 1);
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -138,7 +136,7 @@ export async function registerRoutes(
     if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
       return next();
     }
-    if (req.path === "/auth/login" || req.path === "/auth/request-reset" || req.path === "/auth/logout") {
+    if (req.path === "/auth/login" || req.path === "/auth/request-reset" || req.path === "/auth/logout" || req.path === "/setup/admin") {
       return next();
     }
     const token = req.headers["x-csrf-token"];
@@ -150,6 +148,50 @@ export async function registerRoutes(
   });
 
   await seedDatabase();
+
+  const ALL_MODULES = ["dashboard", "kalender", "aankondigingen", "organisatie", "personalia", "verzuim", "beloningen", "applicaties", "beheer"];
+
+  app.get("/api/setup/status", async (_req, res) => {
+    const existingUsers = await storage.getUsers();
+    res.json({ needsSetup: existingUsers.length === 0 });
+  });
+
+  app.post("/api/setup/admin", async (req, res) => {
+    const existingUsers = await storage.getUsers();
+    if (existingUsers.length > 0) {
+      return res.status(403).json({ message: "Setup is al voltooid. Er bestaan al gebruikers." });
+    }
+
+    const { username, password, fullName, email } = req.body;
+    if (!username || !password || !fullName || !email) {
+      return res.status(400).json({ message: "Alle velden zijn verplicht" });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Wachtwoord moet minimaal 8 tekens bevatten" });
+    }
+
+    try {
+      const hashed = await bcrypt.hash(password, 12);
+      const user = await storage.createUser({
+        username,
+        password: hashed,
+        fullName,
+        email,
+        role: "admin",
+        department: null,
+        avatar: null,
+        active: true,
+        permissions: ALL_MODULES,
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: null,
+        birthDate: null,
+      });
+      const { password: _, ...safeUser } = user;
+      res.json({ message: "Beheerder aangemaakt", user: safeUser });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Setup mislukt" });
+    }
+  });
 
   async function requireAuth(req: any, res: any, next: any) {
     const userId = (req.session as any).userId;
