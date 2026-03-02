@@ -19,12 +19,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
   const [showReset, setShowReset] = useState(false);
-  const [resetStep, setResetStep] = useState<"email" | "newPassword" | "done">("email");
+  const [resetStep, setResetStep] = useState<"email" | "done">("email");
   const [resetEmail, setResetEmail] = useState("");
-  const [resetNewPassword, setResetNewPassword] = useState("");
-  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
-  const [foundUser, setFoundUser] = useState<{ username: string; fullName: string } | null>(null);
+  const [resetResult, setResetResult] = useState<{ message: string } | null>(null);
 
   const { data: loginPhoto } = useQuery<{ value: string | null }>({
     queryKey: ["/api/site-settings/public", "login_photo"],
@@ -56,60 +54,20 @@ export default function LoginPage() {
     }
   };
 
-  const handleLookupEmail = async () => {
+  const handleRequestReset = async () => {
     if (!resetEmail.trim()) {
       toast({ title: "Vul uw e-mailadres in", variant: "destructive" });
       return;
     }
     setResetLoading(true);
     try {
-      const res = await fetch("/api/auth/lookup-email", {
+      const res = await fetch("/api/auth/request-reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast({ title: data.message || "Geen gebruiker gevonden", variant: "destructive" });
-        return;
-      }
       const data = await res.json();
-      setFoundUser(data);
-      setResetStep("newPassword");
-    } catch {
-      toast({ title: "Er is een fout opgetreden", variant: "destructive" });
-    } finally {
-      setResetLoading(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!resetNewPassword.trim()) {
-      toast({ title: "Vul een nieuw wachtwoord in", variant: "destructive" });
-      return;
-    }
-    if (resetNewPassword.length < 4) {
-      toast({ title: "Wachtwoord moet minimaal 4 tekens zijn", variant: "destructive" });
-      return;
-    }
-    if (resetNewPassword !== resetConfirmPassword) {
-      toast({ title: "Wachtwoorden komen niet overeen", variant: "destructive" });
-      return;
-    }
-    setResetLoading(true);
-    try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail, newPassword: resetNewPassword }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast({ title: data.message || "Resetten mislukt", variant: "destructive" });
-        return;
-      }
-      const data = await res.json();
-      setFoundUser(data);
+      setResetResult(data);
       setResetStep("done");
     } catch {
       toast({ title: "Er is een fout opgetreden", variant: "destructive" });
@@ -122,9 +80,7 @@ export default function LoginPage() {
     setShowReset(false);
     setResetStep("email");
     setResetEmail("");
-    setResetNewPassword("");
-    setResetConfirmPassword("");
-    setFoundUser(null);
+    setResetResult(null);
   };
 
   return (
@@ -279,7 +235,7 @@ export default function LoginPage() {
                   <div className="space-y-2">
                     <h2 className="text-2xl font-bold tracking-tight">Gegevens herstellen</h2>
                     <p className="text-muted-foreground text-sm">
-                      Vul uw e-mailadres in om uw gebruikersnaam op te zoeken en een nieuw wachtwoord in te stellen.
+                      Vul uw e-mailadres in. Uw gebruikersnaam wordt getoond en uw beheerder kan uw wachtwoord resetten.
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -292,92 +248,33 @@ export default function LoginPage() {
                         onChange={e => setResetEmail(e.target.value)}
                         placeholder="Voer uw e-mailadres in"
                         className="pl-10 h-11 bg-card border-border"
-                        onKeyDown={e => e.key === "Enter" && handleLookupEmail()}
+                        onKeyDown={e => e.key === "Enter" && handleRequestReset()}
                         data-testid="input-reset-email"
                       />
                     </div>
                   </div>
                   <Button
                     className="w-full h-11 font-semibold text-sm"
-                    onClick={handleLookupEmail}
+                    onClick={handleRequestReset}
                     disabled={resetLoading}
-                    data-testid="button-lookup-email"
+                    data-testid="button-request-reset"
                   >
-                    {resetLoading ? "Zoeken..." : "Verder"}
+                    {resetLoading ? "Verzoek versturen..." : "Verzoek indienen"}
                   </Button>
                 </div>
               )}
 
-              {resetStep === "newPassword" && foundUser && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-bold tracking-tight">Nieuw wachtwoord</h2>
-                    <p className="text-muted-foreground text-sm">
-                      Account gevonden voor <span className="font-medium text-foreground">{foundUser.fullName}</span>
-                    </p>
-                    <div className="bg-muted/50 rounded-md p-3 border">
-                      <p className="text-sm">
-                        <span className="text-muted-foreground">Uw gebruikersnaam: </span>
-                        <span className="font-semibold" data-testid="text-found-username">{foundUser.username}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium">Nieuw wachtwoord</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="password"
-                          value={resetNewPassword}
-                          onChange={e => setResetNewPassword(e.target.value)}
-                          placeholder="Nieuw wachtwoord"
-                          className="pl-10 h-11 bg-card border-border"
-                          data-testid="input-reset-new-password"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium">Bevestig wachtwoord</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="password"
-                          value={resetConfirmPassword}
-                          onChange={e => setResetConfirmPassword(e.target.value)}
-                          placeholder="Herhaal wachtwoord"
-                          className="pl-10 h-11 bg-card border-border"
-                          onKeyDown={e => e.key === "Enter" && handleResetPassword()}
-                          data-testid="input-reset-confirm-password"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full h-11 font-semibold text-sm"
-                    onClick={handleResetPassword}
-                    disabled={resetLoading}
-                    data-testid="button-reset-password"
-                  >
-                    {resetLoading ? "Opslaan..." : "Wachtwoord resetten"}
-                  </Button>
-                </div>
-              )}
-
-              {resetStep === "done" && foundUser && (
+              {resetStep === "done" && resetResult && (
                 <div className="space-y-4 text-center">
                   <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-bold tracking-tight">Wachtwoord gewijzigd</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">Verzoek ingediend</h2>
                     <p className="text-muted-foreground text-sm">
-                      Uw wachtwoord is succesvol gewijzigd.
+                      {resetResult.message}
                     </p>
-                    <div className="bg-muted/50 rounded-md p-3 border">
-                      <p className="text-sm">
-                        <span className="text-muted-foreground">Gebruikersnaam: </span>
-                        <span className="font-semibold">{foundUser.username}</span>
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Neem contact op met uw beheerder om uw wachtwoord te laten resetten.
+                    </p>
                   </div>
                   <Button
                     className="w-full h-11 font-semibold text-sm"

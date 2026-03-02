@@ -154,8 +154,8 @@ function ResetPasswordDialog({
       toast({ title: "Vul een nieuw wachtwoord in", variant: "destructive" });
       return;
     }
-    if (newPassword.length < 4) {
-      toast({ title: "Wachtwoord moet minimaal 4 tekens zijn", variant: "destructive" });
+    if (newPassword.length < 8) {
+      toast({ title: "Wachtwoord moet minimaal 8 tekens bevatten", variant: "destructive" });
       return;
     }
     if (newPassword !== confirmPassword) {

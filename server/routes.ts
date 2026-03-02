@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { seedDatabase } from "./seed";
 import bcrypt from "bcryptjs";
@@ -8,6 +9,7 @@ import pgSession from "connect-pg-simple";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import {
   insertUserSchema, insertEventSchema, insertAnnouncementSchema,
   insertDepartmentSchema, insertAbsenceSchema, insertRewardSchema,
@@ -77,18 +79,51 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  const isProduction = process.env.NODE_ENV === "production";
+  const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+  if (!process.env.SESSION_SECRET) {
+    console.warn("[SECURITY] SESSION_SECRET is niet ingesteld. Een tijdelijke sleutel wordt gebruikt. Stel SESSION_SECRET in als omgevingsvariabele voor productie.");
+  }
+
   app.use(
     session({
       store: new PgStore({
         conString: process.env.DATABASE_URL,
         createTableIfMissing: true,
       }),
-      secret: process.env.SESSION_SECRET || "kantoor-dashboard-secret",
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 },
+      cookie: {
+        secure: isProduction,
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      },
     })
   );
+
+  if (isProduction) {
+    app.set("trust proxy", 1);
+  }
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { message: "Te veel pogingen. Probeer het over 15 minuten opnieuw." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    message: { message: "Te veel verzoeken. Probeer het later opnieuw." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use("/api/", apiLimiter);
 
   await seedDatabase();
 
@@ -431,44 +466,19 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/reset-password", async (req, res) => {
-    try {
-      const { email, newPassword } = req.body;
-      if (!email || !newPassword) {
-        return res.status(400).json({ message: "E-mail en nieuw wachtwoord zijn verplicht" });
-      }
-      if (newPassword.length < 4) {
-        return res.status(400).json({ message: "Wachtwoord moet minimaal 4 tekens zijn" });
-      }
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(404).json({ message: "Geen gebruiker gevonden met dit e-mailadres" });
-      }
-      const hashed = await bcrypt.hash(newPassword, 10);
-      await storage.updateUser(user.id, { password: hashed });
-      res.json({ username: user.username, fullName: user.fullName });
-    } catch (err) {
-      res.status(500).json({ message: "Serverfout" });
-    }
-  });
-
-  app.post("/api/auth/lookup-email", async (req, res) => {
+  app.post("/api/auth/request-reset", authLimiter, async (req, res) => {
     try {
       const { email } = req.body;
       if (!email) {
         return res.status(400).json({ message: "E-mail is verplicht" });
       }
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(404).json({ message: "Geen gebruiker gevonden met dit e-mailadres" });
-      }
-      res.json({ username: user.username, fullName: user.fullName });
+      res.json({ message: "Als dit e-mailadres bekend is, is een verzoek ingediend bij de beheerder. Neem contact op met uw beheerder." });
     } catch (err) {
       res.status(500).json({ message: "Serverfout" });
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       if (!username || !password) {
@@ -482,9 +492,19 @@ export async function registerRoutes(
       if (!valid) {
         return res.status(401).json({ message: "Ongeldige inloggegevens" });
       }
-      (req.session as any).userId = user.id;
-      const { password: _, ...safeUser } = user;
-      res.json(safeUser);
+      req.session.regenerate((err) => {
+        if (err) {
+          return res.status(500).json({ message: "Sessie fout" });
+        }
+        (req.session as any).userId = user.id;
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            return res.status(500).json({ message: "Sessie fout" });
+          }
+          const { password: _, ...safeUser } = user;
+          res.json(safeUser);
+        });
+      });
     } catch (err) {
       res.status(500).json({ message: "Serverfout" });
     }
@@ -518,7 +538,10 @@ export async function registerRoutes(
   app.post("/api/users", requireAdmin, async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);
-      const hashed = await bcrypt.hash(parsed.password, 10);
+      if (parsed.password.length < 8) {
+        return res.status(400).json({ message: "Wachtwoord moet minimaal 8 tekens bevatten" });
+      }
+      const hashed = await bcrypt.hash(parsed.password, 12);
       const user = await storage.createUser({ ...parsed, password: hashed });
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
@@ -531,7 +554,10 @@ export async function registerRoutes(
     try {
       const data = { ...req.body };
       if (data.password) {
-        data.password = await bcrypt.hash(data.password, 10);
+        if (data.password.length < 8) {
+          return res.status(400).json({ message: "Wachtwoord moet minimaal 8 tekens bevatten" });
+        }
+        data.password = await bcrypt.hash(data.password, 12);
       }
       if (data.active === false && !data.endDate) {
         return res.status(400).json({ message: "Datum uit dienst is verplicht bij deactiveren" });

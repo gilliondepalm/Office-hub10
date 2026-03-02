@@ -22,6 +22,15 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 9. **Beheer** - Admin-only user permissions management (toggle module access per user)
 10. **Mijn Profiel** - Personal profile page with own absences, rewards, and access overview
 
+## Security
+- Helmet middleware for HTTP security headers
+- Rate limiting: 10 requests/15 min on auth endpoints, 100 requests/min on general API
+- Session cookies: httpOnly, sameSite=lax, secure in production
+- Session secret: from SESSION_SECRET env var (random fallback in dev with warning)
+- Password policy: minimum 8 characters, bcrypt with 12 rounds
+- Self-service password reset removed; users can look up their username via email, but must contact admin for password reset
+- No email enumeration: reset endpoint returns generic message regardless of email existence
+
 ## Authentication & Permissions
 - Session-based with PostgreSQL session store
 - Demo credentials: admin/admin123, manager/user123, pieter/user123, sophie/user123, thomas/user123
