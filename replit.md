@@ -25,11 +25,16 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 ## Security
 - Helmet middleware for HTTP security headers
 - Rate limiting: 10 requests/15 min on auth endpoints, 100 requests/min on general API
-- Session cookies: httpOnly, sameSite=lax, secure in production
+- CSRF protection: double-submit token pattern via X-CSRF-Token header; token fetched from GET /api/csrf-token; exempted routes: login, request-reset, logout
+- Session cookies: httpOnly, sameSite=lax, secure in production; session regenerated on login
 - Session secret: from SESSION_SECRET env var (random fallback in dev with warning)
 - Password policy: minimum 8 characters, bcrypt with 12 rounds
-- Self-service password reset removed; users can look up their username via email, but must contact admin for password reset
+- Self-service password reset removed; users submit request, directed to admin for reset
 - No email enumeration: reset endpoint returns generic message regardless of email existence
+- File uploads: all uploads use unique filenames with sanitization, 10MB size limit, PDF-only validation; path traversal protection on department parameters
+- /PDF static directory requires authentication
+- Beoordeling scores access restricted to own data, managers, and admins
+- Seed data (demo accounts) skipped in production environment
 
 ## Authentication & Permissions
 - Session-based with PostgreSQL session store

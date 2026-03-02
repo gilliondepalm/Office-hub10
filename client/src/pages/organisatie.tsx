@@ -25,7 +25,7 @@ import {
   Plus, Building2, Users, Trash2, FileText, ExternalLink, Upload,
   BookOpen, Network, Scale, ChevronRight, ClipboardList, Pencil, FolderOpen,
 } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, fetchCsrfToken } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Department, User, AoProcedure, AoInstruction, LegislationLink, CaoDocument } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
@@ -736,10 +736,12 @@ function CaoInfoTab() {
     try {
       const formData = new FormData();
       formData.append("pdf", file);
+      const token = await fetchCsrfToken();
       const res = await fetch("/api/uploads/cao", {
         method: "POST",
         body: formData,
         credentials: "include",
+        headers: { "X-CSRF-Token": token },
       });
       if (!res.ok) throw new Error("Upload mislukt");
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/cao"] });
@@ -753,9 +755,11 @@ function CaoInfoTab() {
 
   const handleDelete = async (filename: string) => {
     try {
+      const token = await fetchCsrfToken();
       const res = await fetch(`/api/uploads/cao/${encodeURIComponent(filename)}`, {
         method: "DELETE",
         credentials: "include",
+        headers: { "X-CSRF-Token": token },
       });
       if (!res.ok) throw new Error("Verwijderen mislukt");
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/cao"] });
@@ -880,10 +884,12 @@ function InstructiesTab() {
     try {
       const formData = new FormData();
       formData.append("pdf", file);
+      const token = await fetchCsrfToken();
       const res = await fetch(`/api/uploads/instructies/${encodeURIComponent(dept)}`, {
         method: "POST",
         body: formData,
         credentials: "include",
+        headers: { "X-CSRF-Token": token },
       });
       if (!res.ok) throw new Error("Upload mislukt");
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/instructies"] });
@@ -897,9 +903,11 @@ function InstructiesTab() {
 
   const handleDelete = async (dept: string, filename: string) => {
     try {
+      const token = await fetchCsrfToken();
       const res = await fetch(`/api/uploads/instructies/${encodeURIComponent(dept)}/${encodeURIComponent(filename)}`, {
         method: "DELETE",
         credentials: "include",
+        headers: { "X-CSRF-Token": token },
       });
       if (!res.ok) throw new Error("Verwijderen mislukt");
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/instructies"] });
@@ -1057,10 +1065,12 @@ function WetgevingTab() {
     try {
       const formData = new FormData();
       formData.append("pdf", file);
+      const token = await fetchCsrfToken();
       const res = await fetch("/api/uploads/wetgeving", {
         method: "POST",
         body: formData,
         credentials: "include",
+        headers: { "X-CSRF-Token": token },
       });
       if (!res.ok) throw new Error("Upload mislukt");
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/wetgeving"] });
@@ -1074,9 +1084,11 @@ function WetgevingTab() {
 
   const handleDelete = async (filename: string) => {
     try {
+      const token = await fetchCsrfToken();
       const res = await fetch(`/api/uploads/wetgeving/${encodeURIComponent(filename)}`, {
         method: "DELETE",
         credentials: "include",
+        headers: { "X-CSRF-Token": token },
       });
       if (!res.ok) throw new Error("Verwijderen mislukt");
       queryClient.invalidateQueries({ queryKey: ["/api/uploads/wetgeving"] });

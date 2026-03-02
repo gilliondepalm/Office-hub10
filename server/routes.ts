@@ -125,6 +125,30 @@ export async function registerRoutes(
 
   app.use("/api/", apiLimiter);
 
+  app.get("/api/csrf-token", (req, res) => {
+    let token = (req.session as any).csrfToken;
+    if (!token) {
+      token = crypto.randomBytes(32).toString("hex");
+      (req.session as any).csrfToken = token;
+    }
+    res.json({ csrfToken: token });
+  });
+
+  app.use("/api/", (req: any, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+      return next();
+    }
+    if (req.path === "/auth/login" || req.path === "/auth/request-reset" || req.path === "/auth/logout") {
+      return next();
+    }
+    const token = req.headers["x-csrf-token"];
+    const sessionToken = (req.session as any)?.csrfToken;
+    if (!token || !sessionToken || token !== sessionToken) {
+      return res.status(403).json({ message: "Ongeldig CSRF-token" });
+    }
+    next();
+  });
+
   await seedDatabase();
 
   async function requireAuth(req: any, res: any, next: any) {
@@ -152,7 +176,7 @@ export async function registerRoutes(
 
   const express = await import("express");
 
-  app.use("/PDF", express.default.static(path.join(process.cwd(), "PDF")));
+  app.use("/PDF", requireAuth, express.default.static(path.join(process.cwd(), "PDF")));
 
   app.get("/uploads/public/:filename", (req, res) => {
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
@@ -223,12 +247,16 @@ export async function registerRoutes(
   const wetgevingUpload = multer({
     storage: multer.diskStorage({
       destination: (_req: any, _file: any, cb: any) => cb(null, wetgevingDir),
-      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+      filename: (_req: any, file: any, cb: any) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"));
+      },
     }),
     fileFilter: (_req: any, file: any, cb: any) => {
       if (file.mimetype === "application/pdf") cb(null, true);
       else cb(new Error("Alleen PDF-bestanden"));
     },
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 
   app.post("/api/uploads/wetgeving", requireAuth, wetgevingUpload.single("pdf"), async (req: any, res) => {
@@ -240,7 +268,7 @@ export async function registerRoutes(
     if (!req.file) {
       return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
     }
-    res.json({ name: req.file.originalname, path: `/uploads/Wetgeving/${req.file.originalname}` });
+    res.json({ name: req.file.originalname, path: `/uploads/Wetgeving/${req.file.filename}` });
   });
 
   const caoDir = path.join(uploadsDir, "CAO");
@@ -266,12 +294,16 @@ export async function registerRoutes(
   const caoUpload = multer({
     storage: multer.diskStorage({
       destination: (_req: any, _file: any, cb: any) => cb(null, caoDir),
-      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+      filename: (_req: any, file: any, cb: any) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"));
+      },
     }),
     fileFilter: (_req: any, file: any, cb: any) => {
       if (file.mimetype === "application/pdf") cb(null, true);
       else cb(new Error("Alleen PDF-bestanden"));
     },
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 
   app.post("/api/uploads/cao", requireAuth, caoUpload.single("pdf"), async (req: any, res) => {
@@ -283,7 +315,7 @@ export async function registerRoutes(
     if (!req.file) {
       return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
     }
-    res.json({ name: req.file.originalname, path: `/uploads/CAO/${req.file.originalname}` });
+    res.json({ name: req.file.originalname, path: `/uploads/CAO/${req.file.filename}` });
   });
 
   app.delete("/api/uploads/cao/:filename", requireAuth, async (req: any, res) => {
@@ -341,12 +373,16 @@ export async function registerRoutes(
   const nieuwsbriefUpload = multer({
     storage: multer.diskStorage({
       destination: (_req: any, _file: any, cb: any) => cb(null, nieuwsbriefDir),
-      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+      filename: (_req: any, file: any, cb: any) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"));
+      },
     }),
     fileFilter: (_req: any, file: any, cb: any) => {
       if (file.mimetype === "application/pdf") cb(null, true);
       else cb(new Error("Alleen PDF-bestanden"));
     },
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 
   app.post("/api/uploads/nieuwsbrief", requireAuth, nieuwsbriefUpload.single("pdf"), async (req: any, res) => {
@@ -358,7 +394,7 @@ export async function registerRoutes(
     if (!req.file) {
       return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
     }
-    res.json({ name: req.file.originalname, path: `/uploads/Nieuwsbrief/${req.file.originalname}` });
+    res.json({ name: req.file.originalname, path: `/uploads/Nieuwsbrief/${req.file.filename}` });
   });
 
   app.delete("/api/uploads/nieuwsbrief/:filename", requireAuth, async (req: any, res) => {
@@ -423,17 +459,21 @@ export async function registerRoutes(
   const instructiesUpload = multer({
     storage: multer.diskStorage({
       destination: (req: any, _file: any, cb: any) => {
-        const dept = req.params.department;
+        const dept = req.params.department.replace(/[^a-zA-Z0-9_-]/g, "");
         const deptPath = path.join(instructiesDir, dept);
         if (!fs.existsSync(deptPath)) fs.mkdirSync(deptPath, { recursive: true });
         cb(null, deptPath);
       },
-      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+      filename: (_req: any, file: any, cb: any) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"));
+      },
     }),
     fileFilter: (_req: any, file: any, cb: any) => {
       if (file.mimetype === "application/pdf") cb(null, true);
       else cb(new Error("Alleen PDF-bestanden"));
     },
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 
   app.post("/api/uploads/instructies/:department", requireAuth, instructiesUpload.single("pdf"), async (req: any, res) => {
@@ -445,8 +485,8 @@ export async function registerRoutes(
     if (!req.file) {
       return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
     }
-    const dept = req.params.department;
-    res.json({ name: req.file.originalname, path: `/uploads/Instructies/${dept}/${req.file.originalname}` });
+    const dept = req.params.department.replace(/[^a-zA-Z0-9_-]/g, "");
+    res.json({ name: req.file.originalname, path: `/uploads/Instructies/${dept}/${req.file.filename}` });
   });
 
   app.delete("/api/uploads/instructies/:department/:filename", requireAuth, async (req: any, res) => {
@@ -455,7 +495,7 @@ export async function registerRoutes(
     if (!user || !isAdminRole(user.role)) {
       return res.status(403).json({ message: "Alleen beheerders" });
     }
-    const dept = req.params.department;
+    const dept = req.params.department.replace(/[^a-zA-Z0-9_-]/g, "");
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(instructiesDir, dept, filename);
     if (fs.existsSync(filePath)) {
@@ -990,7 +1030,19 @@ export async function registerRoutes(
     res.json(reviews);
   });
 
-  app.get("/api/beoordeling/:id/scores", requireAuth, async (req, res) => {
+  app.get("/api/beoordeling/:id/scores", requireAuth, async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user) return res.status(401).json({ message: "Niet ingelogd" });
+
+    const reviews = await storage.getBeoordelingReviews();
+    const review = reviews.find((r: any) => String(r.id) === String(req.params.id));
+    if (!review) return res.status(404).json({ message: "Beoordeling niet gevonden" });
+
+    if (!isAdminRole(user.role) && user.role !== "manager" && review.userId !== user.id) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+
     const scores = await storage.getBeoordelingScoresByReview(req.params.id);
     res.json(scores);
   });

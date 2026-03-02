@@ -8,11 +8,16 @@ const MANAGER_MODULES = ["dashboard", "kalender", "aankondigingen", "organisatie
 const EMPLOYEE_MODULES = ["dashboard", "kalender", "aankondigingen", "verzuim", "beloningen"];
 
 export async function seedDatabase() {
+  if (process.env.NODE_ENV === "production") {
+    console.log("[SEED] Seed wordt overgeslagen in productieomgeving.");
+    return;
+  }
+
   const existingUsers = await storage.getUsers();
   if (existingUsers.length > 0) return;
 
-  const hashedAdmin = await bcrypt.hash("admin123", 10);
-  const hashedUser = await bcrypt.hash("user123", 10);
+  const hashedAdmin = await bcrypt.hash("admin123", 12);
+  const hashedUser = await bcrypt.hash("user123", 12);
 
   const admin = await storage.createUser({
     username: "admin",
