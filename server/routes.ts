@@ -103,9 +103,7 @@ export async function registerRoutes(
     })
   );
 
-  if (isProduction) {
-    app.set("trust proxy", 1);
-  }
+  app.set("trust proxy", 1);
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -113,6 +111,7 @@ export async function registerRoutes(
     message: { message: "Te veel pogingen. Probeer het over 15 minuten opnieuw." },
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
   });
 
   const apiLimiter = rateLimit({
@@ -121,6 +120,7 @@ export async function registerRoutes(
     message: { message: "Te veel verzoeken. Probeer het later opnieuw." },
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
   });
 
   app.use("/api/", apiLimiter);
@@ -1101,9 +1101,41 @@ export async function registerRoutes(
       if (!user || (!isAdminRole(user.role) && user.role !== "manager")) {
         return res.status(403).json({ message: "Alleen beheerders en managers mogen berichten sturen" });
       }
-      const parsed = insertMessageSchema.parse({ ...req.body, fromUserId: userId });
-      const msg = await storage.createMessage(parsed);
-      res.json(msg);
+      const { toUserIds, ...rest } = req.body;
+      const recipientIds: string[] = Array.isArray(toUserIds) && toUserIds.length > 0
+        ? [...new Set(toUserIds as string[])]
+        : req.body.toUserId ? [req.body.toUserId] : [];
+
+      if (recipientIds.length === 0) {
+        return res.status(400).json({ message: "Selecteer minimaal één ontvanger" });
+      }
+
+      if (user.role === "manager") {
+        const allUsers = await storage.getUsers();
+        const allowedIds = allUsers
+          .filter(u => u.active && u.department === user.department && u.id !== user.id)
+          .map(u => u.id);
+        const invalidIds = recipientIds.filter(id => !allowedIds.includes(id));
+        if (invalidIds.length > 0) {
+          return res.status(403).json({ message: "U kunt alleen berichten sturen naar medewerkers in uw eigen afdeling" });
+        }
+      }
+
+      const allRecipients = await Promise.all(
+        recipientIds.map(id => storage.getUser(id))
+      );
+      const invalidRecipients = recipientIds.filter((id, i) => !allRecipients[i] || !allRecipients[i]!.active);
+      if (invalidRecipients.length > 0) {
+        return res.status(400).json({ message: "Een of meer ontvangers zijn ongeldig of inactief" });
+      }
+
+      const created = [];
+      for (const toId of recipientIds) {
+        const parsed = insertMessageSchema.parse({ ...rest, toUserId: toId, fromUserId: userId });
+        const msg = await storage.createMessage(parsed);
+        created.push(msg);
+      }
+      res.json(recipientIds.length === 1 ? created[0] : created);
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Validatiefout" });
     }

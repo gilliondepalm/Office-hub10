@@ -19,7 +19,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import { Plus, Megaphone, Pin, Trash2, AlertCircle, Pencil, FileText, Upload, X, Send, Mail, MailOpen, Reply, Clock, User as UserIcon, Newspaper } from "lucide-react";
+import { Plus, Megaphone, Pin, Trash2, AlertCircle, Pencil, FileText, Upload, X, Send, Mail, MailOpen, Reply, Clock, User as UserIcon, Users, Newspaper } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -254,52 +254,155 @@ function SendMessageDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const { data: allUsers } = useQuery<User[]>({ queryKey: ["/api/users"] });
+  const [sendMode, setSendMode] = useState<"individual" | "department">("individual");
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
-  const form = useForm<z.infer<typeof messageFormSchema>>({
-    resolver: zodResolver(messageFormSchema),
-    defaultValues: { toUserId: "", subject: "", content: "" },
+  const activeUsers = (allUsers || []).filter(u => u.active);
+  const isManager = currentUser?.role === "manager";
+  const isAdmin = currentUser ? isAdminRole(currentUser.role) : false;
+
+  const departmentUsers = activeUsers.filter(
+    u => u.department && currentUser?.department && u.department === currentUser.department && u.id !== currentUser.id
+  );
+
+  const form = useForm<{ subject: string; content: string }>({
+    resolver: zodResolver(z.object({
+      subject: z.string().min(1, "Onderwerp is verplicht"),
+      content: z.string().min(1, "Bericht is verplicht"),
+    })),
+    defaultValues: { subject: "", content: "" },
   });
 
+  const toggleUser = (userId: string) => {
+    setSelectedUserIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
   const mutation = useMutation({
-    mutationFn: async (data: z.infer<typeof messageFormSchema>) => {
-      await apiRequest("POST", "/api/messages", data);
+    mutationFn: async (data: { subject: string; content: string }) => {
+      const recipientIds = sendMode === "department"
+        ? departmentUsers.map(u => u.id)
+        : selectedUserIds;
+      if (recipientIds.length === 0) {
+        throw new Error("Selecteer minimaal één ontvanger");
+      }
+      if (recipientIds.length === 1) {
+        await apiRequest("POST", "/api/messages", { toUserId: recipientIds[0], ...data });
+      } else {
+        await apiRequest("POST", "/api/messages", { toUserIds: recipientIds, ...data });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
-      toast({ title: "Bericht verzonden" });
+      const count = sendMode === "department" ? departmentUsers.length : selectedUserIds.length;
+      toast({ title: `Bericht verzonden naar ${count} medewerker${count !== 1 ? "s" : ""}` });
       onOpenChange(false);
       form.reset();
+      setSelectedUserIds([]);
+      setSendMode("individual");
     },
-    onError: () => {
-      toast({ title: "Fout bij verzenden", variant: "destructive" });
+    onError: (err: any) => {
+      toast({ title: err.message || "Fout bij verzenden", variant: "destructive" });
     },
   });
 
+  const handleSubmit = (data: { subject: string; content: string }) => {
+    const recipientIds = sendMode === "department"
+      ? departmentUsers.map(u => u.id)
+      : selectedUserIds;
+    if (recipientIds.length === 0) {
+      toast({ title: "Selecteer minimaal één ontvanger", variant: "destructive" });
+      return;
+    }
+    mutation.mutate(data);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={(o) => {
+      onOpenChange(o);
+      if (!o) { setSelectedUserIds([]); setSendMode("individual"); }
+    }}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bericht Sturen</DialogTitle>
         </DialogHeader>
+
+        {(isManager || isAdmin) && departmentUsers.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Verzendwijze</label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={sendMode === "individual" ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setSendMode("individual"); setSelectedUserIds([]); }}
+                data-testid="button-mode-individual"
+              >
+                <UserIcon className="h-4 w-4 mr-1" />
+                Selecteer medewerkers
+              </Button>
+              <Button
+                type="button"
+                variant={sendMode === "department" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSendMode("department")}
+                data-testid="button-mode-department"
+              >
+                <Users className="h-4 w-4 mr-1" />
+                Hele afdeling ({departmentUsers.length})
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-            <FormField control={form.control} name="toUserId" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Aan medewerker</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-message-recipient"><SelectValue placeholder="Selecteer medewerker" /></SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {(allUsers || []).filter(u => u.active).map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.fullName} ({u.role})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {sendMode === "individual" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Aan medewerker{selectedUserIds.length > 0 ? ` (${selectedUserIds.length} geselecteerd)` : ""}
+                </label>
+                <div className="border rounded-md max-h-40 overflow-y-auto">
+                  {activeUsers.filter(u => u.id !== currentUser?.id).map(u => (
+                    <label
+                      key={u.id}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer border-b last:border-b-0"
+                      data-testid={`checkbox-user-${u.id}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(u.id)}
+                        onChange={() => toggleUser(u.id)}
+                        className="rounded border-input"
+                      />
+                      <span className="text-sm flex-1">{u.fullName}</span>
+                      <span className="text-xs text-muted-foreground">{u.role}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {sendMode === "department" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Ontvangers: alle medewerkers in {currentUser?.department}
+                </label>
+                <div className="border rounded-md max-h-40 overflow-y-auto bg-muted/30">
+                  {departmentUsers.map(u => (
+                    <div key={u.id} className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0" data-testid={`dept-user-${u.id}`}>
+                      <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm flex-1">{u.fullName}</span>
+                      <span className="text-xs text-muted-foreground">{u.role}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <FormField control={form.control} name="subject" render={({ field }) => (
               <FormItem>
                 <FormLabel>Onderwerp</FormLabel>
@@ -316,7 +419,7 @@ function SendMessageDialog({
             )} />
             <Button type="submit" className="w-full" disabled={mutation.isPending} data-testid="button-send-message">
               <Send className="h-4 w-4 mr-2" />
-              {mutation.isPending ? "Verzenden..." : "Bericht Verzenden"}
+              {mutation.isPending ? "Verzenden..." : `Bericht Verzenden${sendMode === "department" ? ` (${departmentUsers.length})` : selectedUserIds.length > 1 ? ` (${selectedUserIds.length})` : ""}`}
             </Button>
           </form>
         </Form>
