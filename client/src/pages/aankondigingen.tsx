@@ -547,6 +547,55 @@ function MessageDetailDialog({
   );
 }
 
+type NieuwsbriefFile = { name: string; path: string; size: number; modified: string };
+
+function getLastSeenKey(userId: string, tab: string) {
+  return `aankondigingen_last_seen_${userId}_${tab}`;
+}
+
+function getLastSeen(userId: string, tab: string): number {
+  const val = localStorage.getItem(getLastSeenKey(userId, tab));
+  return val ? parseInt(val, 10) : 0;
+}
+
+function setLastSeen(userId: string, tab: string) {
+  localStorage.setItem(getLastSeenKey(userId, tab), Date.now().toString());
+}
+
+export function useAankondigingenNotifications() {
+  const { user } = useAuth();
+
+  const { data: announcements } = useQuery<Announcement[]>({
+    queryKey: ["/api/announcements"],
+  });
+
+  const { data: messagesData } = useQuery<MessageWithNames[]>({
+    queryKey: ["/api/messages"],
+  });
+
+  const { data: nieuwsbrieven } = useQuery<NieuwsbriefFile[]>({
+    queryKey: ["/api/uploads/nieuwsbrief"],
+  });
+
+  const userId = user?.id || "";
+
+  const newAnnouncementsCount = (announcements || []).filter(
+    a => new Date(a.createdAt).getTime() > getLastSeen(userId, "announcements")
+  ).length;
+
+  const unreadMessagesCount = (messagesData || []).filter(
+    m => m.toUserId === userId && !m.read
+  ).length;
+
+  const newNieuwsbrievenCount = (nieuwsbrieven || []).filter(
+    f => new Date(f.modified).getTime() > getLastSeen(userId, "nieuwsbrieven")
+  ).length;
+
+  const totalNew = newAnnouncementsCount + unreadMessagesCount + newNieuwsbrievenCount;
+
+  return { newAnnouncementsCount, unreadMessagesCount, newNieuwsbrievenCount, totalNew };
+}
+
 export default function AankondigingenPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editAnn, setEditAnn] = useState<Announcement | null>(null);
@@ -563,6 +612,37 @@ export default function AankondigingenPage() {
   const { data: messagesData, isLoading: messagesLoading } = useQuery<MessageWithNames[]>({
     queryKey: ["/api/messages"],
   });
+
+  const { data: nieuwsbrieven } = useQuery<NieuwsbriefFile[]>({
+    queryKey: ["/api/uploads/nieuwsbrief"],
+  });
+
+  const userId = user?.id || "";
+
+  const [, forceUpdate] = useState(0);
+
+  const newAnnouncementsCount = (announcements || []).filter(
+    a => new Date(a.createdAt).getTime() > getLastSeen(userId, "announcements")
+  ).length;
+
+  const newNieuwsbrievenCount = (nieuwsbrieven || []).filter(
+    f => new Date(f.modified).getTime() > getLastSeen(userId, "nieuwsbrieven")
+  ).length;
+
+  const handleTabChange = (tab: "announcements" | "messages" | "nieuwsbrieven") => {
+    setActiveTab(tab);
+    if (userId && (tab === "announcements" || tab === "nieuwsbrieven")) {
+      setLastSeen(userId, tab);
+      forceUpdate(n => n + 1);
+    }
+  };
+
+  useEffect(() => {
+    if (userId && activeTab === "announcements") {
+      setLastSeen(userId, "announcements");
+      forceUpdate(n => n + 1);
+    }
+  }, [userId]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -618,19 +698,24 @@ export default function AankondigingenPage() {
 
       <div className="flex gap-1 border-b">
         <button
-          onClick={() => setActiveTab("announcements")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => handleTabChange("announcements")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
             activeTab === "announcements"
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
           data-testid="tab-announcements"
         >
-          <Megaphone className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          <Megaphone className="h-4 w-4 inline -mt-0.5" />
           Aankondigingen
+          {newAnnouncementsCount > 0 && activeTab !== "announcements" && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[1.25rem] h-5 flex items-center justify-center" data-testid="badge-new-announcements">
+              {newAnnouncementsCount}
+            </Badge>
+          )}
         </button>
         <button
-          onClick={() => setActiveTab("messages")}
+          onClick={() => handleTabChange("messages")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
             activeTab === "messages"
               ? "border-primary text-foreground"
@@ -647,16 +732,21 @@ export default function AankondigingenPage() {
           )}
         </button>
         <button
-          onClick={() => setActiveTab("nieuwsbrieven")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          onClick={() => handleTabChange("nieuwsbrieven")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
             activeTab === "nieuwsbrieven"
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
           data-testid="tab-nieuwsbrieven"
         >
-          <Newspaper className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          <Newspaper className="h-4 w-4 inline -mt-0.5" />
           Nieuwsbrieven
+          {newNieuwsbrievenCount > 0 && activeTab !== "nieuwsbrieven" && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[1.25rem] h-5 flex items-center justify-center" data-testid="badge-new-nieuwsbrieven">
+              {newNieuwsbrievenCount}
+            </Badge>
+          )}
         </button>
       </div>
 
@@ -820,8 +910,6 @@ function NieuwsbrievenTab() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = isAdminRole(user?.role);
-
-  type NieuwsbriefFile = { name: string; path: string; size: number; modified: string };
 
   const { data: files, isLoading } = useQuery<NieuwsbriefFile[]>({
     queryKey: ["/api/uploads/nieuwsbrief"],

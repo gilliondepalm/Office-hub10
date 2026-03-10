@@ -1,5 +1,4 @@
 import { useLocation, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -30,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
-import type { Message } from "@shared/schema";
+import { useAankondigingenNotifications } from "@/pages/aankondigingen";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -48,11 +47,7 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
-  const { data: messages } = useQuery<(Message & { fromUserName?: string; toUserName?: string })[]>({
-    queryKey: ["/api/messages"],
-  });
-
-  const unreadCount = messages?.filter((m) => m.toUserId === user?.id && !m.read).length || 0;
+  const { totalNew } = useAankondigingenNotifications();
 
   const userPermissions = user?.permissions || [];
   const visibleItems = menuItems.filter((item) => userPermissions.includes(item.key));
@@ -82,25 +77,24 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 text-[10px] uppercase tracking-wider font-semibold">
-            <span className="flex items-center gap-2">
-              Navigatie
-              {unreadCount > 0 && (
-                <Badge className="h-5 min-w-5 px-1.5 text-[10px] font-bold bg-[hsl(48,96%,53%)] text-[hsl(152,30%,10%)] hover:bg-[hsl(48,96%,53%)]" data-testid="badge-unread-messages">
-                  {unreadCount}
-                </Badge>
-              )}
-            </span>
+            Navigatie
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleItems.map((item) => {
                 const isActive = location === item.url || (item.url !== "/" && location.startsWith(item.url));
+                const showNotification = item.key === "aankondigingen" && totalNew > 0;
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>
                       <Link href={item.url} data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}>
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <span className="flex-1">{item.title}</span>
+                        {showNotification && (
+                          <Badge className="h-5 min-w-5 px-1.5 text-[10px] font-bold bg-destructive text-destructive-foreground hover:bg-destructive" data-testid="badge-aankondigingen-new">
+                            {totalNew}
+                          </Badge>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
