@@ -26,7 +26,8 @@ import {
   type JaarplanItem, type InsertJaarplanItem,
   type HelpContent, type InsertHelpContent,
   type OfficialHoliday, type InsertOfficialHoliday,
-  helpContentTable, officialHolidays,
+  type Snipperdag, type InsertSnipperdag,
+  helpContentTable, officialHolidays, snipperdagen,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -159,6 +160,10 @@ export interface IStorage {
   createOfficialHoliday(holiday: InsertOfficialHoliday): Promise<OfficialHoliday>;
   deleteOfficialHoliday(id: string): Promise<void>;
   deleteOfficialHolidaysByYear(year: number): Promise<void>;
+
+  getSnipperdagen(year?: number): Promise<Snipperdag[]>;
+  createSnipperdag(snipperdag: InsertSnipperdag): Promise<Snipperdag>;
+  deleteSnipperdag(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -955,6 +960,22 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOfficialHolidaysByYear(year: number): Promise<void> {
     await db.delete(officialHolidays).where(eq(officialHolidays.year, year));
+  }
+
+  async getSnipperdagen(year?: number): Promise<Snipperdag[]> {
+    if (year) {
+      return db.select().from(snipperdagen).where(eq(snipperdagen.year, year)).orderBy(snipperdagen.date);
+    }
+    return db.select().from(snipperdagen).orderBy(snipperdagen.date);
+  }
+
+  async createSnipperdag(snipperdag: InsertSnipperdag): Promise<Snipperdag> {
+    const [created] = await db.insert(snipperdagen).values(snipperdag).returning();
+    return created;
+  }
+
+  async deleteSnipperdag(id: string): Promise<void> {
+    await db.delete(snipperdagen).where(eq(snipperdagen.id, id));
   }
 }
 

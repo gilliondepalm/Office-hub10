@@ -32,7 +32,7 @@ import {
   addMonths, subMonths, eachDayOfInterval, isSameMonth, isToday,
 } from "date-fns";
 import { nl } from "date-fns/locale";
-import type { Event, User, OfficialHoliday } from "@shared/schema";
+import type { Event, User, OfficialHoliday, Snipperdag } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 
@@ -50,7 +50,7 @@ interface CalendarEntry {
   id: string;
   title: string;
   date: string;
-  type: "event" | "verjaardag" | "jubileum" | "feestdag";
+  type: "event" | "verjaardag" | "jubileum" | "feestdag" | "snipperdag";
   category?: string | null;
   description?: string | null;
   time?: string | null;
@@ -173,6 +173,11 @@ const typeConfig: Record<string, { icon: typeof Cake; color: string; label: stri
     icon: Flag,
     color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
     label: "Feestdag",
+  },
+  snipperdag: {
+    icon: Flag,
+    color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    label: "Snipperdag",
   },
   event: {
     icon: CalendarDays,
@@ -671,6 +676,10 @@ export default function KalenderPage() {
     queryKey: ["/api/official-holidays"],
   });
 
+  const { data: snipperdagenData } = useQuery<Snipperdag[]>({
+    queryKey: ["/api/snipperdagen"],
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/events/${id}`);
@@ -740,8 +749,20 @@ export default function KalenderPage() {
     if (currentMonth.getMonth() === 0) addHolidaysForYear(year - 1);
     if (currentMonth.getMonth() === 11) addHolidaysForYear(year + 1);
 
+    if (snipperdagenData) {
+      for (const s of snipperdagenData) {
+        entries.push({
+          id: `snipperdag-${s.id}`,
+          title: `📌 ${s.name}`,
+          date: s.date,
+          type: "snipperdag",
+          description: "Verplichte vrije dag (snipperdag) — wordt afgetrokken van vakantiesaldo",
+        });
+      }
+    }
+
     return entries;
-  }, [events, users, currentMonth, officialHolidayData]);
+  }, [events, users, currentMonth, officialHolidayData, snipperdagenData]);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -763,6 +784,7 @@ export default function KalenderPage() {
     { type: "verjaardag", label: "Verjaardag", color: "bg-pink-500" },
     { type: "jubileum", label: "Jubileum", color: "bg-amber-500" },
     { type: "feestdag", label: "Feestdag", color: "bg-orange-500" },
+    { type: "snipperdag", label: "Snipperdag", color: "bg-red-500" },
   ];
 
   if (loadingEvents) {
@@ -870,6 +892,7 @@ export default function KalenderPage() {
               const hasBirthday = dayEntries.some((e) => e.type === "verjaardag");
               const hasAnniversary = dayEntries.some((e) => e.type === "jubileum");
               const hasHoliday = dayEntries.some((e) => e.type === "feestdag");
+              const hasSnipperdag = dayEntries.some((e) => e.type === "snipperdag");
 
               return (
                 <div
@@ -892,6 +915,7 @@ export default function KalenderPage() {
                         {hasBirthday && <div className="h-1.5 w-1.5 rounded-full bg-pink-500" />}
                         {hasAnniversary && <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
                         {hasHoliday && <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />}
+                        {hasSnipperdag && <div className="h-1.5 w-1.5 rounded-full bg-red-500" />}
                       </div>
                     )}
                   </div>
@@ -901,6 +925,7 @@ export default function KalenderPage() {
                         verjaardag: "bg-pink-200 dark:bg-pink-900/40 text-pink-800 dark:text-pink-300",
                         jubileum: "bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300",
                         feestdag: "bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300",
+                        snipperdag: "bg-red-200 dark:bg-red-900/40 text-red-800 dark:text-red-300",
                         event: entry.category && categoryColors[entry.category]
                           ? categoryColors[entry.category]
                           : "bg-primary/10 text-primary",

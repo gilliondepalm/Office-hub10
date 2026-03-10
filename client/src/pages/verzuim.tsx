@@ -21,12 +21,12 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import type { Absence, User } from "@shared/schema";
+import type { Absence, User, Snipperdag } from "@shared/schema";
 import { isAdminRole } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 
@@ -66,6 +66,8 @@ type VacationBalance = {
   toegekendDays: number;
   opgenomenDays: number;
   remainingDays: number;
+  sickDays: number;
+  snipperdagen?: number;
 };
 
 function AbsenceReportDialog({
@@ -308,6 +310,9 @@ export default function VerzuimPage() {
   const [open, setOpen] = useState(false);
   const [vacDaysOpen, setVacDaysOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [snipperdagOpen, setSnipperdagOpen] = useState(false);
+  const [snipperdagName, setSnipperdagName] = useState("");
+  const [snipperdagDate, setSnipperdagDate] = useState("");
   const [editingUser, setEditingUser] = useState<{ id: string; name: string; days: number } | null>(null);
   const [newDays, setNewDays] = useState("");
   const { toast } = useToast();
@@ -319,6 +324,10 @@ export default function VerzuimPage() {
 
   const { data: allUsers } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: snipperdagenData } = useQuery<Snipperdag[]>({
+    queryKey: ["/api/snipperdagen"],
   });
 
   const { data: vacationBalances, isLoading: loadingBalances } = useQuery<VacationBalance[]>({
@@ -371,6 +380,33 @@ export default function VerzuimPage() {
     },
     onError: () => {
       toast({ title: "Geen rechten voor deze actie", variant: "destructive" });
+    },
+  });
+
+  const createSnipperdagMutation = useMutation({
+    mutationFn: async (data: { name: string; date: string }) => {
+      await apiRequest("POST", "/api/snipperdagen", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/snipperdagen"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      toast({ title: "Snipperdag toegevoegd" });
+      setSnipperdagName("");
+      setSnipperdagDate("");
+    },
+    onError: () => {
+      toast({ title: "Fout bij toevoegen", variant: "destructive" });
+    },
+  });
+
+  const deleteSnipperdagMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/snipperdagen/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/snipperdagen"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      toast({ title: "Snipperdag verwijderd" });
     },
   });
 
@@ -431,6 +467,12 @@ export default function VerzuimPage() {
             <Button variant="outline" onClick={() => setReportOpen(true)} data-testid="button-absence-report">
               <FileBarChart className="h-4 w-4 mr-2" />
               Afwezigheidsrapport
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setSnipperdagOpen(true)} data-testid="button-snipperdagen">
+              <Scissors className="h-4 w-4 mr-2" />
+              Snipperdagen
             </Button>
           )}
           {isAdmin && (
@@ -862,6 +904,122 @@ export default function VerzuimPage() {
         </div>
       )}
 
+      <Dialog open={snipperdagOpen} onOpenChange={setSnipperdagOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scissors className="h-5 w-5" />
+              Snipperdagen Beheren
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Een snipperdag is een verplichte vrije dag voor al het personeel. Deze dag wordt automatisch afgetrokken van het vakantiesaldo van iedere medewerker.
+          </p>
+          <div className="flex gap-2 items-end">
+            <div className="space-y-1 flex-1">
+              <label className="text-xs font-medium">Naam</label>
+              <Input
+                value={snipperdagName}
+                onChange={e => setSnipperdagName(e.target.value)}
+                placeholder="bijv. Brugdag na Hemelvaart"
+                data-testid="input-snipperdag-name"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Datum</label>
+              <Input
+                type="date"
+                value={snipperdagDate}
+                onChange={e => setSnipperdagDate(e.target.value)}
+                data-testid="input-snipperdag-date"
+              />
+            </div>
+            <Button
+              onClick={() => createSnipperdagMutation.mutate({ name: snipperdagName, date: snipperdagDate })}
+              disabled={!snipperdagName.trim() || !snipperdagDate || createSnipperdagMutation.isPending}
+              data-testid="button-add-snipperdag"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Toevoegen
+            </Button>
+          </div>
+          {(() => {
+            const currentYear = new Date().getFullYear();
+            const thisYear = (snipperdagenData || []).filter(s => s.year === currentYear);
+            const otherYears = (snipperdagenData || []).filter(s => s.year !== currentYear);
+            return (
+              <div className="space-y-3">
+                {thisYear.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-1">{currentYear} ({thisYear.length} {thisYear.length === 1 ? "dag" : "dagen"})</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Datum</TableHead>
+                          <TableHead>Naam</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {thisYear.map(s => (
+                          <TableRow key={s.id} data-testid={`row-snipperdag-${s.id}`}>
+                            <TableCell className="text-sm">
+                              {format(new Date(s.date + "T00:00:00"), "d MMMM yyyy", { locale: nl })}
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">{s.name}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => deleteSnipperdagMutation.mutate(s.id)}
+                                data-testid={`button-delete-snipperdag-${s.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {otherYears.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-1 text-muted-foreground">Andere jaren</h4>
+                    <Table>
+                      <TableBody>
+                        {otherYears.map(s => (
+                          <TableRow key={s.id} data-testid={`row-snipperdag-${s.id}`}>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {format(new Date(s.date + "T00:00:00"), "d MMMM yyyy", { locale: nl })}
+                            </TableCell>
+                            <TableCell className="text-sm">{s.name}</TableCell>
+                            <TableCell className="w-12">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => deleteSnipperdagMutation.mutate(s.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {(snipperdagenData || []).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nog geen snipperdagen ingesteld</p>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       <AbsenceReportDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
@@ -889,6 +1047,7 @@ export default function VerzuimPage() {
                       <TableHead className="text-right">Toegekend</TableHead>
                       <TableHead className="text-right">Opgenomen</TableHead>
                       <TableHead className="text-right">Ziek</TableHead>
+                      <TableHead className="text-right">Snipper</TableHead>
                       <TableHead className="text-right">Resterend</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -899,7 +1058,7 @@ export default function VerzuimPage() {
                       return departments.map(dept => (
                         <>
                           <TableRow key={`dept-${dept}`}>
-                            <TableCell colSpan={7} className="bg-muted/50 font-bold text-sm py-1.5">
+                            <TableCell colSpan={8} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
                             </TableCell>
                           </TableRow>
@@ -919,6 +1078,13 @@ export default function VerzuimPage() {
                               <TableCell className="text-right text-sm">
                                 {b.sickDays > 0 ? (
                                   <Badge variant="destructive" className="text-xs">{b.sickDays}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {(b.snipperdagen || 0) > 0 ? (
+                                  <Badge variant="secondary" className="text-xs">{b.snipperdagen}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}

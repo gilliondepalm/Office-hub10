@@ -330,6 +330,19 @@ export const insertHelpContentSchema = createInsertSchema(helpContentTable).omit
 export type InsertHelpContent = z.infer<typeof insertHelpContentSchema>;
 export type HelpContent = typeof helpContentTable.$inferSelect;
 
+export const snipperdagen = pgTable("snipperdagen", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  date: date("date").notNull(),
+  year: integer("year").notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSnipperdagSchema = createInsertSchema(snipperdagen).omit({ id: true, createdAt: true });
+export type InsertSnipperdag = z.infer<typeof insertSnipperdagSchema>;
+export type Snipperdag = typeof snipperdagen.$inferSelect;
+
 export const officialHolidays = pgTable("official_holidays", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),

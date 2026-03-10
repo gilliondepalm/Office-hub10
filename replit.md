@@ -16,7 +16,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 3. **Aankondigingen** - Announcements with priority levels, pinning, PDF attachments, and direct messaging (admin/manager to employee with reply)
 4. **Organisatie** - Department management with tabs: Afdelingen (department cards with manager info), AO-Procedures (admin-managed procedures with step-by-step instructions per department), Organogram (visual org chart), CAO Info (collective labor agreement overview), Wetgeving (legislation links grouped by category)
 5. **Personalia** - Employee directory with roles and departments
-6. **Verzuim** - Absence/leave management with approval workflow, BVVD (bijzonder verlof) with predefined reasons, vacation day balance tracking per employee, admin vacation day allowance management
+6. **Verzuim** - Absence/leave management with approval workflow, BVVD (bijzonder verlof) with predefined reasons, vacation day balance tracking per employee, admin vacation day allowance management, snipperdagen (mandatory days off deducted from all employees' vacation balance)
 7. **Beloningen** - Four sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures 5-6 competencies per functie with optional normering descriptions per score level 1-5, each scored 1-5 with auto-calculated total and average, functie dropdown populated from configured functies, competency dropdown with collapsible normering), Jaarplan (yearly planning per employee with afspraken/start/einde/voortgang/status tracking, grouped by employee with color-coded status badges), and Beloningssysteem (points-based rewards with leaderboard)
 8. **Applicaties** - Application access management with user permissions
 9. **Beheer** - Admin-only user permissions management (toggle module access per user)
@@ -101,6 +101,9 @@ All routes prefixed with `/api/` and require authentication except login.
 - GET /api/legislation - All legislation links
 - POST /api/legislation - Create legislation link (admin only): { title, url, description?, category }
 - DELETE /api/legislation/:id - Delete legislation link (admin only)
+- GET /api/snipperdagen?year=YYYY - Snipperdagen (mandatory days off), optionally filtered by year
+- POST /api/snipperdagen - Create snipperdag (admin only): { name, date } — duplicate dates rejected
+- DELETE /api/snipperdagen/:id - Delete snipperdag (admin only)
 - GET /api/official-holidays?year=YYYY - Official holidays, optionally filtered by year
 - POST /api/official-holidays - Upload holidays for a year (admin only): { year, holidays: [{name, date}] } — replaces all for that year
 - DELETE /api/official-holidays/:id - Delete single holiday (admin only)

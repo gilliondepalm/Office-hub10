@@ -616,6 +616,51 @@ export async function registerRoutes(
     res.json({ message: "Verwijderd" });
   });
 
+  app.get("/api/snipperdagen", requireAuth, async (req, res) => {
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+    const list = await storage.getSnipperdagen(year);
+    res.json(list);
+  });
+
+  app.post("/api/snipperdagen", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    if (!isAdminRole(user?.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    try {
+      const { name, date } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ message: "Naam is verplicht" });
+      }
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ message: "Ongeldige datum" });
+      }
+      const year = parseInt(date.split("-")[0]);
+      const existing = await storage.getSnipperdagen(year);
+      if (existing.some(s => s.date === date)) {
+        return res.status(400).json({ message: "Er bestaat al een snipperdag op deze datum" });
+      }
+      const snipperdag = await storage.createSnipperdag({
+        name: name.trim(),
+        date,
+        year,
+        createdBy: user.id,
+      });
+      res.json(snipperdag);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Aanmaken mislukt" });
+    }
+  });
+
+  app.delete("/api/snipperdagen/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    if (!isAdminRole(user?.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    await storage.deleteSnipperdag(req.params.id);
+    res.json({ message: "Verwijderd" });
+  });
+
   app.get("/api/official-holidays", requireAuth, async (req, res) => {
     const year = req.query.year ? parseInt(req.query.year as string) : undefined;
     const holidays = await storage.getOfficialHolidays(year);
@@ -727,6 +772,8 @@ export async function registerRoutes(
       const allUsers = await storage.getUsers();
       const allAbsences = await storage.getAbsences();
       const currentYear = new Date().getFullYear();
+      const yearSnipperdagen = await storage.getSnipperdagen(currentYear);
+      const snipperdagenCount = yearSnipperdagen.length;
 
       const countWeekdays = (startStr: string, endStr: string): number => {
         const start = new Date(startStr + "T00:00:00");
@@ -795,7 +842,8 @@ export async function registerRoutes(
           toegekendDays,
           opgenomenDays,
           sickDays,
-          remainingDays: total - toegekendDays - geplandDays,
+          snipperdagen: snipperdagenCount,
+          remainingDays: total - toegekendDays - geplandDays - snipperdagenCount,
         };
       });
       res.json(balances);
