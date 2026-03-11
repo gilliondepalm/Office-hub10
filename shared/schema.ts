@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   endDate: date("end_date"),
   birthDate: date("birth_date"),
   vacationDaysTotal: integer("vacation_days_total").default(25),
+  vacationDaysSaldoOud: integer("vacation_days_saldo_oud").default(0),
   phoneExtension: text("phone_extension"),
   functie: text("functie"),
 });

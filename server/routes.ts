@@ -832,18 +832,22 @@ export async function registerRoutes(
         const toegekendDays = countDays(approved);
         const opgenomenDays = countDaysUpTo(approved, todayStr);
         const sickDays = countDays(userSickAbsences);
-        const total = u.vacationDaysTotal ?? 25;
+        const recht = u.vacationDaysTotal ?? 25;
+        const saldoOud = u.vacationDaysSaldoOud ?? 0;
+        const totaal = recht + saldoOud;
         return {
           userId: u.id,
           userName: u.fullName,
           department: u.department || "Geen afdeling",
-          totalDays: total,
+          recht,
+          saldoOud,
+          totalDays: totaal,
           geplandDays,
           toegekendDays,
           opgenomenDays,
           sickDays,
           snipperdagen: snipperdagenCount,
-          remainingDays: total - toegekendDays - geplandDays - snipperdagenCount,
+          remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount,
         };
       });
       res.json(balances);
@@ -859,6 +863,20 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Ongeldig aantal vakantiedagen" });
       }
       const user = await storage.updateUser(req.params.id, { vacationDaysTotal } as any);
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Bijwerken mislukt" });
+    }
+  });
+
+  app.patch("/api/users/:id/saldo-oud", requireAdmin, async (req, res) => {
+    try {
+      const { vacationDaysSaldoOud } = req.body;
+      if (typeof vacationDaysSaldoOud !== "number" || vacationDaysSaldoOud < 0) {
+        return res.status(400).json({ message: "Ongeldig saldo oud" });
+      }
+      const user = await storage.updateUser(req.params.id, { vacationDaysSaldoOud } as any);
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (err: any) {

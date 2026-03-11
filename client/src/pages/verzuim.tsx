@@ -21,7 +21,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2 } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -61,6 +61,8 @@ type VacationBalance = {
   userId: string;
   userName: string;
   department: string;
+  recht: number;
+  saldoOud: number;
   totalDays: number;
   geplandDays: number;
   toegekendDays: number;
@@ -308,13 +310,15 @@ function AbsenceReportDialog({
 
 export default function VerzuimPage() {
   const [open, setOpen] = useState(false);
-  const [vacDaysOpen, setVacDaysOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [snipperdagOpen, setSnipperdagOpen] = useState(false);
   const [snipperdagName, setSnipperdagName] = useState("");
   const [snipperdagDate, setSnipperdagDate] = useState("");
+  const [rechtOpen, setRechtOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<{ id: string; name: string; days: number } | null>(null);
   const [newDays, setNewDays] = useState("");
+  const [editingSaldoOud, setEditingSaldoOud] = useState<{ id: string; name: string; days: number } | null>(null);
+  const [newSaldoOud, setNewSaldoOud] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -417,10 +421,25 @@ export default function VerzuimPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ title: "Vakantiedagen bijgewerkt" });
+      toast({ title: "Vakantierecht bijgewerkt" });
       setEditingUser(null);
       setNewDays("");
-      setVacDaysOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Fout bij bijwerken", variant: "destructive" });
+    },
+  });
+
+  const updateSaldoOudMutation = useMutation({
+    mutationFn: async ({ userId, vacationDaysSaldoOud }: { userId: string; vacationDaysSaldoOud: number }) => {
+      await apiRequest("PATCH", `/api/users/${userId}/saldo-oud`, { vacationDaysSaldoOud });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({ title: "Saldo oud bijgewerkt" });
+      setEditingSaldoOud(null);
+      setNewSaldoOud("");
     },
     onError: () => {
       toast({ title: "Fout bij bijwerken", variant: "destructive" });
@@ -476,61 +495,117 @@ export default function VerzuimPage() {
             </Button>
           )}
           {isAdmin && (
-            <Dialog open={vacDaysOpen} onOpenChange={setVacDaysOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" data-testid="button-manage-vacation-days">
-                  <CalendarDays className="h-4 w-4 mr-2" />
-                  Vakantiedagen Instellen
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
+            <Button variant="outline" onClick={() => setRechtOpen(true)} data-testid="button-manage-vacation-days">
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Vakantierecht Instellen
+            </Button>
+          )}
+          {isAdmin && (
+            <Dialog open={rechtOpen} onOpenChange={(v) => { setRechtOpen(v); if (!v) { setEditingUser(null); setEditingSaldoOud(null); } }}>
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Vakantiedagen per Medewerker</DialogTitle>
+                  <DialogTitle>Vakantierecht per 1 januari {new Date().getFullYear()}</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   {loadingBalances ? (
                     <Skeleton className="h-32" />
                   ) : (
-                    vacationBalances?.map((b) => (
-                      <div key={b.userId} className="flex items-center justify-between gap-2 p-3 rounded-md hover-elevate" data-testid={`vacation-days-row-${b.userId}`}>
-                        <span className="text-sm font-medium flex-1">{b.userName}</span>
-                        {editingUser?.id === b.userId ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={newDays}
-                              onChange={(e) => setNewDays(e.target.value)}
-                              className="w-20"
-                              data-testid="input-vacation-days"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => updateVacDaysMutation.mutate({ userId: b.userId, vacationDaysTotal: parseInt(newDays) || 0 })}
-                              disabled={updateVacDaysMutation.isPending}
-                              data-testid="button-save-vacation-days"
-                            >
-                              Opslaan
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => setEditingUser(null)}>
-                              Annuleren
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs">{b.totalDays} dagen</Badge>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => { setEditingUser({ id: b.userId, name: b.userName, days: b.totalDays }); setNewDays(String(b.totalDays)); }}
-                              data-testid={`button-edit-vacation-${b.userId}`}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Medewerker</TableHead>
+                          <TableHead className="text-right">Recht</TableHead>
+                          <TableHead className="text-right">Saldo Oud</TableHead>
+                          <TableHead className="text-right">Totaal</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...(vacationBalances || [])].sort((a, b) => a.userName.localeCompare(b.userName, "nl")).map((b) => (
+                          <TableRow key={b.userId} data-testid={`vacation-days-row-${b.userId}`}>
+                            <TableCell className="font-medium text-sm">{b.userName}</TableCell>
+                            <TableCell className="text-right">
+                              {editingUser?.id === b.userId ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={newDays}
+                                    onChange={(e) => setNewDays(e.target.value)}
+                                    className="w-20 text-right"
+                                    data-testid="input-vacation-days"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() => updateVacDaysMutation.mutate({ userId: b.userId, vacationDaysTotal: parseInt(newDays) || 0 })}
+                                    disabled={updateVacDaysMutation.isPending}
+                                    data-testid="button-save-vacation-days"
+                                  >
+                                    Opslaan
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setEditingUser(null)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-sm">{b.recht}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    onClick={() => { setEditingUser({ id: b.userId, name: b.userName, days: b.recht }); setNewDays(String(b.recht)); setEditingSaldoOud(null); }}
+                                    data-testid={`button-edit-recht-${b.userId}`}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {editingSaldoOud?.id === b.userId ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={newSaldoOud}
+                                    onChange={(e) => setNewSaldoOud(e.target.value)}
+                                    className="w-20 text-right"
+                                    data-testid="input-saldo-oud"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() => updateSaldoOudMutation.mutate({ userId: b.userId, vacationDaysSaldoOud: parseInt(newSaldoOud) || 0 })}
+                                    disabled={updateSaldoOudMutation.isPending}
+                                    data-testid="button-save-saldo-oud"
+                                  >
+                                    Opslaan
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setEditingSaldoOud(null)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-sm">{b.saldoOud}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    onClick={() => { setEditingSaldoOud({ id: b.userId, name: b.userName, days: b.saldoOud }); setNewSaldoOud(String(b.saldoOud)); setEditingUser(null); }}
+                                    data-testid={`button-edit-saldo-oud-${b.userId}`}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-sm font-medium">{b.totalDays}</TableCell>
+                            <TableCell></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   )}
                 </div>
               </DialogContent>
@@ -1042,13 +1117,15 @@ export default function VerzuimPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Medewerker</TableHead>
+                      <TableHead className="text-right">Recht</TableHead>
+                      <TableHead className="text-right">Saldo Oud</TableHead>
                       <TableHead className="text-right">Totaal</TableHead>
                       <TableHead className="text-right">Gepland</TableHead>
                       <TableHead className="text-right">Toegekend</TableHead>
                       <TableHead className="text-right">Opgenomen</TableHead>
                       <TableHead className="text-right">Ziek</TableHead>
                       <TableHead className="text-right">Snipper</TableHead>
-                      <TableHead className="text-right">Resterend</TableHead>
+                      <TableHead className="text-right">Saldo Nieuw</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1058,14 +1135,22 @@ export default function VerzuimPage() {
                       return departments.map(dept => (
                         <>
                           <TableRow key={`dept-${dept}`}>
-                            <TableCell colSpan={8} className="bg-muted/50 font-bold text-sm py-1.5">
+                            <TableCell colSpan={10} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
                             </TableCell>
                           </TableRow>
                           {sorted.filter(b => b.department === dept).map(b => (
                             <TableRow key={b.userId} data-testid={`row-balance-${b.userId}`}>
                               <TableCell className="font-medium text-sm pl-6">{b.userName}</TableCell>
-                              <TableCell className="text-right text-sm">{b.totalDays}</TableCell>
+                              <TableCell className="text-right text-sm">{b.recht}</TableCell>
+                              <TableCell className="text-right text-sm">
+                                {b.saldoOud > 0 ? (
+                                  <span>{b.saldoOud}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium">{b.totalDays}</TableCell>
                               <TableCell className="text-right text-sm">
                                 {b.geplandDays > 0 ? (
                                   <Badge variant="outline" className="text-xs">{b.geplandDays}</Badge>
