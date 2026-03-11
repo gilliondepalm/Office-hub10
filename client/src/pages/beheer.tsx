@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { PageHero } from "@/components/page-hero";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -296,11 +297,14 @@ export default function BeheerPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-beheer-title">Beheer</h1>
-        <p className="text-muted-foreground text-sm">Beheer gebruikersrechten en toegang tot modules</p>
-      </div>
+    <div className="overflow-auto h-full">
+      <PageHero
+        title="Beheer"
+        subtitle="Beheer gebruikersrechten en toegang tot modules"
+        imageSrc="/uploads/App_pics/beheer.png"
+        imageAlt="beheer"
+      />
+      <div className="p-6 space-y-6">
 
       {editUser && (
         <PermissionsDialog
@@ -434,6 +438,7 @@ export default function BeheerPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

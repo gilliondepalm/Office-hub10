@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PageHero } from "@/components/page-hero";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2424,12 +2425,15 @@ export default function BeloningenPage() {
   }
 
   return (
-    <div className="p-6 space-y-4 overflow-auto h-full">
-      <div className="flex items-center justify-between gap-4 flex-wrap print:hidden">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-beloningen-title">Beloningen</h1>
-          <p className="text-muted-foreground text-sm">Functionering, beoordeling en beloning</p>
-        </div>
+    <div className="overflow-auto h-full">
+      <PageHero
+        title="Beloningen"
+        subtitle="Functionering, beoordeling en beloning"
+        imageSrc="/uploads/App_pics/beloningen.png"
+        imageAlt="beloningen"
+      />
+      <div className="p-6 space-y-4">
+      <div className="flex items-center justify-end gap-4 flex-wrap print:hidden">
         {activeTab === "beloningsysteem" && isAdminRole(user?.role) && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -2626,6 +2630,7 @@ export default function BeloningenPage() {
           </Card>
         </div>
       )}
+      </div>
     </div>
   );
 }

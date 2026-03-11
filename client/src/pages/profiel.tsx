@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { PageHero } from "@/components/page-hero";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,11 +60,14 @@ export default function ProfielPage() {
   const totalPoints = myRewards?.reduce((sum, r) => sum + r.points, 0) || 0;
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-profiel-title">Mijn Profiel</h1>
-        <p className="text-muted-foreground text-sm">Uw persoonlijke gegevens en overzicht</p>
-      </div>
+    <div className="overflow-auto h-full">
+      <PageHero
+        title="Mijn Profiel"
+        subtitle="Uw persoonlijke gegevens en overzicht"
+        imageSrc="/uploads/App_pics/profiel.png"
+        imageAlt="profiel"
+      />
+      <div className="p-6 space-y-6">
 
       <Card>
         <CardContent className="p-6">
@@ -288,6 +292,7 @@ export default function ProfielPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

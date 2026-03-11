@@ -56,8 +56,13 @@ const uploadPdf = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const appPicsDir = path.join(uploadsDir, "App_pics");
+if (!fs.existsSync(appPicsDir)) {
+  fs.mkdirSync(appPicsDir, { recursive: true });
+}
+
 const imageStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  destination: (_req, _file, cb) => cb(null, appPicsDir),
   filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"));
@@ -154,6 +159,8 @@ export async function registerRoutes(
   const express = await import("express");
 
   app.use("/PDF", express.default.static(path.join(process.cwd(), "PDF")));
+
+  app.use("/uploads/App_pics", express.default.static(appPicsDir));
 
   app.get("/uploads/public/:filename", (req, res) => {
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
@@ -1589,7 +1596,7 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ message: "Geen afbeelding geüpload" });
       }
-      const photoUrl = `/uploads/${req.file.filename}`;
+      const photoUrl = `/uploads/App_pics/${req.file.filename}`;
       await storage.setSiteSetting("dashboard_photo", photoUrl);
       res.json({ value: photoUrl });
     } catch (err: any) {
@@ -1607,7 +1614,7 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ message: "Geen afbeelding geüpload" });
       }
-      const photoUrl = `/uploads/public/${req.file.filename}`;
+      const photoUrl = `/uploads/App_pics/${req.file.filename}`;
       await storage.setSiteSetting("login_photo", photoUrl);
       res.json({ value: photoUrl });
     } catch (err: any) {

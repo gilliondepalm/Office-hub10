@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PageHero } from "@/components/page-hero";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,14 +162,15 @@ export default function ApplicatiesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-applicaties-title">Applicaties</h1>
-          <p className="text-muted-foreground text-sm">
-            {isAdmin ? "Beheer applicaties en wijs ze toe aan gebruikers" : "Uw beschikbare applicaties op het netwerk"}
-          </p>
-        </div>
+    <div className="overflow-auto h-full">
+      <PageHero
+        title="Applicaties"
+        subtitle={isAdmin ? "Beheer applicaties en wijs ze toe aan gebruikers" : "Uw beschikbare applicaties op het netwerk"}
+        imageSrc="/uploads/App_pics/applicaties.png"
+        imageAlt="applicaties"
+      />
+      <div className="p-6 space-y-6">
+      <div className="flex items-center justify-end gap-4 flex-wrap">
         {isAdmin && (
           <div className="flex gap-2 flex-wrap">
             <Dialog open={accessOpen} onOpenChange={setAccessOpen}>
@@ -438,6 +440,7 @@ export default function ApplicatiesPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

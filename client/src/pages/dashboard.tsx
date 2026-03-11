@@ -200,7 +200,7 @@ export default function DashboardPage() {
     );
   }
 
-  const photoSrc = dashboardPhoto?.value || "/images/dashboard-hero.jpg";
+  const photoSrc = dashboardPhoto?.value || "/uploads/App_pics/dashboard.png";
 
   return (
     <div className="overflow-auto h-full">

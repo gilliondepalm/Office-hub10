@@ -45,6 +45,12 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 - Sidebar navigation filtered by user.permissions
 - Routes conditionally rendered based on permissions (unauthorized URLs show 404)
 
+## Page Hero Banners
+- `client/src/components/page-hero.tsx` - Reusable PageHero component (title, subtitle, background image)
+- Hero images stored at `uploads/App_pics/` (served statically, unauthenticated)
+- All 9 module pages + profiel use PageHero: dashboard, login, kalender, aankondigingen, organisatie, personalia, verzuim, beloningen, applicaties, beheer, profiel
+- Page structure: outer `div.overflow-auto.h-full` → `<PageHero />` → inner `div.p-6.space-y-*` (content)
+
 ## Key Files
 - `shared/schema.ts` - All data models and Zod schemas
 - `server/routes.ts` - All API endpoints
@@ -54,6 +60,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 - `client/src/App.tsx` - Main app with routing and layout
 - `client/src/lib/auth.tsx` - Authentication context
 - `client/src/pages/` - All page components
+- `client/src/components/page-hero.tsx` - Page hero banner component
 
 ## API Routes
 All routes prefixed with `/api/` and require authentication except login.

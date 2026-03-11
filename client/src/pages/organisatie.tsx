@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { PageHero } from "@/components/page-hero";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1186,11 +1187,14 @@ export default function OrganisatiePage() {
   ];
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-organisatie-title">Organisatie</h1>
-        <p className="text-muted-foreground text-sm">Afdelingen, procedures, organogram en wetgeving</p>
-      </div>
+    <div className="overflow-auto h-full">
+      <PageHero
+        title="Organisatie"
+        subtitle="Afdelingen, procedures, organogram en wetgeving"
+        imageSrc="/uploads/App_pics/organisatie.png"
+        imageAlt="organisatie"
+      />
+      <div className="p-6 space-y-6">
 
       <div className="flex gap-1 border-b" data-testid="tabs-organisatie">
         {tabs.map((tab) => {
@@ -1220,6 +1224,7 @@ export default function OrganisatiePage() {
         {activeTab === "instructies" && <InstructiesTab />}
         {activeTab === "cao" && <CaoInfoTab />}
         {activeTab === "wetgeving" && <WetgevingTab />}
+      </div>
       </div>
     </div>
   );
