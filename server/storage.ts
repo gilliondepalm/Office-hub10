@@ -27,7 +27,8 @@ import {
   type HelpContent, type InsertHelpContent,
   type OfficialHoliday, type InsertOfficialHoliday,
   type Snipperdag, type InsertSnipperdag,
-  helpContentTable, officialHolidays, snipperdagen,
+  type YearlyAward, type InsertYearlyAward,
+  helpContentTable, officialHolidays, snipperdagen, yearlyAwards,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -164,6 +165,10 @@ export interface IStorage {
   getSnipperdagen(year?: number): Promise<Snipperdag[]>;
   createSnipperdag(snipperdag: InsertSnipperdag): Promise<Snipperdag>;
   deleteSnipperdag(id: string): Promise<void>;
+
+  getYearlyAwards(year?: number): Promise<YearlyAward[]>;
+  createYearlyAward(award: InsertYearlyAward): Promise<YearlyAward>;
+  deleteYearlyAward(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -976,6 +981,22 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSnipperdag(id: string): Promise<void> {
     await db.delete(snipperdagen).where(eq(snipperdagen.id, id));
+  }
+
+  async getYearlyAwards(year?: number): Promise<YearlyAward[]> {
+    if (year) {
+      return await db.select().from(yearlyAwards).where(eq(yearlyAwards.year, year)).orderBy(desc(yearlyAwards.awardedAt));
+    }
+    return await db.select().from(yearlyAwards).orderBy(desc(yearlyAwards.awardedAt));
+  }
+
+  async createYearlyAward(award: InsertYearlyAward): Promise<YearlyAward> {
+    const [created] = await db.insert(yearlyAwards).values(award).returning();
+    return created;
+  }
+
+  async deleteYearlyAward(id: string): Promise<void> {
+    await db.delete(yearlyAwards).where(eq(yearlyAwards.id, id));
   }
 }
 

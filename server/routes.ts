@@ -20,6 +20,7 @@ import {
   insertCompetencySchema, insertBeoordelingReviewSchema, insertBeoordelingScoreSchema,
   insertJaarplanItemSchema,
   insertHelpContentSchema,
+  insertYearlyAwardSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -1060,6 +1061,35 @@ export async function registerRoutes(
   app.get("/api/rewards/leaderboard", requireAuth, async (_req, res) => {
     const lb = await storage.getLeaderboard();
     res.json(lb);
+  });
+
+  app.get("/api/yearly-awards", requireAuth, async (req, res) => {
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+    const awards = await storage.getYearlyAwards(year);
+    res.json(awards);
+  });
+
+  app.post("/api/yearly-awards", requireAuth, async (req, res) => {
+    const sessionUser = await storage.getUser((req.session as any).userId);
+    if (!sessionUser || !isAdminRole(sessionUser.role)) {
+      return res.status(403).json({ message: "Alleen admin/directeur" });
+    }
+    try {
+      const parsed = insertYearlyAwardSchema.parse(req.body);
+      const award = await storage.createYearlyAward(parsed);
+      res.json(award);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Validatiefout" });
+    }
+  });
+
+  app.delete("/api/yearly-awards/:id", requireAuth, async (req, res) => {
+    const sessionUser = await storage.getUser((req.session as any).userId);
+    if (!sessionUser || !isAdminRole(sessionUser.role)) {
+      return res.status(403).json({ message: "Alleen admin/directeur" });
+    }
+    await storage.deleteYearlyAward(req.params.id);
+    res.json({ success: true });
   });
 
   app.get("/api/functionering", requireAuth, async (req, res) => {

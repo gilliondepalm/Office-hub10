@@ -17,7 +17,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 4. **Organisatie** - Department management with tabs: Afdelingen (department cards with manager info), AO-Procedures (admin-managed procedures with step-by-step instructions per department), Organogram (visual org chart), CAO Info (collective labor agreement overview), Wetgeving (legislation links grouped by category)
 5. **Personalia** - Employee directory with roles and departments
 6. **Verzuim** - Absence/leave management with approval workflow, BVVD (bijzonder verlof) with predefined reasons, vacation day balance tracking per employee with Recht (entitlement per Jan 1), Saldo Oud (previous year balance), Totaal (recht + saldo oud), and Saldo Nieuw (remaining after deductions), admin "Vakantierecht Instellen" dialog to set Recht and Saldo Oud per employee, snipperdagen (mandatory days off deducted from all employees' vacation balance)
-7. **Beloningen** - Four sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures 5-6 competencies per functie with optional normering descriptions per score level 1-5, each scored 1-5 with auto-calculated total and average, functie dropdown populated from configured functies, competency dropdown with collapsible normering), Jaarplan (yearly planning per employee with afspraken/start/einde/voortgang/status tracking, grouped by employee with color-coded status badges), and Beloningssysteem (points-based rewards with leaderboard)
+7. **Beloningen** - Four sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures 5-6 competencies per functie with optional normering descriptions per score level 1-5, each scored 1-5 with auto-calculated total and average, functie dropdown populated from configured functies, competency dropdown with collapsible normering), Jaarplan (yearly planning per employee with afspraken/start/einde/voortgang/status tracking, grouped by employee with color-coded status badges), and Beloning (yearly awards: "Afdeling van het Jaar" and "Manager van het Jaar" displayed in two columns per year with year navigation)
 8. **Applicaties** - Application access management with user permissions
 9. **Beheer** - Admin-only user permissions management (toggle module access per user)
 10. **Mijn Profiel** - Personal profile page with own absences, rewards, and access overview
@@ -117,6 +117,9 @@ All routes prefixed with `/api/` and require authentication except login.
 - GET /api/official-holidays?year=YYYY - Official holidays, optionally filtered by year
 - POST /api/official-holidays - Upload holidays for a year (admin only): { year, holidays: [{name, date}] } — replaces all for that year
 - DELETE /api/official-holidays/:id - Delete single holiday (admin only)
+- GET /api/yearly-awards?year=YYYY - Yearly awards (Afdeling/Manager van het Jaar), optionally filtered by year
+- POST /api/yearly-awards - Create yearly award (admin only): { year, type: "department"|"manager", name }
+- DELETE /api/yearly-awards/:id - Delete yearly award (admin only)
 
 ## Running Locally
 ```bash

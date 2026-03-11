@@ -357,6 +357,19 @@ export const insertOfficialHolidaySchema = createInsertSchema(officialHolidays).
 export type InsertOfficialHoliday = z.infer<typeof insertOfficialHolidaySchema>;
 export type OfficialHoliday = typeof officialHolidays.$inferSelect;
 
+export const yearlyAwards = pgTable("yearly_awards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  year: integer("year").notNull(),
+  type: text("type").notNull(),
+  name: text("name").notNull(),
+  awardedBy: varchar("awarded_by").references(() => users.id),
+  awardedAt: timestamp("awarded_at").notNull().defaultNow(),
+});
+
+export const insertYearlyAwardSchema = createInsertSchema(yearlyAwards).omit({ id: true, awardedAt: true });
+export type InsertYearlyAward = z.infer<typeof insertYearlyAwardSchema>;
+export type YearlyAward = typeof yearlyAwards.$inferSelect;
+
 export function isAdminRole(role?: string | null): boolean {
   return role === "admin" || role === "directeur";
 }
