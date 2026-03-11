@@ -362,6 +362,7 @@ export const yearlyAwards = pgTable("yearly_awards", {
   year: integer("year").notNull(),
   type: text("type").notNull(),
   name: text("name").notNull(),
+  photo: text("photo"),
   awardedBy: varchar("awarded_by").references(() => users.id),
   awardedAt: timestamp("awarded_at").notNull().defaultNow(),
 });

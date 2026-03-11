@@ -57,6 +57,31 @@ const uploadPdf = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const beloningDir = path.join(uploadsDir, "Beloning");
+if (!fs.existsSync(beloningDir)) {
+  fs.mkdirSync(beloningDir, { recursive: true });
+}
+
+const beloningStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, beloningDir),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_"));
+  },
+});
+
+const uploadBeloning = multer({
+  storage: beloningStorage,
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Alleen afbeeldingen zijn toegestaan"));
+    }
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 const appPicsDir = path.join(uploadsDir, "App_pics");
 if (!fs.existsSync(appPicsDir)) {
   fs.mkdirSync(appPicsDir, { recursive: true });
@@ -162,6 +187,7 @@ export async function registerRoutes(
   app.use("/PDF", express.default.static(path.join(process.cwd(), "PDF")));
 
   app.use("/uploads/App_pics", express.default.static(appPicsDir));
+  app.use("/uploads/Beloning", express.default.static(beloningDir));
 
   app.get("/uploads/public/:filename", (req, res) => {
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
@@ -1069,14 +1095,20 @@ export async function registerRoutes(
     res.json(awards);
   });
 
-  app.post("/api/yearly-awards", requireAuth, async (req, res) => {
+  app.post("/api/yearly-awards", requireAuth, uploadBeloning.single("photo"), async (req: any, res) => {
     const sessionUser = await storage.getUser((req.session as any).userId);
     if (!sessionUser || !isAdminRole(sessionUser.role)) {
       return res.status(403).json({ message: "Alleen admin/directeur" });
     }
     try {
-      const parsed = insertYearlyAwardSchema.parse(req.body);
-      const award = await storage.createYearlyAward(parsed);
+      const photoUrl = req.file ? `/uploads/Beloning/${req.file.filename}` : null;
+      const award = await storage.createYearlyAward({
+        year: parseInt(req.body.year),
+        type: req.body.type,
+        name: req.body.name,
+        awardedBy: req.body.awardedBy || null,
+        photo: photoUrl,
+      });
       res.json(award);
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Validatiefout" });

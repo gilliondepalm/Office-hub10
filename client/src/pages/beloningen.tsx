@@ -2387,18 +2387,33 @@ export default function BeloningenPage() {
     defaultValues: { year: new Date().getFullYear(), name: "" },
   });
 
+  const [deptPhoto, setDeptPhoto] = useState<File | null>(null);
+  const [mgrPhoto, setMgrPhoto] = useState<File | null>(null);
+
   const createAwardMutation = useMutation({
-    mutationFn: async (data: { year: number; type: string; name: string }) => {
-      await apiRequest("POST", "/api/yearly-awards", {
-        ...data,
-        awardedBy: user?.id,
+    mutationFn: async (data: { year: number; type: string; name: string; photo: File | null }) => {
+      const formData = new FormData();
+      formData.append("year", String(data.year));
+      formData.append("type", data.type);
+      formData.append("name", data.name);
+      formData.append("awardedBy", user?.id || "");
+      if (data.photo) {
+        formData.append("photo", data.photo);
+      }
+      const res = await fetch("/api/yearly-awards", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
       });
+      if (!res.ok) throw new Error("Fout bij opslaan");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/yearly-awards"] });
       toast({ title: "Jaarlijkse onderscheiding toegekend" });
       setDeptOpen(false);
       setMgrOpen(false);
+      setDeptPhoto(null);
+      setMgrPhoto(null);
       deptForm.reset({ year: new Date().getFullYear(), name: "" });
       mgrForm.reset({ year: new Date().getFullYear(), name: "" });
     },
@@ -2455,7 +2470,7 @@ export default function BeloningenPage() {
                 <DialogHeader>
                   <DialogTitle>Afdeling van het Jaar</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={deptForm.handleSubmit((d) => createAwardMutation.mutate({ ...d, type: "department" }))} className="space-y-4">
+                <form onSubmit={deptForm.handleSubmit((d) => createAwardMutation.mutate({ ...d, type: "department", photo: deptPhoto }))} className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Jaar</label>
                     <Input type="number" {...deptForm.register("year", { valueAsNumber: true })} data-testid="input-dept-award-year" />
@@ -2463,6 +2478,11 @@ export default function BeloningenPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Naam Afdeling</label>
                     <Input {...deptForm.register("name", { required: true })} placeholder="Bijv. Financiën" data-testid="input-dept-award-name" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Foto (optioneel)</label>
+                    <Input type="file" accept="image/*" onChange={(e) => setDeptPhoto(e.target.files?.[0] || null)} data-testid="input-dept-award-photo" />
+                    {deptPhoto && <p className="text-xs text-muted-foreground">{deptPhoto.name}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={createAwardMutation.isPending} data-testid="button-submit-dept-award">
                     {createAwardMutation.isPending ? "Opslaan..." : "Opslaan"}
@@ -2482,7 +2502,7 @@ export default function BeloningenPage() {
                 <DialogHeader>
                   <DialogTitle>Manager van het Jaar</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={mgrForm.handleSubmit((d) => createAwardMutation.mutate({ ...d, type: "manager" }))} className="space-y-4">
+                <form onSubmit={mgrForm.handleSubmit((d) => createAwardMutation.mutate({ ...d, type: "manager", photo: mgrPhoto }))} className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Jaar</label>
                     <Input type="number" {...mgrForm.register("year", { valueAsNumber: true })} data-testid="input-mgr-award-year" />
@@ -2490,6 +2510,11 @@ export default function BeloningenPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Naam Manager</label>
                     <Input {...mgrForm.register("name", { required: true })} placeholder="Bijv. Jan de Vries" data-testid="input-mgr-award-name" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Foto (optioneel)</label>
+                    <Input type="file" accept="image/*" onChange={(e) => setMgrPhoto(e.target.files?.[0] || null)} data-testid="input-mgr-award-photo" />
+                    {mgrPhoto && <p className="text-xs text-muted-foreground">{mgrPhoto.name}</p>}
                   </div>
                   <Button type="submit" className="w-full" disabled={createAwardMutation.isPending} data-testid="button-submit-mgr-award">
                     {createAwardMutation.isPending ? "Opslaan..." : "Opslaan"}
@@ -2593,17 +2618,22 @@ export default function BeloningenPage() {
                   return (
                     <div className="space-y-3">
                       {deptAwards.map((award) => (
-                        <div key={award.id} className="flex items-center gap-3 p-3 rounded-md border" data-testid={`dept-award-${award.id}`}>
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                            <Building2 className="h-5 w-5" />
+                        <div key={award.id} className="p-3 rounded-md border space-y-3" data-testid={`dept-award-${award.id}`}>
+                          {award.photo && (
+                            <img src={award.photo} alt={award.name} className="w-full h-40 object-cover rounded-md" />
+                          )}
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                              <Building2 className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold">{award.name}</p>
+                              <p className="text-xs text-muted-foreground">{format(new Date(award.awardedAt), "d MMM yyyy", { locale: nl })}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-dept-award-${award.id}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold">{award.name}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(award.awardedAt), "d MMM yyyy", { locale: nl })}</p>
-                          </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-dept-award-${award.id}`}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       ))}
                     </div>
@@ -2626,17 +2656,22 @@ export default function BeloningenPage() {
                   return (
                     <div className="space-y-3">
                       {mgrAwards.map((award) => (
-                        <div key={award.id} className="flex items-center gap-3 p-3 rounded-md border" data-testid={`mgr-award-${award.id}`}>
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                            <Award className="h-5 w-5" />
+                        <div key={award.id} className="p-3 rounded-md border space-y-3" data-testid={`mgr-award-${award.id}`}>
+                          {award.photo && (
+                            <img src={award.photo} alt={award.name} className="w-full h-40 object-cover rounded-md" />
+                          )}
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                              <Award className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold">{award.name}</p>
+                              <p className="text-xs text-muted-foreground">{format(new Date(award.awardedAt), "d MMM yyyy", { locale: nl })}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold">{award.name}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(award.awardedAt), "d MMM yyyy", { locale: nl })}</p>
-                          </div>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       ))}
                     </div>
