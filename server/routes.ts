@@ -21,6 +21,7 @@ import {
   insertJaarplanItemSchema,
   insertHelpContentSchema,
   isAdminRole,
+  canManageVacation,
 } from "@shared/schema";
 
 const PgStore = pgSession(session);
@@ -535,7 +536,7 @@ export async function registerRoutes(
     const currentUser = await storage.getUser(userId);
     if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
 
-    if (!isAdminRole(currentUser.role) && currentUser.role !== "manager") {
+    if (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
       return res.status(403).json({ message: "Geen toegang" });
     }
 
@@ -683,7 +684,7 @@ export async function registerRoutes(
 
   app.post("/api/snipperdagen", requireAuth, async (req, res) => {
     const user = req.user as any;
-    if (!isAdminRole(user?.role)) {
+    if (!canManageVacation(user?.role)) {
       return res.status(403).json({ message: "Geen toegang" });
     }
     try {
@@ -713,7 +714,7 @@ export async function registerRoutes(
 
   app.delete("/api/snipperdagen/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    if (!isAdminRole(user?.role)) {
+    if (!canManageVacation(user?.role)) {
       return res.status(403).json({ message: "Geen toegang" });
     }
     await storage.deleteSnipperdag(req.params.id);
@@ -915,7 +916,11 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id/vacation-days", requireAdmin, async (req, res) => {
+  app.patch("/api/users/:id/vacation-days", requireAuth, async (req, res) => {
+    const currentUser = req.user as any;
+    if (!canManageVacation(currentUser?.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
     try {
       const { vacationDaysTotal } = req.body;
       if (typeof vacationDaysTotal !== "number" || vacationDaysTotal < 0) {
@@ -929,7 +934,11 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id/saldo-oud", requireAdmin, async (req, res) => {
+  app.patch("/api/users/:id/saldo-oud", requireAuth, async (req, res) => {
+    const currentUser = req.user as any;
+    if (!canManageVacation(currentUser?.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
     try {
       const { vacationDaysSaldoOud } = req.body;
       if (typeof vacationDaysSaldoOud !== "number" || vacationDaysSaldoOud < 0) {
@@ -953,7 +962,7 @@ export async function registerRoutes(
       return res.json(all);
     }
 
-    if (currentUser.role === "manager") {
+    if (currentUser.role === "manager" || currentUser.role === "manager_az") {
       const dept = currentUser.department;
       if (dept) {
         const deptAbsences = await storage.getAbsencesByDepartment(dept);
@@ -1001,11 +1010,11 @@ export async function registerRoutes(
 
       const absenceUser = await storage.getUser(absence.userId);
 
-      if ((absenceUser && isAdminRole(absenceUser.role)) || absenceUser?.role === "manager") {
+      if ((absenceUser && isAdminRole(absenceUser.role)) || absenceUser?.role === "manager" || absenceUser?.role === "manager_az") {
         if (currentUser.role !== "directeur") {
           return res.status(403).json({ message: "Alleen de directeur kan verzuimverzoeken van beheerders en managers goedkeuren" });
         }
-      } else if (currentUser.role === "manager") {
+      } else if (currentUser.role === "manager" || currentUser.role === "manager_az") {
         if (absenceUser?.department !== currentUser.department) {
           return res.status(403).json({ message: "U kunt alleen verzuim van uw eigen afdeling goedkeuren" });
         }
@@ -1283,7 +1292,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Selecteer minimaal één ontvanger" });
       }
 
-      if (user.role === "manager") {
+      if (user.role === "manager" || user.role === "manager_az") {
         const allUsers = await storage.getUsers();
         const allowedIds = allUsers
           .filter(u => u.active && u.department === user.department && u.id !== user.id)

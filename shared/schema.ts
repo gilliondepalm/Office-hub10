@@ -3,7 +3,7 @@ import { pgTable, text, varchar, integer, boolean, date, timestamp, pgEnum } fro
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const roleEnum = pgEnum("role", ["directeur", "admin", "manager", "employee"]);
+export const roleEnum = pgEnum("role", ["directeur", "admin", "manager", "manager_az", "employee"]);
 export const absenceTypeEnum = pgEnum("absence_type", ["sick", "vacation", "personal", "other", "bvvd"]);
 export const absenceStatusEnum = pgEnum("absence_status", ["pending", "approved", "rejected"]);
 
@@ -359,4 +359,8 @@ export type OfficialHoliday = typeof officialHolidays.$inferSelect;
 
 export function isAdminRole(role?: string | null): boolean {
   return role === "admin" || role === "directeur";
+}
+
+export function canManageVacation(role?: string | null): boolean {
+  return role === "admin" || role === "directeur" || role === "manager_az";
 }

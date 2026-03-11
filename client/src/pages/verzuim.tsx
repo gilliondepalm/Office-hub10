@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import type { Absence, User, Snipperdag } from "@shared/schema";
-import { isAdminRole } from "@shared/schema";
+import { isAdminRole, canManageVacation } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 
 const BVVD_REASONS = [
@@ -481,13 +481,14 @@ export default function VerzuimPage() {
   };
 
   const isAdmin = isAdminRole(user?.role);
-  const isAdminOrManager = isAdminRole(user?.role) || user?.role === "manager";
+  const isAdminOrManager = isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az";
+  const canVacation = canManageVacation(user?.role);
 
   const canApprove = (absence: any) => {
     if (absence.status !== "pending" || absence.userId === user?.id) return false;
     if (user?.role === "directeur") return true;
-    if (isAdminRole(user?.role) && !isAdminRole(absence.userRole) && absence.userRole !== "manager") return true;
-    if (user?.role === "manager" && absence.userRole === "employee") return true;
+    if (isAdminRole(user?.role) && !isAdminRole(absence.userRole) && absence.userRole !== "manager" && absence.userRole !== "manager_az") return true;
+    if ((user?.role === "manager" || user?.role === "manager_az") && absence.userRole === "employee") return true;
     return false;
   };
 
@@ -516,19 +517,19 @@ export default function VerzuimPage() {
               Afwezigheidsrapport
             </Button>
           )}
-          {isAdmin && (
+          {canVacation && (
             <Button variant="outline" onClick={() => setSnipperdagOpen(true)} data-testid="button-snipperdagen">
               <Scissors className="h-4 w-4 mr-2" />
               Snipperdagen
             </Button>
           )}
-          {isAdmin && (
+          {canVacation && (
             <Button variant="outline" onClick={() => setRechtOpen(true)} data-testid="button-manage-vacation-days">
               <CalendarDays className="h-4 w-4 mr-2" />
               Vakantierecht Instellen
             </Button>
           )}
-          {isAdmin && (
+          {canVacation && (
             <Dialog open={rechtOpen} onOpenChange={(v) => { setRechtOpen(v); if (!v) { setEditingUser(null); setEditingSaldoOud(null); } }}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>

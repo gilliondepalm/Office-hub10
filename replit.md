@@ -34,10 +34,12 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 ## Authentication & Permissions
 - Session-based with PostgreSQL session store
 - Demo credentials: admin/admin123, manager/user123, pieter/user123, sophie/user123, thomas/user123
-- Roles: directeur, admin, manager, employee (different permissions per role)
+- Roles: directeur, admin, manager, manager_az, employee (different permissions per role)
 - `isAdminRole()` helper from `@shared/schema` checks for both "directeur" and "admin" roles
+- `canManageVacation()` helper checks for "directeur", "admin", and "manager_az" roles
 - Directeur role has all admin privileges plus exclusive ability to approve manager/admin absence requests
 - Admins can approve employee absences only; managers approve employees in their department only
+- Manager AZ (Algemene Zaken) has manager-level access plus vacation management: Snipperdagen, Vakantierecht Instellen, and Saldo Oud editing
 - Module permissions stored as text[] on each user
 - Default permissions: directeur/admin=all 9 modules, manager=8 (no beheer), employee=5 (dashboard, kalender, aankondigingen, verzuim, beloningen)
 - Sidebar navigation filtered by user.permissions
