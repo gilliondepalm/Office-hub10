@@ -1132,6 +1132,41 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  app.get("/api/job-functions", requireAuth, async (_req, res) => {
+    const funcs = await storage.getJobFunctions();
+    res.json(funcs);
+  });
+
+  app.post("/api/job-functions", requireAuth, async (req, res) => {
+    const sessionUser = await storage.getUser((req.session as any).userId);
+    if (!sessionUser || !isAdminRole(sessionUser.role)) {
+      return res.status(403).json({ message: "Alleen admin/directeur" });
+    }
+    const { name, description } = req.body;
+    if (!name?.trim()) return res.status(400).json({ message: "Naam is verplicht" });
+    const created = await storage.createJobFunction({ name: name.trim(), description: description || null });
+    res.json(created);
+  });
+
+  app.patch("/api/job-functions/:id", requireAuth, async (req, res) => {
+    const sessionUser = await storage.getUser((req.session as any).userId);
+    if (!sessionUser || !isAdminRole(sessionUser.role)) {
+      return res.status(403).json({ message: "Alleen admin/directeur" });
+    }
+    const { name, description } = req.body;
+    const updated = await storage.updateJobFunction(req.params.id, { name: name?.trim(), description: description || null });
+    res.json(updated);
+  });
+
+  app.delete("/api/job-functions/:id", requireAuth, async (req, res) => {
+    const sessionUser = await storage.getUser((req.session as any).userId);
+    if (!sessionUser || !isAdminRole(sessionUser.role)) {
+      return res.status(403).json({ message: "Alleen admin/directeur" });
+    }
+    await storage.deleteJobFunction(req.params.id);
+    res.json({ success: true });
+  });
+
   app.get("/api/functionering", requireAuth, async (req, res) => {
     const year = req.query.year ? parseInt(req.query.year as string) : undefined;
     if (year) {

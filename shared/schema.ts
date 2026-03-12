@@ -371,6 +371,17 @@ export const insertYearlyAwardSchema = createInsertSchema(yearlyAwards).omit({ i
 export type InsertYearlyAward = z.infer<typeof insertYearlyAwardSchema>;
 export type YearlyAward = typeof yearlyAwards.$inferSelect;
 
+export const jobFunctions = pgTable("job_functions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertJobFunctionSchema = createInsertSchema(jobFunctions).omit({ id: true, createdAt: true });
+export type InsertJobFunction = z.infer<typeof insertJobFunctionSchema>;
+export type JobFunction = typeof jobFunctions.$inferSelect;
+
 export function isAdminRole(role?: string | null): boolean {
   return role === "admin" || role === "directeur";
 }

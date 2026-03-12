@@ -28,7 +28,8 @@ import {
   type OfficialHoliday, type InsertOfficialHoliday,
   type Snipperdag, type InsertSnipperdag,
   type YearlyAward, type InsertYearlyAward,
-  helpContentTable, officialHolidays, snipperdagen, yearlyAwards,
+  type JobFunction, type InsertJobFunction,
+  helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -169,6 +170,11 @@ export interface IStorage {
   getYearlyAwards(year?: number): Promise<YearlyAward[]>;
   createYearlyAward(award: InsertYearlyAward): Promise<YearlyAward>;
   deleteYearlyAward(id: string): Promise<void>;
+
+  getJobFunctions(): Promise<JobFunction[]>;
+  createJobFunction(data: InsertJobFunction): Promise<JobFunction>;
+  updateJobFunction(id: string, data: Partial<InsertJobFunction>): Promise<JobFunction>;
+  deleteJobFunction(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -997,6 +1003,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteYearlyAward(id: string): Promise<void> {
     await db.delete(yearlyAwards).where(eq(yearlyAwards.id, id));
+  }
+
+  async getJobFunctions(): Promise<JobFunction[]> {
+    return await db.select().from(jobFunctions).orderBy(jobFunctions.name);
+  }
+
+  async createJobFunction(data: InsertJobFunction): Promise<JobFunction> {
+    const [created] = await db.insert(jobFunctions).values(data).returning();
+    return created;
+  }
+
+  async updateJobFunction(id: string, data: Partial<InsertJobFunction>): Promise<JobFunction> {
+    const [updated] = await db.update(jobFunctions).set(data).where(eq(jobFunctions.id, id)).returning();
+    return updated;
+  }
+
+  async deleteJobFunction(id: string): Promise<void> {
+    await db.delete(jobFunctions).where(eq(jobFunctions.id, id));
   }
 }
 
