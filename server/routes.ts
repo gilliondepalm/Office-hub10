@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { seedDatabase } from "./seed";
 import bcrypt from "bcryptjs";
@@ -137,6 +137,12 @@ export async function registerRoutes(
 
   app.set("trust proxy", 1);
 
+  const keyGenerator = (req: any) => {
+    const raw = req.ip || req.socket.remoteAddress || "unknown";
+    const ip = raw.replace(/:\d+$/, "").replace(/^::ffff:/, "");
+    return ipKeyGenerator(ip);
+  };
+
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -144,6 +150,7 @@ export async function registerRoutes(
     standardHeaders: true,
     legacyHeaders: false,
     validate: { xForwardedForHeader: false },
+    keyGenerator,
   });
 
   const apiLimiter = rateLimit({
@@ -153,6 +160,7 @@ export async function registerRoutes(
     standardHeaders: true,
     legacyHeaders: false,
     validate: { xForwardedForHeader: false },
+    keyGenerator,
   });
 
   app.use("/api/", apiLimiter);
