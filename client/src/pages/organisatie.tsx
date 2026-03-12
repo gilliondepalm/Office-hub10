@@ -446,10 +446,16 @@ function OrganogramTab() {
           const rawMembers = users.filter((u) => u.department === dept.name && u.id !== dept.managerId && u.active !== false);
           const getFuncSortOrder = (functie: string | null) => {
             if (!functie || !jobFunctionList) return 9999;
-            const jf = jobFunctionList.find((f) => f.name === functie);
+            // Match by name AND department for accurate sort order
+            const jf = jobFunctionList.find((f) => f.name === functie && f.departmentId === dept.id)
+              ?? jobFunctionList.find((f) => f.name === functie);
             return jf?.sortOrder ?? 9999;
           };
-          const members = [...rawMembers].sort((a, b) => getFuncSortOrder(a.functie ?? null) - getFuncSortOrder(b.functie ?? null));
+          const members = [...rawMembers].sort((a, b) => {
+            const orderDiff = getFuncSortOrder(a.functie ?? null) - getFuncSortOrder(b.functie ?? null);
+            if (orderDiff !== 0) return orderDiff;
+            return (a.fullName ?? "").localeCompare(b.fullName ?? "", "nl");
+          });
           return (
             <Card key={dept.id}>
               <CardContent className="p-4">
