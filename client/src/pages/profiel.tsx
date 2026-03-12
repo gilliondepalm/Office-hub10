@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import type { Absence, Reward, PositionHistory, PersonalDevelopment } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function ProfielPage() {
   const { user } = useAuth();
@@ -100,7 +101,7 @@ export default function ProfielPage() {
                 {user.birthDate && (
                   <div className="flex items-center gap-2">
                     <Cake className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm" data-testid="text-profile-birthdate">{format(new Date(user.birthDate + "T00:00:00"), "d MMMM yyyy", { locale: nl })}</span>
+                    <span className="text-sm" data-testid="text-profile-birthdate">{formatDate(user.birthDate)}</span>
                   </div>
                 )}
               </div>
@@ -133,7 +134,7 @@ export default function ProfielPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{typeLabels[absence.type] || absence.type}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(absence.startDate), "d MMM yyyy", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM yyyy", { locale: nl })}
+                        {formatDate(absence.startDate)} t/m {formatDate(absence.endDate)}
                       </p>
                       {absence.reason && <p className="text-xs text-muted-foreground mt-0.5">{absence.reason}</p>}
                     </div>
@@ -173,7 +174,7 @@ export default function ProfielPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{reward.reason}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(reward.awardedAt), "d MMMM yyyy", { locale: nl })}
+                        {formatDate(reward.awardedAt)}
                       </p>
                     </div>
                     <Badge variant="secondary" className="text-xs shrink-0">+{reward.points}</Badge>
@@ -211,10 +212,10 @@ export default function ProfielPage() {
                       {!entry.endDate && <Badge variant="default" className="text-xs">Huidig</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                      {formatDate(entry.startDate)}
                       {" - "}
                       {entry.endDate
-                        ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                        ? formatDate(entry.endDate)
                         : "heden"}
                     </p>
                     {entry.notes && <p className="text-xs text-muted-foreground">{entry.notes}</p>}
@@ -262,10 +263,10 @@ export default function ProfielPage() {
                       <p className="text-sm font-medium">{entry.trainingName}</p>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                      {formatDate(entry.startDate)}
                       {" - "}
                       {entry.endDate
-                        ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                        ? formatDate(entry.endDate)
                         : "heden"}
                     </p>
                   </div>

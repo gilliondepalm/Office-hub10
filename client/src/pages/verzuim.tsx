@@ -31,6 +31,7 @@ import { nl } from "date-fns/locale";
 import type { Absence, User, Snipperdag } from "@shared/schema";
 import { isAdminRole, canManageVacation } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
+import { formatDate, formatDateShort } from "@/lib/dateUtils";
 
 const BVVD_REASONS = [
   "Huwelijk/geregistreerd partnerschap",
@@ -280,7 +281,7 @@ function AbsenceReportDialog({
                               <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                              {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                              {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
                               {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
                               {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
                             </TableCell>
@@ -920,7 +921,7 @@ export default function VerzuimPage() {
                                     <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
-                                    {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                    {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
                                     {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
                                     {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
                                   </TableCell>
@@ -1035,7 +1036,7 @@ export default function VerzuimPage() {
                                       <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                      {format(new Date(absence.startDate + "T00:00:00"), "d MMM", { locale: nl })} - {format(new Date(absence.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                      {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
                                       {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
                                       {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
                                     </TableCell>
@@ -1124,7 +1125,7 @@ export default function VerzuimPage() {
                         {thisYear.map(s => (
                           <TableRow key={s.id} data-testid={`row-snipperdag-${s.id}`}>
                             <TableCell className="text-sm">
-                              {format(new Date(s.date + "T00:00:00"), "d MMMM yyyy", { locale: nl })}
+                              {formatDate(s.date)}
                             </TableCell>
                             <TableCell className="text-sm font-medium">{s.name}</TableCell>
                             <TableCell>
@@ -1152,7 +1153,7 @@ export default function VerzuimPage() {
                         {otherYears.map(s => (
                           <TableRow key={s.id} data-testid={`row-snipperdag-${s.id}`}>
                             <TableCell className="text-sm text-muted-foreground">
-                              {format(new Date(s.date + "T00:00:00"), "d MMMM yyyy", { locale: nl })}
+                              {formatDate(s.date)}
                             </TableCell>
                             <TableCell className="text-sm">{s.name}</TableCell>
                             <TableCell className="w-12">

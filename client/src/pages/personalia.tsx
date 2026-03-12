@@ -31,6 +31,7 @@ import type { User, Department, PositionHistory, PersonalDevelopment, JobFunctio
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
+import { formatDate } from "@/lib/dateUtils";
 
 const userFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
@@ -443,10 +444,10 @@ function PositionHistoryDialog({
                       <div className="flex items-center gap-4 mt-1 flex-wrap">
                         <span className="text-sm text-muted-foreground flex items-center gap-1">
                           <CalendarDays className="h-3 w-3" />
-                          {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                          {formatDate(entry.startDate)}
                           {" - "}
                           {entry.endDate
-                            ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                            ? formatDate(entry.endDate)
                             : "heden"}
                         </span>
                         <span className="text-sm font-medium flex items-center gap-1" data-testid={`text-salary-${entry.id}`}>
@@ -699,10 +700,10 @@ function PersonalDevelopmentDialog({
                       </div>
                       <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                         <CalendarDays className="h-3 w-3" />
-                        {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                        {formatDate(entry.startDate)}
                         {" - "}
                         {entry.endDate
-                          ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                          ? formatDate(entry.endDate)
                           : "heden"}
                       </p>
                     </div>
@@ -854,10 +855,10 @@ function InlinePositionHistory({ user }: { user: User }) {
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <CalendarDays className="h-3 w-3" />
-                    {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                    {formatDate(entry.startDate)}
                     {" - "}
                     {entry.endDate
-                      ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                      ? formatDate(entry.endDate)
                       : "heden"}
                   </span>
                   {entry.salary && (
@@ -918,10 +919,10 @@ function InlinePersonalDevelopment({ user }: { user: User }) {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   <CalendarDays className="h-3 w-3 inline mr-1" />
-                  {format(new Date(entry.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                  {formatDate(entry.startDate)}
                   {" - "}
                   {entry.endDate
-                    ? format(new Date(entry.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })
+                    ? formatDate(entry.endDate)
                     : "heden"}
                 </p>
               </div>
@@ -1338,7 +1339,7 @@ export default function PersonaliaPage() {
                                   <TableCell>
                                     {u.birthDate ? (
                                       <span className="text-sm">
-                                        {format(new Date(u.birthDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                        {formatDate(u.birthDate)}
                                       </span>
                                     ) : (
                                       <span className="text-sm text-muted-foreground">-</span>
@@ -1349,14 +1350,14 @@ export default function PersonaliaPage() {
                                       {u.startDate ? (
                                         <span className="flex items-center gap-1 text-sm">
                                           <CalendarDays className="h-3 w-3 text-muted-foreground" />
-                                          {format(new Date(u.startDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                          {formatDate(u.startDate)}
                                         </span>
                                       ) : (
                                         <span className="text-sm text-muted-foreground">-</span>
                                       )}
                                       {u.endDate && (
                                         <span className="text-xs text-muted-foreground">
-                                          Uit: {format(new Date(u.endDate + "T00:00:00"), "d MMM yyyy", { locale: nl })}
+                                          Uit: {formatDate(u.endDate)}
                                         </span>
                                       )}
                                     </div>

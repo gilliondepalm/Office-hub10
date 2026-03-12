@@ -21,6 +21,7 @@ import { isAdminRole } from "@shared/schema";
 import { useRef } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate, formatDateShort } from "@/lib/dateUtils";
 
 function StatCard({
   title,
@@ -306,7 +307,7 @@ export default function DashboardPage() {
                   <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+                  <p className="text-sm font-medium">{formatDate(new Date().toISOString())}</p>
                   <p className="text-xs text-muted-foreground">{new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
               </CardContent>
@@ -324,7 +325,7 @@ export default function DashboardPage() {
                 <h3 className="font-semibold text-sm">Vandaag Afwezig</h3>
                 {todayAbsences?.date && (
                   <span className="text-xs text-muted-foreground">
-                    {format(new Date(todayAbsences.date + "T00:00:00"), "EEEE d MMMM yyyy", { locale: nl })}
+                    {formatDate(todayAbsences.date)}
                   </span>
                 )}
               </div>
@@ -499,7 +500,7 @@ export default function DashboardPage() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium">{typeLabels[absence.type] || absence.type}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(new Date(absence.startDate), "d MMM", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM", { locale: nl })}
+                              {formatDateShort(absence.startDate)} t/m {formatDateShort(absence.endDate)}
                             </p>
                           </div>
                           <Badge variant="outline" className={`shrink-0 text-xs ${statusColors[absence.status] || ""}`}>
@@ -593,7 +594,7 @@ export default function DashboardPage() {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium">{(absence as any).userName || "Medewerker"}</p>
                             <p className="text-xs text-muted-foreground">
-                              {typeLabels[absence.type] || absence.type} - {format(new Date(absence.startDate), "d MMM", { locale: nl })} t/m {format(new Date(absence.endDate), "d MMM", { locale: nl })}
+                              {typeLabels[absence.type] || absence.type} - {formatDateShort(absence.startDate)} t/m {formatDateShort(absence.endDate)}
                             </p>
                           </div>
                           <Badge variant="outline" className="shrink-0 text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">

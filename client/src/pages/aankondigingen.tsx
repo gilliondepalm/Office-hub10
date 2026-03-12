@@ -28,6 +28,7 @@ import { nl } from "date-fns/locale";
 import type { Announcement, Message, User } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
+import { formatDateTime } from "@/lib/dateUtils";
 
 const announcementFormSchema = z.object({
   title: z.string().min(1, "Titel is verplicht"),
@@ -491,7 +492,7 @@ function MessageDetailDialog({
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>{format(new Date(message.createdAt), "d MMMM yyyy 'om' HH:mm", { locale: nl })}</span>
+              <span>{formatDateTime(message.createdAt)}</span>
             </div>
 
             <div className="rounded-md bg-muted p-4">
@@ -508,7 +509,7 @@ function MessageDetailDialog({
                   <p className="text-sm whitespace-pre-wrap" data-testid="text-message-reply">{message.reply}</p>
                   {message.repliedAt && (
                     <p className="text-xs text-muted-foreground mt-2">
-                      {format(new Date(message.repliedAt), "d MMMM yyyy 'om' HH:mm", { locale: nl })}
+                      {formatDateTime(message.repliedAt)}
                     </p>
                   )}
                 </div>
@@ -804,7 +805,7 @@ export default function AankondigingenPage() {
                           </a>
                         )}
                         <p className="text-xs text-muted-foreground mt-2">
-                          {format(new Date(ann.createdAt), "d MMMM yyyy 'om' HH:mm", { locale: nl })}
+                          {formatDateTime(ann.createdAt)}
                         </p>
                       </div>
                       {isAdminOrManager && (
@@ -882,7 +883,7 @@ export default function AankondigingenPage() {
                           </p>
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{msg.content}</p>
                           <p className="text-xs text-muted-foreground mt-2">
-                            {format(new Date(msg.createdAt), "d MMMM yyyy 'om' HH:mm", { locale: nl })}
+                            {formatDateTime(msg.createdAt)}
                           </p>
                         </div>
                       </div>

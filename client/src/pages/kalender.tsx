@@ -36,6 +36,7 @@ import { nl } from "date-fns/locale";
 import type { Event, User, OfficialHoliday, Snipperdag } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
+import { formatDate } from "@/lib/dateUtils";
 
 function getKalenderLastSeenKey(userId: string) {
   return `kalender_last_seen_${userId}`;
@@ -627,7 +628,7 @@ function HolidayUploadDialog({
                 {existingHolidays.map(h => (
                   <TableRow key={h.id} data-testid={`row-holiday-${h.id}`}>
                     <TableCell className="text-sm">
-                      {format(new Date(h.date + "T00:00:00"), "d MMMM yyyy", { locale: nl })}
+                      {formatDate(h.date)}
                     </TableCell>
                     <TableCell className="text-sm font-medium">{h.name}</TableCell>
                     <TableCell>
@@ -664,7 +665,7 @@ function HolidayUploadDialog({
                 {holidays.sort((a, b) => a.date.localeCompare(b.date)).map((h, idx) => (
                   <TableRow key={idx} data-testid={`row-new-holiday-${idx}`}>
                     <TableCell className="text-sm">
-                      {format(new Date(h.date + "T00:00:00"), "d MMMM yyyy", { locale: nl })}
+                      {formatDate(h.date)}
                     </TableCell>
                     <TableCell className="text-sm font-medium">{h.name}</TableCell>
                     <TableCell>

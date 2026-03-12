@@ -28,6 +28,7 @@ import { nl } from "date-fns/locale";
 import type { Reward, User, FunctioneringReview, Competency, BeoordelingReview, BeoordelingScore, JaarplanItem, YearlyAward } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
+import { formatDate } from "@/lib/dateUtils";
 
 function ReadOnlyFunctioneringForm({ review }: { review: FunctioneringReview }) {
   const fieldValue = (val: string | null | undefined) => val || "-";
@@ -61,7 +62,7 @@ function ReadOnlyFunctioneringForm({ review }: { review: FunctioneringReview }) 
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground print:text-black">Datum gesprek</label>
-              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{format(new Date(review.datum), "d MMMM yyyy", { locale: nl })}</p>
+              <p className="text-sm border-b border-border/60 pb-1 print:border-b print:border-gray-400">{formatDate(review.datum)}</p>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground print:text-black">Beoordelingsperiode</label>
@@ -447,7 +448,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{review.functie}</span>
                         {review.afdeling && <span>- {review.afdeling}</span>}
-                        <span>- {format(new Date(review.datum), "d MMM yyyy", { locale: nl })}</span>
+                        <span>- {formatDate(review.datum)}</span>
                       </div>
                     </div>
                   </div>
@@ -1481,7 +1482,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{review.functie}</span>
                         {review.afdeling && <span>- {review.afdeling}</span>}
-                        <span>- {format(new Date(review.datum), "d MMM yyyy", { locale: nl })}</span>
+                        <span>- {formatDate(review.datum)}</span>
                         {review.totalScore && <Badge variant="secondary" className="text-[10px]">{review.totalScore}</Badge>}
                       </div>
                     </div>
@@ -1863,7 +1864,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">Datum</label>
-                <p className="text-sm border-b border-gray-400 pb-1">{formData.datum ? format(new Date(formData.datum), "d MMMM yyyy", { locale: nl }) : "-"}</p>
+                <p className="text-sm border-b border-gray-400 pb-1">{formData.datum ? formatDate(formData.datum) : "-"}</p>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">Beoordelingsperiode</label>
@@ -2325,10 +2326,10 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
                             return (
                               <div key={item.id} className={`grid grid-cols-[100px_100px_1fr_auto] gap-2 items-start py-1.5 ${idx < sortedItems.length - 1 ? "border-b border-border/40" : ""}`} data-testid={`jaarplan-row-${item.id}`}>
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {item.startDatum ? format(new Date(item.startDatum), "d MMM yyyy", { locale: nl }) : "—"}
+                                  {item.startDatum ? formatDate(item.startDatum) : "—"}
                                 </span>
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {item.eindDatum ? format(new Date(item.eindDatum), "d MMM yyyy", { locale: nl }) : "—"}
+                                  {item.eindDatum ? formatDate(item.eindDatum) : "—"}
                                 </span>
                                 <div className="flex items-start gap-2">
                                   <p className="text-xs whitespace-pre-wrap flex-1">{item.voortgang || "—"}</p>
@@ -2628,7 +2629,7 @@ export default function BeloningenPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold">{award.name}</p>
-                              <p className="text-xs text-muted-foreground">{format(new Date(award.awardedAt), "d MMM yyyy", { locale: nl })}</p>
+                              <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
                             </div>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-dept-award-${award.id}`}>
                               <Trash2 className="h-4 w-4" />
@@ -2666,7 +2667,7 @@ export default function BeloningenPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold">{award.name}</p>
-                              <p className="text-xs text-muted-foreground">{format(new Date(award.awardedAt), "d MMM yyyy", { locale: nl })}</p>
+                              <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
                             </div>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
                               <Trash2 className="h-4 w-4" />
