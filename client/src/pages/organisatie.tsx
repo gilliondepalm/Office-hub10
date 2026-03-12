@@ -399,9 +399,10 @@ function OrganogramTab() {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}</div>;
   }
 
-  const directeur = users.find((u) => u.role === "directeur" || (isAdminRole(u.role) && u.username === "directeur"));
+  const activeUsers = users.filter((u) => u.active !== false);
+  const directeur = activeUsers.find((u) => u.role === "directeur" || (isAdminRole(u.role) && u.username === "directeur"));
   const deptManagerIds = new Set(departments.map((d) => d.managerId).filter(Boolean));
-  const stafAdmins = users.filter((u) => isAdminRole(u.role) && u.role !== "directeur" && u.username !== "directeur" && !deptManagerIds.has(u.id));
+  const stafAdmins = activeUsers.filter((u) => isAdminRole(u.role) && u.role !== "directeur" && u.username !== "directeur" && !deptManagerIds.has(u.id));
 
   return (
     <div className="space-y-6">
@@ -442,8 +443,8 @@ function OrganogramTab() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {departments.filter((d) => d.name !== "Directie" && d.name !== "Directie & Staf").map((dept) => {
-          const manager = dept.managerId ? users.find((u) => u.id === dept.managerId) : null;
-          const rawMembers = users.filter((u) => u.department === dept.name && u.id !== dept.managerId && u.active !== false);
+          const manager = dept.managerId ? activeUsers.find((u) => u.id === dept.managerId) : null;
+          const rawMembers = activeUsers.filter((u) => u.department === dept.name && u.id !== dept.managerId);
           const getFuncSortOrder = (functie: string | null) => {
             if (!functie || !jobFunctionList) return 9999;
             // Match by name AND department for accurate sort order
