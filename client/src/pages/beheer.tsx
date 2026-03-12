@@ -245,7 +245,7 @@ function RechtenTab() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-2">
-            {allUsers?.map((u) => {
+            {allUsers?.filter((u) => u.active !== false).map((u) => {
               const initials = u.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
               const permCount = u.permissions?.length || 0;
               return (

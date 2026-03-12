@@ -443,7 +443,7 @@ function OrganogramTab() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {departments.filter((d) => d.name !== "Directie" && d.name !== "Directie & Staf").map((dept) => {
           const manager = dept.managerId ? users.find((u) => u.id === dept.managerId) : null;
-          const rawMembers = users.filter((u) => u.department === dept.name && u.id !== dept.managerId);
+          const rawMembers = users.filter((u) => u.department === dept.name && u.id !== dept.managerId && u.active !== false);
           const getFuncSortOrder = (functie: string | null) => {
             if (!functie || !jobFunctionList) return 9999;
             const jf = jobFunctionList.find((f) => f.name === functie);

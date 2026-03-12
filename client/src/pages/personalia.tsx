@@ -939,6 +939,7 @@ export default function PersonaliaPage() {
   const [deactivateUser, setDeactivateUser] = useState<User | null>(null);
   const [historyUser, setHistoryUser] = useState<User | null>(null);
   const [devUser, setDevUser] = useState<User | null>(null);
+  const [personelTab, setPersonelTab] = useState<"actief" | "oud">("actief");
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -1039,7 +1040,7 @@ export default function PersonaliaPage() {
       />
       <div className="p-6 space-y-6">
       <div className="flex items-center justify-end gap-4 flex-wrap">
-        {isAdminRole(currentUser?.role) && (
+        {isAdminRole(currentUser?.role) && personelTab === "actief" && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-user">
@@ -1210,13 +1211,38 @@ export default function PersonaliaPage() {
         />
       )}
 
+      {isAdminRole(currentUser?.role) && (
+        <div className="flex gap-1 border-b" data-testid="tabs-personalia">
+          {([
+            { key: "actief", label: "Actieve Medewerkers" },
+            { key: "oud", label: "Oud Medewerkers" },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setPersonelTab(key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                personelTab === key
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`tab-personeel-${key}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {(() => {
-        const visibleUsers = isAdminRole(currentUser?.role) ? users : users?.filter(u => u.id === currentUser?.id);
+        const allVisible = isAdminRole(currentUser?.role) ? users : users?.filter(u => u.id === currentUser?.id);
+        const visibleUsers = isAdminRole(currentUser?.role)
+          ? (personelTab === "oud" ? allVisible?.filter(u => !u.active) : allVisible?.filter(u => u.active !== false))
+          : allVisible?.filter(u => u.active !== false);
         if (!visibleUsers || visibleUsers.length === 0) return (
           <Card>
             <CardContent className="flex flex-col items-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Geen medewerkers gevonden</p>
+              <p className="text-muted-foreground">{personelTab === "oud" ? "Geen voormalige medewerkers" : "Geen medewerkers gevonden"}</p>
             </CardContent>
           </Card>
         );
