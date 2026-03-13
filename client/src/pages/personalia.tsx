@@ -42,7 +42,7 @@ const userFormSchema = z.object({
   department: z.string().optional(),
   startDate: z.string().min(1, "Datum in dienst is verplicht"),
   birthDate: z.string().optional(),
-  phoneExtension: z.string().optional(),
+  phoneExtension: z.string().max(4, "Maximaal 4 cijfers").optional(),
   functie: z.string().optional(),
 });
 
@@ -55,7 +55,7 @@ const editFormSchema = z.object({
   department: z.string().optional(),
   startDate: z.string().min(1, "Datum in dienst is verplicht"),
   birthDate: z.string().optional(),
-  phoneExtension: z.string().optional(),
+  phoneExtension: z.string().max(4, "Maximaal 4 cijfers").optional(),
   functie: z.string().optional(),
 });
 
@@ -221,7 +221,7 @@ function EditDialog({
             <FormField control={form.control} name="phoneExtension" render={({ field }) => (
               <FormItem>
                 <FormLabel>Toestelnummer</FormLabel>
-                <FormControl><Input {...field} placeholder="bijv. 1011" data-testid="input-edit-phone-extension" /></FormControl>
+                <FormControl><Input {...field} maxLength={4} placeholder="bijv. 1011" data-testid="input-edit-phone-extension" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -1143,7 +1143,7 @@ export default function PersonaliaPage() {
                   <FormField control={createForm.control} name="phoneExtension" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Toestelnummer</FormLabel>
-                      <FormControl><Input {...field} placeholder="bijv. 1011" data-testid="input-user-phone-extension" /></FormControl>
+                      <FormControl><Input {...field} maxLength={4} placeholder="bijv. 1011" data-testid="input-user-phone-extension" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
