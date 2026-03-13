@@ -611,7 +611,7 @@ function HolidayUploadDialog({
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">CSV-formaat: datum,naam — bijv. <code>2026-01-01,Nieuwjaarsdag</code> of <code>01-01-2026,Nieuwjaarsdag</code></p>
+        <p className="text-xs text-muted-foreground">CSV-formaat: dd-mm-yyyy datum,naam — bijv. <code>2026-01-01,Nieuwjaarsdag</code> of <code>01-01-2026,Nieuwjaarsdag</code></p>
 
         {(existingHolidays && existingHolidays.length > 0 && !hasUnsaved) && (
           <div className="space-y-2">
