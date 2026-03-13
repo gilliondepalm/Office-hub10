@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -371,18 +371,112 @@ function AbsenceReportDialog({
 
   const totalDays = filtered.reduce((sum, a) => sum + countBusinessDays(a.startDate, a.endDate, a.halfDay), 0);
 
+  const handlePrint = () => {
+    const typeLabelsLocal: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", other: "Overig", bvvd: "BVVD" };
+    const statusLabelsLocal: Record<string, string> = { pending: "In afwachting", approved: "Goedgekeurd", rejected: "Afgewezen" };
+
+    const periodLabel = filterStart && filterEnd
+      ? `${formatDate(filterStart)} – ${formatDate(filterEnd)}`
+      : filterStart ? `Vanaf ${formatDate(filterStart)}` : filterEnd ? `Tot ${formatDate(filterEnd)}` : "Alle periodes";
+    const deptLabel = filterDept === "all" ? "Alle afdelingen" : filterDept;
+    const empLabel = filterEmployee !== "all" ? (users.find(u => String(u.id) === filterEmployee)?.fullName || "Medewerker") : "Alle medewerkers";
+
+    const rows = sortedDepts.flatMap(dept => {
+      const deptRows = [...grouped[dept]]
+        .sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl") || a.startDate.localeCompare(b.startDate))
+        .map(a => {
+          const days = countBusinessDays(a.startDate, a.endDate, a.halfDay);
+          const reason = a.type === "bvvd" && a.bvvdReason
+            ? a.bvvdReason + (a.reason ? ` - ${a.reason}` : "")
+            : a.reason || "-";
+          const halfDayLabel = a.halfDay === "am" ? " (Ochtend)" : a.halfDay === "pm" ? " (Middag)" : "";
+          const statusColor = a.status === "approved" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#6b7280";
+          return `<tr>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;padding-left:20px">${(a as any).userName || "Medewerker"}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${typeLabelsLocal[a.type] || a.type}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap">${formatDateShort(a.startDate)} – ${formatDate(a.endDate)}${halfDayLabel}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${days}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;max-width:220px;word-wrap:break-word">${reason}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:${statusColor};font-weight:600">${statusLabelsLocal[a.status] || a.status}</td>
+          </tr>`;
+        }).join("");
+      return `<tr><td colspan="6" style="padding:6px 8px;background:#f3f4f6;font-weight:700;font-size:13px;border-bottom:1px solid #d1d5db">${dept} (${grouped[dept].length} meldingen)</td></tr>${deptRows}`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <title>Afwezigheidsrapport</title>
+  <style>
+    @page { margin: 1.5cm; size: A4; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: white; }
+    h1 { font-size: 18px; margin: 0 0 4px 0; }
+    .meta { font-size: 11px; color: #555; margin-bottom: 16px; display: flex; gap: 24px; flex-wrap: wrap; }
+    .meta span { }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    thead th { background: #f3f4f6; padding: 7px 8px; text-align: left; border-bottom: 2px solid #d1d5db; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #374151; }
+    thead th:nth-child(4) { text-align: right; }
+    .summary { margin-top: 16px; font-size: 12px; border-top: 2px solid #d1d5db; padding-top: 10px; display: flex; gap: 24px; }
+    .summary strong { font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Afwezigheidsrapport</h1>
+  <div class="meta">
+    <span><b>Periode:</b> ${periodLabel}</span>
+    <span><b>Afdeling:</b> ${deptLabel}</span>
+    <span><b>Medewerker:</b> ${empLabel}</span>
+    <span><b>Afgedrukt:</b> ${format(new Date(), "dd-MM-yyyy HH:mm")}</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Medewerker</th><th>Type</th><th>Periode</th><th>Dagen</th><th>Reden</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="summary">
+    <span>Totaal meldingen: <strong>${filtered.length}</strong></span>
+    <span>Totaal werkdagen: <strong>${totalDays}</strong></span>
+  </div>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 400);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileBarChart className="h-5 w-5" />
-            Afwezigheidsrapport
-            {filterEmployee !== "all" && (() => {
-              const emp = users.find(u => String(u.id) === filterEmployee);
-              return emp ? <span className="font-normal text-muted-foreground">— {emp.fullName || emp.username}</span> : null;
-            })()}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2">
+            <DialogTitle className="flex items-center gap-2">
+              <FileBarChart className="h-5 w-5" />
+              Afwezigheidsrapport
+              {filterEmployee !== "all" && (() => {
+                const emp = users.find(u => String(u.id) === filterEmployee);
+                return emp ? <span className="font-normal text-muted-foreground">— {emp.fullName || emp.username}</span> : null;
+              })()}
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              disabled={filtered.length === 0}
+              className="gap-2 shrink-0"
+              data-testid="button-print-report"
+            >
+              <Printer className="h-4 w-4" />
+              Afdrukken
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
