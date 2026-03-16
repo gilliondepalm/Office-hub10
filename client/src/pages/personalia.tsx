@@ -36,7 +36,9 @@ import { formatDate } from "@/lib/dateUtils";
 const userFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
   password: z.string().min(4, "Minimaal 4 tekens"),
-  fullName: z.string().min(1, "Volledige naam is verplicht"),
+  voornamen: z.string().min(1, "Voornamen zijn verplicht"),
+  voorvoegsel: z.string().optional(),
+  achternaam: z.string().min(1, "Achternaam is verplicht"),
   email: z.string().email("Ongeldig e-mailadres").or(z.literal("")).optional(),
   role: z.string().default("employee"),
   department: z.string().optional(),
@@ -54,7 +56,9 @@ const userFormSchema = z.object({
 const editFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
   password: z.string().optional(),
-  fullName: z.string().min(1, "Volledige naam is verplicht"),
+  voornamen: z.string().min(1, "Voornamen zijn verplicht"),
+  voorvoegsel: z.string().optional(),
+  achternaam: z.string().min(1, "Achternaam is verplicht"),
   email: z.string().email("Ongeldig e-mailadres").or(z.literal("")).optional(),
   role: z.string(),
   department: z.string().optional(),
@@ -91,7 +95,9 @@ function EditDialog({
     defaultValues: {
       username: user.username,
       password: "",
-      fullName: user.fullName,
+      voornamen: (user as any).voornamen || "",
+      voorvoegsel: (user as any).voorvoegsel || "",
+      achternaam: (user as any).achternaam || "",
       email: user.email,
       role: user.role,
       department: user.department || "",
@@ -109,9 +115,13 @@ function EditDialog({
 
   const mutation = useMutation({
     mutationFn: async (data: z.infer<typeof editFormSchema>) => {
+      const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
       const payload: Record<string, any> = {
         username: data.username,
-        fullName: data.fullName,
+        fullName,
+        voornamen: data.voornamen,
+        voorvoegsel: data.voorvoegsel || null,
+        achternaam: data.achternaam,
         email: data.email || "",
         role: data.role,
         department: data.department || null,
@@ -170,22 +180,36 @@ function EditDialog({
                 </FormItem>
               )} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="fullName" render={({ field }) => (
+            <div className="grid grid-cols-[1fr_120px_1fr] gap-3">
+              <FormField control={form.control} name="voornamen" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Volledige Naam</FormLabel>
-                  <FormControl><Input {...field} data-testid="input-edit-fullname" /></FormControl>
+                  <FormLabel>Voornamen</FormLabel>
+                  <FormControl><Input {...field} placeholder="bijv. Jan" data-testid="input-edit-voornamen" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="email" render={({ field }) => (
+              <FormField control={form.control} name="voorvoegsel" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl><Input {...field} type="email" data-testid="input-edit-email" /></FormControl>
+                  <FormLabel>Voorvoegsel</FormLabel>
+                  <FormControl><Input {...field} placeholder="de, van…" data-testid="input-edit-voorvoegsel" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="achternaam" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Achternaam</FormLabel>
+                  <FormControl><Input {...field} placeholder="bijv. Vries" data-testid="input-edit-achternaam" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
             </div>
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem>
+                <FormLabel>E-mail</FormLabel>
+                <FormControl><Input {...field} type="email" data-testid="input-edit-email" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="role" render={({ field }) => (
                 <FormItem>
@@ -1018,8 +1042,9 @@ export default function PersonaliaPage() {
   const createForm = useForm<z.infer<typeof userFormSchema>>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
-      username: "", password: "", fullName: "", email: "",
-      role: "employee", department: "",
+      username: "", password: "",
+      voornamen: "", voorvoegsel: "", achternaam: "",
+      email: "", role: "employee", department: "",
       startDate: new Date().toISOString().split("T")[0],
       birthDate: "", phoneExtension: "", functie: "",
       kadasterId: "", cedulaNr: "", telefoonnr: "", mobielnr: "", adres: "",
@@ -1028,8 +1053,13 @@ export default function PersonaliaPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof userFormSchema>) => {
+      const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
       await apiRequest("POST", "/api/users", {
         ...data,
+        fullName,
+        voornamen: data.voornamen,
+        voorvoegsel: data.voorvoegsel || null,
+        achternaam: data.achternaam,
         email: data.email || "",
         department: data.department || null,
         birthDate: data.birthDate || null,
@@ -1121,22 +1151,36 @@ export default function PersonaliaPage() {
               </DialogHeader>
               <Form {...createForm}>
                 <form onSubmit={createForm.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={createForm.control} name="fullName" render={({ field }) => (
+                  <div className="grid grid-cols-[1fr_120px_1fr] gap-3">
+                    <FormField control={createForm.control} name="voornamen" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Volledige Naam</FormLabel>
-                        <FormControl><Input {...field} data-testid="input-user-fullname" /></FormControl>
+                        <FormLabel>Voornamen</FormLabel>
+                        <FormControl><Input {...field} placeholder="bijv. Jan" data-testid="input-user-voornamen" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={createForm.control} name="email" render={({ field }) => (
+                    <FormField control={createForm.control} name="voorvoegsel" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>E-mail</FormLabel>
-                        <FormControl><Input {...field} type="email" data-testid="input-user-email" /></FormControl>
+                        <FormLabel>Voorvoegsel</FormLabel>
+                        <FormControl><Input {...field} placeholder="de, van…" data-testid="input-user-voorvoegsel" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="achternaam" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Achternaam</FormLabel>
+                        <FormControl><Input {...field} placeholder="bijv. Vries" data-testid="input-user-achternaam" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                   </div>
+                  <FormField control={createForm.control} name="email" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-mail</FormLabel>
+                      <FormControl><Input {...field} type="email" data-testid="input-user-email" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={createForm.control} name="username" render={({ field }) => (
                       <FormItem>

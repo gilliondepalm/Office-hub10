@@ -30,6 +30,9 @@ export const users = pgTable("users", {
   telefoonnr: text("telefoonnr"),
   mobielnr: text("mobielnr"),
   adres: text("adres"),
+  voornamen: text("voornamen"),
+  voorvoegsel: text("voorvoegsel"),
+  achternaam: text("achternaam"),
 });
 
 export const events = pgTable("events", {
