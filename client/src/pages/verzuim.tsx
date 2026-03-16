@@ -74,6 +74,7 @@ type VacationBalance = {
   remainingDays: number;
   sickDays: number;
   snipperdagen?: number;
+  cancelDays?: number;
 };
 
 function IrregularCalendarDialog({
@@ -636,6 +637,242 @@ function AbsenceReportDialog({
   );
 }
 
+function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; currentUser: User }) {
+  const [selectedDept, setSelectedDept] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [confirmAbsence, setConfirmAbsence] = useState<Absence | null>(null);
+  const { toast } = useToast();
+
+  const year = new Date().getFullYear();
+  const today = new Date().toISOString().split("T")[0];
+
+  const departments = [...new Set(
+    allUsers.filter(u => u.active).map(u => u.department || "Geen afdeling")
+  )].sort((a, b) => a.localeCompare(b, "nl"));
+
+  const usersInDept = allUsers
+    .filter(u => u.active && (u.department || "Geen afdeling") === selectedDept)
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "nl"));
+
+  const { data: userAbsences, isLoading: loadingAbsences } = useQuery<Absence[]>({
+    queryKey: ["/api/absences/user", selectedUserId],
+    enabled: !!selectedUserId,
+  });
+
+  const dateToAbsence = useMemo(() => {
+    const map: Record<string, Absence> = {};
+    for (const abs of userAbsences || []) {
+      const start = new Date(abs.startDate + "T00:00:00");
+      const end = new Date(abs.endDate + "T00:00:00");
+      const cur = new Date(start);
+      while (cur <= end) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) {
+          map[cur.toISOString().split("T")[0]] = abs;
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    return map;
+  }, [userAbsences]);
+
+  const cancelMutation = useMutation({
+    mutationFn: async (absenceId: string) => {
+      const res = await apiRequest("POST", `/api/absences/${absenceId}/cancel`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/absences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/absences/user", selectedUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      if (data.takenDays > 0) {
+        toast({ title: `Verlof gecanceld — ${data.takenDays} dag(en) teruggeboekt op saldo` });
+      } else {
+        toast({ title: "Gepland verlof gecanceld" });
+      }
+      setConfirmAbsence(null);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Annuleren mislukt", variant: "destructive" });
+    },
+  });
+
+  const renderMonth = (monthIndex: number) => {
+    const firstDay = new Date(year, monthIndex, 1);
+    const lastDay = new Date(year, monthIndex + 1, 0);
+    let startDow = firstDay.getDay();
+    if (startDow === 0) startDow = 7;
+    const paddingDays = startDow - 1;
+
+    const monthName = firstDay.toLocaleDateString("nl-NL", { month: "long", year: "numeric" });
+
+    const days: (Date | null)[] = [];
+    for (let i = 0; i < paddingDays; i++) days.push(null);
+    for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, monthIndex, d));
+
+    const hasVacation = days.some(d => d && dateToAbsence[d.toISOString().split("T")[0]]);
+
+    return (
+      <div key={monthIndex} className={`border rounded-lg p-3 space-y-2 ${hasVacation ? "border-primary/30 bg-primary/5" : ""}`}>
+        <p className="text-xs font-semibold capitalize text-center text-muted-foreground">{monthName}</p>
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-muted-foreground mb-0.5">
+          {["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"].map(d => <span key={d}>{d}</span>)}
+        </div>
+        <div className="grid grid-cols-7 gap-0.5">
+          {days.map((date, i) => {
+            if (!date) return <span key={`pad-${monthIndex}-${i}`} />;
+            const dateStr = date.toISOString().split("T")[0];
+            const dow = date.getDay();
+            const isWeekend = dow === 0 || dow === 6;
+            const absence = dateToAbsence[dateStr];
+            const isPast = dateStr < today;
+
+            let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none";
+            if (absence) {
+              if (absence.status === "pending") {
+                cellClass += " bg-yellow-200 text-yellow-900 dark:bg-yellow-800/50 dark:text-yellow-200 cursor-pointer hover:bg-yellow-300 font-semibold";
+              } else if (absence.status === "approved" && isPast) {
+                cellClass += " bg-blue-200 text-blue-900 dark:bg-blue-800/50 dark:text-blue-200 cursor-pointer hover:bg-blue-300 font-semibold";
+              } else {
+                cellClass += " bg-green-200 text-green-900 dark:bg-green-800/50 dark:text-green-200 cursor-pointer hover:bg-green-300 font-semibold";
+              }
+            } else if (isWeekend) {
+              cellClass += " text-muted-foreground/40";
+            } else {
+              cellClass += " text-foreground/70";
+            }
+
+            return (
+              <div
+                key={dateStr}
+                className={cellClass}
+                title={absence ? (absence.status === "pending" ? "Gepland — klik om te cancelen" : isPast ? "Opgenomen — klik om te cancelen" : "Toegekend — klik om te cancelen") : undefined}
+                onClick={absence ? () => setConfirmAbsence(absence) : undefined}
+                data-testid={absence ? `day-cancel-${dateStr}` : undefined}
+              >
+                {date.getDate()}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-4 flex-wrap items-end">
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Afdeling</label>
+          <Select value={selectedDept} onValueChange={(v) => { setSelectedDept(v); setSelectedUserId(""); }}>
+            <SelectTrigger className="w-52" data-testid="select-cancel-dept">
+              <SelectValue placeholder="Kies afdeling…" />
+            </SelectTrigger>
+            <SelectContent>
+              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {selectedDept && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Medewerker</label>
+            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <SelectTrigger className="w-52" data-testid="select-cancel-user">
+                <SelectValue placeholder="Kies medewerker…" />
+              </SelectTrigger>
+              <SelectContent>
+                {usersInDept.map(u => <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
+      {selectedUserId && (
+        <div className="flex gap-4 text-xs text-muted-foreground flex-wrap items-center">
+          <span className="font-medium">Legenda:</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-400" />
+            Gepland (pending)
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded bg-green-200 border border-green-400" />
+            Toegekend (toekomst)
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded bg-blue-200 border border-blue-400" />
+            Opgenomen (verleden)
+          </div>
+          <span className="text-muted-foreground/60">— klik op een dag om verlof te cancelen</span>
+        </div>
+      )}
+
+      {selectedUserId && (
+        loadingAbsences ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 12 }, (_, i) => renderMonth(i))}
+          </div>
+        )
+      )}
+
+      {!selectedUserId && (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <CalendarDays className="h-12 w-12 mb-3 opacity-25" />
+          <p className="text-sm">Selecteer een afdeling en medewerker om de verlofkalender te tonen</p>
+        </div>
+      )}
+
+      {confirmAbsence && (
+        <Dialog open={!!confirmAbsence} onOpenChange={() => setConfirmAbsence(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verlofperiode cancelen</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <p>
+                <span className="text-muted-foreground">Periode: </span>
+                <strong>{formatDate(confirmAbsence.startDate)}</strong>
+                {confirmAbsence.startDate !== confirmAbsence.endDate && (
+                  <> t/m <strong>{formatDate(confirmAbsence.endDate)}</strong></>
+                )}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Status: </span>
+                <Badge variant={confirmAbsence.status === "pending" ? "outline" : "default"} className="text-xs">
+                  {confirmAbsence.status === "pending" ? "Gepland" : "Goedgekeurd"}
+                </Badge>
+              </p>
+              {confirmAbsence.status === "approved" && confirmAbsence.startDate <= today ? (
+                <p className="text-amber-600 dark:text-amber-400">
+                  Een deel van dit verlof is al opgenomen. De opgenomen dagen worden teruggeboekt op het vakantiesaldo en zichtbaar in de kolom "Cancel".
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Dit verlof was nog niet opgenomen. Annuleren heeft geen effect op het vakantiesaldo.
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end mt-2">
+              <Button variant="outline" onClick={() => setConfirmAbsence(null)}>Sluiten</Button>
+              <Button
+                variant="destructive"
+                disabled={cancelMutation.isPending}
+                onClick={() => cancelMutation.mutate(confirmAbsence.id)}
+                data-testid="button-confirm-cancel"
+              >
+                <XCircle className="h-4 w-4 mr-1.5" />
+                {cancelMutation.isPending ? "Bezig…" : "Verlof cancelen"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
 export default function VerzuimPage() {
   const [open, setOpen] = useState(false);
   const [irregularOpen, setIrregularOpen] = useState(false);
@@ -1176,6 +1413,20 @@ export default function VerzuimPage() {
             Vakantiesaldo
           </button>
         )}
+        {isAdminRole(user?.role) && (
+          <button
+            onClick={() => setActiveTab("cancel-verzuim")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "cancel-verzuim"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-cancel-verzuim"
+          >
+            <XCircle className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+            Cancel verzuim
+          </button>
+        )}
       </div>
 
       {activeTab === "meldingen" && (
@@ -1600,6 +1851,7 @@ export default function VerzuimPage() {
                       <TableHead className="text-right">Opgenomen</TableHead>
                       <TableHead className="text-right">Ziek</TableHead>
                       <TableHead className="text-right">Snipper</TableHead>
+                      <TableHead className="text-right">Cancel</TableHead>
                       <TableHead className="text-right">Saldo Nieuw</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1610,7 +1862,7 @@ export default function VerzuimPage() {
                       return departments.map(dept => (
                         <>
                           <TableRow key={`dept-${dept}`}>
-                            <TableCell colSpan={10} className="bg-muted/50 font-bold text-sm py-1.5">
+                            <TableCell colSpan={11} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
                             </TableCell>
                           </TableRow>
@@ -1649,6 +1901,13 @@ export default function VerzuimPage() {
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {(b.cancelDays || 0) > 0 ? (
+                                  <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">{b.cancelDays}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
                               <TableCell className="text-right">
                                 <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
                                   {b.remainingDays}
@@ -1663,6 +1922,18 @@ export default function VerzuimPage() {
                 </Table>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "cancel-verzuim" && isAdminRole(user?.role) && (
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold text-sm">Cancel Verzuim — Verlofkalender</h3>
+          </CardHeader>
+          <CardContent>
+            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} />
           </CardContent>
         </Card>
       )}

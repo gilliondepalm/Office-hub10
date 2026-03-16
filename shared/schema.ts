@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   voornamen: text("voornamen"),
   voorvoegsel: text("voorvoegsel"),
   achternaam: text("achternaam"),
+  vacationDaysCancel: integer("vacation_days_cancel").default(0),
 });
 
 export const events = pgTable("events", {

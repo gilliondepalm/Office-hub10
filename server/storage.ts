@@ -59,8 +59,10 @@ export interface IStorage {
   getAbsences(): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsencesByDepartment(department: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
+  getAbsenceById(id: string): Promise<Absence | undefined>;
   createAbsence(absence: InsertAbsence): Promise<Absence>;
   updateAbsenceStatus(id: string, status: string, approvedBy: string | null): Promise<void>;
+  deleteAbsence(id: string): Promise<void>;
 
   getRewards(): Promise<(Reward & { userName?: string })[]>;
   getRewardsByUser(userId: string): Promise<(Reward & { userName?: string })[]>;
@@ -343,6 +345,15 @@ export class DatabaseStorage implements IStorage {
 
   async updateAbsenceStatus(id: string, status: string, approvedBy: string | null): Promise<void> {
     await db.update(absences).set({ status: status as any, approvedBy }).where(eq(absences.id, id));
+  }
+
+  async getAbsenceById(id: string): Promise<Absence | undefined> {
+    const [absence] = await db.select().from(absences).where(eq(absences.id, id));
+    return absence;
+  }
+
+  async deleteAbsence(id: string): Promise<void> {
+    await db.delete(absences).where(eq(absences.id, id));
   }
 
   async getRewards(): Promise<(Reward & { userName?: string })[]> {

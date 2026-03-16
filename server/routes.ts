@@ -1072,6 +1072,7 @@ export async function registerRoutes(
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
         const totaal = recht + saldoOud;
+        const cancelDays = (u as any).vacationDaysCancel ?? 0;
         return {
           userId: u.id,
           userName: u.fullName,
@@ -1084,6 +1085,7 @@ export async function registerRoutes(
           opgenomenDays,
           sickDays,
           snipperdagen: snipperdagenCount,
+          cancelDays,
           remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount,
         };
       });
@@ -1203,6 +1205,66 @@ export async function registerRoutes(
       res.json({ message: "Bijgewerkt" });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });
+    }
+  });
+
+  app.get("/api/absences/user/:userId", requireAdmin, async (req, res) => {
+    try {
+      const absenceList = await storage.getAbsencesByUser(req.params.userId);
+      const vacationOnly = absenceList.filter(a =>
+        a.type === "vacation" && (a.status === "pending" || a.status === "approved")
+      );
+      res.json(vacationOnly);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
+  app.post("/api/absences/:id/cancel", requireAdmin, async (req, res) => {
+    try {
+      const absence = await storage.getAbsenceById(req.params.id);
+      if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
+
+      const countWeekdays = (startStr: string, endStr: string): number => {
+        const start = new Date(startStr + "T00:00:00");
+        const end = new Date(endStr + "T00:00:00");
+        let count = 0;
+        const cur = new Date(start);
+        while (cur <= end) {
+          const d = cur.getDay();
+          if (d !== 0 && d !== 6) count++;
+          cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+      };
+
+      const today = new Date().toISOString().split("T")[0];
+      let takenDays = 0;
+
+      if (absence.status === "approved") {
+        if (absence.startDate <= today) {
+          const effectiveEnd = absence.endDate <= today ? absence.endDate : today;
+          if (absence.halfDay === "am" || absence.halfDay === "pm") {
+            takenDays = 0.5;
+          } else {
+            takenDays = countWeekdays(absence.startDate, effectiveEnd);
+          }
+        }
+      }
+
+      await storage.deleteAbsence(absence.id);
+
+      if (takenDays > 0) {
+        const user = await storage.getUser(absence.userId);
+        if (user) {
+          const currentCancel = (user as any).vacationDaysCancel ?? 0;
+          await storage.updateUser(absence.userId, { vacationDaysCancel: currentCancel + takenDays } as any);
+        }
+      }
+
+      res.json({ cancelled: true, takenDays });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Annuleren mislukt" });
     }
   });
 
