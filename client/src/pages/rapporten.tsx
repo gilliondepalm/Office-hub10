@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Printer, Users, Cake, Award, ActivitySquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,17 +119,65 @@ function MedewerkerInfoTab({ users }: { users: UserExt[] }) {
   );
 }
 
+type SortField = "naam" | "geboortedatum";
+type SortDir = "asc" | "desc";
+
+function SortHeader({
+  label, field, current, dir, onClick,
+}: { label: string; field: SortField; current: SortField; dir: SortDir; onClick: (f: SortField) => void }) {
+  const active = current === field;
+  return (
+    <TableHead
+      className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
+      onClick={() => onClick(field)}
+      data-testid={`sort-${field}`}
+    >
+      <span className="flex items-center gap-1">
+        {label}
+        <span className="text-xs text-muted-foreground">
+          {active ? (dir === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </span>
+    </TableHead>
+  );
+}
+
 function VerjaardagenTab({ users }: { users: UserExt[] }) {
-  const withBirthday = users.filter(u => u.active && u.birthDate).sort(birthdaySort);
+  const [sortField, setSortField] = useState<SortField>("geboortedatum");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
   const today = new Date();
   const todayMonth = today.getMonth() + 1;
   const todayDay = today.getDate();
+
+  const withBirthday = users.filter(u => u.active && u.birthDate);
+
+  const sorted = [...withBirthday].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "naam") {
+      cmp = (a.fullName || "").localeCompare(b.fullName || "", "nl");
+    } else {
+      const [, am, ad] = a.birthDate!.split("-");
+      const [, bm, bd] = b.birthDate!.split("-");
+      cmp = am !== bm ? parseInt(am) - parseInt(bm) : parseInt(ad) - parseInt(bd);
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-muted-foreground">
-          Verjaardagen van actieve medewerkers — gesorteerd op maand/dag
+          Verjaardagen van actieve medewerkers — klik op kolomhoofd om te sorteren
         </p>
         <PrintButton label="Afdrukken" />
       </div>
@@ -136,37 +185,33 @@ function VerjaardagenTab({ users }: { users: UserExt[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Naam</TableHead>
-              <TableHead>Afdeling</TableHead>
-              <TableHead>Geboortedatum</TableHead>
+              <TableHead>Kadaster ID</TableHead>
+              <SortHeader label="Volledige naam" field="naam" current={sortField} dir={sortDir} onClick={handleSort} />
+              <SortHeader label="Geboortedatum" field="geboortedatum" current={sortField} dir={sortDir} onClick={handleSort} />
               <TableHead>Leeftijd</TableHead>
-              <TableHead className="print:hidden">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {withBirthday.length === 0 ? (
+            {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                   Geen geboortedatums ingevoerd
                 </TableCell>
               </TableRow>
             ) : (
-              withBirthday.map(u => {
+              sorted.map(u => {
                 const [, bm, bd] = u.birthDate!.split("-");
                 const isToday = parseInt(bm) === todayMonth && parseInt(bd) === todayDay;
-                const age = new Date().getFullYear() - parseInt(u.birthDate!.split("-")[0]);
+                const age = today.getFullYear() - parseInt(u.birthDate!.split("-")[0]);
                 return (
                   <TableRow key={u.id} data-testid={`row-verjaardag-${u.id}`} className={isToday ? "bg-yellow-50 dark:bg-yellow-950/30" : ""}>
+                    <TableCell className="text-sm font-mono">{u.kadasterId || "—"}</TableCell>
                     <TableCell className="font-medium">
                       {u.fullName}
                       {isToday && <span className="ml-2 text-yellow-600">🎂</span>}
                     </TableCell>
-                    <TableCell className="text-sm">{u.department || "—"}</TableCell>
                     <TableCell className="text-sm">{formatDateDutch(u.birthDate)}</TableCell>
                     <TableCell className="text-sm">{age} jaar</TableCell>
-                    <TableCell className="print:hidden">
-                      {isToday && <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">Vandaag!</Badge>}
-                    </TableCell>
                   </TableRow>
                 );
               })
