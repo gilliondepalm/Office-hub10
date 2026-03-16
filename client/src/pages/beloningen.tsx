@@ -2643,45 +2643,49 @@ export default function BeloningenPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                <Award className="h-4 w-4 text-muted-foreground" />
-                <h3 className="font-semibold text-sm">Manager van het Jaar</h3>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {(() => {
-                  const mgrAwards = yearlyAwards?.filter(a => a.type === "manager" && a.year === selectedYear) || [];
-                  if (mgrAwards.length === 0) {
-                    return <p className="text-sm text-muted-foreground text-center py-6">Geen manager toegekend voor {selectedYear}</p>;
-                  }
-                  return (
-                    <div className="space-y-3">
-                      {mgrAwards.map((award) => (
-                        <div key={award.id} className="p-3 rounded-md border space-y-3" data-testid={`mgr-award-${award.id}`}>
-                          {award.photo && (
-                            <img src={award.photo} alt={award.name} className="w-full h-auto object-contain rounded-md" />
-                          )}
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                              <Award className="h-5 w-5" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold">{award.name}</p>
-                              <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
-                            </div>
-                            {isAdminRole(user?.role) && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+            {(() => {
+              const mgrAwards = yearlyAwards?.filter(a => a.type === "manager" && a.year === selectedYear) || [];
+              const mgrNames = mgrAwards.map(a => a.name).filter(Boolean).join(", ");
+              return (
+                <Card>
+                  <CardHeader className="flex flex-row items-center gap-2 pb-3">
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="font-semibold text-sm">
+                      Manager van het Jaar{mgrNames ? <span className="font-normal text-muted-foreground">: {mgrNames}</span> : ""}
+                    </h3>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {mgrAwards.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">Geen manager toegekend voor {selectedYear}</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {mgrAwards.map((award) => (
+                          <div key={award.id} className="p-3 rounded-md border space-y-3" data-testid={`mgr-award-${award.id}`}>
+                            {award.photo && (
+                              <img src={award.photo} alt={award.name} className="w-full h-auto object-contain rounded-md" />
                             )}
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                                <Award className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold">{award.name}</p>
+                                <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
+                              </div>
+                              {isAdminRole(user?.role) && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
         </div>
       )}
