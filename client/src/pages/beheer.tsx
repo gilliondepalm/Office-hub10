@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Avatar, AvatarFallback,
+  Avatar, AvatarFallback, AvatarImage,
 } from "@/components/ui/avatar";
 import {
   Shield, Save, Users, Camera, ImageIcon, KeyRound,
@@ -184,7 +184,26 @@ function RechtenTab() {
   const [editUser, setEditUser] = useState<SafeUser | null>(null);
   const [resetUser, setResetUser] = useState<SafeUser | null>(null);
   const loginPhotoInputRef = useRef<HTMLInputElement>(null);
+  const pasfotoInputRef = useRef<HTMLInputElement>(null);
+  const [pasfotoUserId, setPasfotoUserId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const uploadPasfotoMutation = useMutation({
+    mutationFn: async ({ userId, file }: { userId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch(`/api/users/${userId}/avatar`, { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error("Upload mislukt");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: "Pasfoto bijgewerkt" });
+      setPasfotoUserId(null);
+    },
+    onError: () => { toast({ title: "Fout bij uploaden pasfoto", variant: "destructive" }); },
+  });
 
   const { data: allUsers, isLoading } = useQuery<SafeUser[]>({ queryKey: ["/api/users"] });
 
@@ -231,6 +250,18 @@ function RechtenTab() {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={pasfotoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && pasfotoUserId) uploadPasfotoMutation.mutate({ userId: pasfotoUserId, file });
+          e.target.value = "";
+        }}
+        data-testid="input-pasfoto"
+      />
       {editUser && (
         <PermissionsDialog user={editUser} open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }} />
       )}
@@ -251,6 +282,7 @@ function RechtenTab() {
               return (
                 <div key={u.id} className="flex items-center gap-3 p-3 rounded-md hover-elevate" data-testid={`user-row-${u.id}`}>
                   <Avatar className="h-9 w-9">
+                    {u.avatar && <AvatarImage src={u.avatar} alt={u.fullName || ""} className="object-cover" />}
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
@@ -274,6 +306,9 @@ function RechtenTab() {
                         <Badge variant="outline" className="text-xs">+{(u.permissions?.length || 0) - 4}</Badge>
                       )}
                     </div>
+                    <Button variant="outline" size="sm" onClick={() => { setPasfotoUserId(u.id); pasfotoInputRef.current?.click(); }} disabled={uploadPasfotoMutation.isPending && pasfotoUserId === u.id} data-testid={`button-pasfoto-${u.id}`}>
+                      <Camera className="h-4 w-4 mr-1" />Pasfoto
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setResetUser(u)} data-testid={`button-reset-pw-${u.id}`}>
                       <KeyRound className="h-4 w-4 mr-1" />Wachtwoord
                     </Button>

@@ -3,7 +3,7 @@ import { PageHero } from "@/components/page-hero";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User as UserIcon, Mail, Building2, Shield, Clock, Award, CalendarDays, Cake, Briefcase, TrendingUp, GraduationCap, CheckCircle2, Circle } from "lucide-react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -74,6 +74,7 @@ export default function ProfielPage() {
         <CardContent className="p-6">
           <div className="flex items-start gap-4 flex-wrap">
             <Avatar className="h-16 w-16">
+              {user?.avatar && <AvatarImage src={user.avatar} alt={user.fullName || ""} className="object-cover" />}
               <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-3 min-w-0">

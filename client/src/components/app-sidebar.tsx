@@ -24,7 +24,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
@@ -115,6 +115,7 @@ export function AppSidebar() {
           <Link href="/profiel" data-testid="nav-profiel">
             <div className={`flex items-center gap-3 p-2 rounded-md cursor-pointer hover-elevate ${location === "/profiel" ? "bg-sidebar-accent" : ""}`}>
               <Avatar className="h-8 w-8">
+                {user?.avatar && <AvatarImage src={user.avatar} alt={user.fullName || ""} className="object-cover" />}
                 <AvatarFallback className="text-xs bg-[hsl(48,96%,53%)] text-[hsl(152,30%,10%)] font-semibold">
                   {initials}
                 </AvatarFallback>

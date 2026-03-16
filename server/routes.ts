@@ -110,6 +110,28 @@ const uploadBeloning = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const pasfotoDir = path.join(uploadsDir, "Pasfoto");
+if (!fs.existsSync(pasfotoDir)) {
+  fs.mkdirSync(pasfotoDir, { recursive: true });
+}
+
+const pasfotoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, pasfotoDir),
+  filename: (req: any, file, cb) => {
+    const ext = path.extname(file.originalname) || ".jpg";
+    cb(null, `user-${req.params?.id || Date.now()}${ext}`);
+  },
+});
+
+const uploadPasfoto = multer({
+  storage: pasfotoStorage,
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) { cb(null, true); }
+    else { cb(new Error("Alleen afbeeldingen zijn toegestaan")); }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 const appPicsDir = path.join(uploadsDir, "App_pics");
 if (!fs.existsSync(appPicsDir)) {
   fs.mkdirSync(appPicsDir, { recursive: true });
@@ -225,6 +247,7 @@ export async function registerRoutes(
   app.use("/uploads/App_pics", express.default.static(appPicsDir));
   app.use("/uploads/Beloning", express.default.static(beloningDir));
   app.use("/uploads/Functies", express.default.static(functiesDir));
+  app.use("/uploads/Pasfoto", express.default.static(pasfotoDir));
 
   app.get("/uploads/public/:filename", (req, res) => {
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
@@ -715,6 +738,18 @@ export async function registerRoutes(
       res.json(safeUser);
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });
+    }
+  });
+
+  app.post("/api/users/:id/avatar", requireAdmin, uploadPasfoto.single("photo"), async (req: any, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "Geen bestand geüpload" });
+      const avatarPath = `/uploads/Pasfoto/${req.file.filename}`;
+      const user = await storage.updateUser(req.params.id, { avatar: avatarPath } as any);
+      const { password: _, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij uploaden" });
     }
   });
 
