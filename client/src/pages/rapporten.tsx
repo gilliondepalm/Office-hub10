@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Printer, Users, Cake, Award, ActivitySquare } from "lucide-react";
+import { Printer, Users, Cake, Award, ActivitySquare, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHero } from "@/components/page-hero";
 import {
@@ -291,18 +292,49 @@ function JubileaTab({ users }: { users: UserExt[] }) {
   );
 }
 
-function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
-  const sorted = [...users].sort((a, b) => {
-    if (a.active !== b.active) return a.active ? -1 : 1;
-    return (a.fullName || "").localeCompare(b.fullName || "", "nl");
+type StatusSortField = "naam" | "startDate" | "endDate" | "birthDate";
+
+function sortUsers(list: UserExt[], field: StatusSortField): UserExt[] {
+  return [...list].sort((a, b) => {
+    switch (field) {
+      case "naam":
+        return (a.fullName || "").localeCompare(b.fullName || "", "nl");
+      case "startDate":
+        return (a.startDate || "").localeCompare(b.startDate || "");
+      case "endDate":
+        return (a.endDate || "9999").localeCompare(b.endDate || "9999");
+      case "birthDate":
+        return (a.birthDate || "").localeCompare(b.birthDate || "");
+      default:
+        return 0;
+    }
   });
+}
+
+function StatusRapport({
+  title,
+  users,
+  sortField,
+  filterKey,
+}: {
+  title: string;
+  users: UserExt[];
+  sortField: StatusSortField;
+  filterKey: "actief" | "inactief";
+}) {
+  const filtered = users.filter(u => filterKey === "actief" ? u.active : !u.active);
+  const sorted = sortUsers(filtered, sortField);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between print:hidden">
-        <p className="text-sm text-muted-foreground">
-          Status overzicht van alle medewerkers — actief en inactief
-        </p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
+        <div className="flex items-center gap-2">
+          <Badge variant={filterKey === "actief" ? "default" : "secondary"} className="text-xs px-2 py-0.5">
+            {filterKey === "actief" ? "Actief" : "Niet actief"}
+          </Badge>
+          <span className="text-sm text-muted-foreground font-medium">{title}</span>
+          <span className="text-xs text-muted-foreground">({sorted.length} medewerker{sorted.length !== 1 ? "s" : ""})</span>
+        </div>
         <PrintButton label="Afdrukken" />
       </div>
       <div className="overflow-x-auto rounded-lg border">
@@ -312,38 +344,76 @@ function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
               <TableHead>Naam</TableHead>
               <TableHead>Afdeling</TableHead>
               <TableHead>Functie</TableHead>
-              <TableHead>Rol</TableHead>
               <TableHead>Datum in Dienst</TableHead>
               <TableHead>Datum uit Dienst</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Geboortedatum</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   Geen medewerkers gevonden
                 </TableCell>
               </TableRow>
             ) : (
               sorted.map(u => (
-                <TableRow key={u.id} data-testid={`row-status-${u.id}`}>
+                <TableRow key={u.id} data-testid={`row-status-${filterKey}-${u.id}`}>
                   <TableCell className="font-medium">{u.fullName}</TableCell>
                   <TableCell className="text-sm">{u.department || "—"}</TableCell>
                   <TableCell className="text-sm">{u.functie || "—"}</TableCell>
-                  <TableCell className="text-sm">{roleLabels[u.role] || u.role}</TableCell>
                   <TableCell className="text-sm">{formatDateDutch(u.startDate)}</TableCell>
                   <TableCell className="text-sm">{u.endDate ? formatDateDutch(u.endDate) : "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={u.active ? "default" : "secondary"} data-testid={`badge-status-${u.id}`}>
-                      {u.active ? "Actief" : "Inactief"}
-                    </Badge>
-                  </TableCell>
+                  <TableCell className="text-sm">{u.birthDate ? formatDateDutch(u.birthDate) : "—"}</TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+      </div>
+    </div>
+  );
+}
+
+function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
+  const [sortField, setSortField] = useState<StatusSortField>("naam");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
+        <p className="text-sm text-muted-foreground">
+          Twee afzonderlijke rapporten: actief en niet-actief personeel. Kies de sorteervolgorde.
+        </p>
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          <Select value={sortField} onValueChange={(v) => setSortField(v as StatusSortField)}>
+            <SelectTrigger className="w-52" data-testid="select-status-sort">
+              <SelectValue placeholder="Sorteren op…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="naam">Naam</SelectItem>
+              <SelectItem value="startDate">Datum in dienst</SelectItem>
+              <SelectItem value="endDate">Datum uit dienst</SelectItem>
+              <SelectItem value="birthDate">Geboortedatum</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <StatusRapport
+        title="Actief personeel"
+        users={users}
+        sortField={sortField}
+        filterKey="actief"
+      />
+
+      <div className="border-t pt-6">
+        <StatusRapport
+          title="Niet-actief personeel"
+          users={users}
+          sortField={sortField}
+          filterKey="inactief"
+        />
       </div>
     </div>
   );
