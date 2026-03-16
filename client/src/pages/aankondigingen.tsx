@@ -551,16 +551,33 @@ function getLastSeenKey(userId: string, tab: string) {
 }
 
 function getLastSeen(userId: string, tab: string): number {
-  const val = localStorage.getItem(getLastSeenKey(userId, tab));
-  return val ? parseInt(val, 10) : 0;
+  const key = getLastSeenKey(userId, tab);
+  const val = localStorage.getItem(key);
+  if (!val) {
+    const now = Date.now().toString();
+    localStorage.setItem(key, now);
+    return parseInt(now, 10);
+  }
+  return parseInt(val, 10);
 }
+
+const AANKONDIGINGEN_SEEN_EVENT = "aankondigingen-seen";
 
 function setLastSeen(userId: string, tab: string) {
   localStorage.setItem(getLastSeenKey(userId, tab), Date.now().toString());
+  window.dispatchEvent(new CustomEvent(AANKONDIGINGEN_SEEN_EVENT));
 }
 
 export function useAankondigingenNotifications() {
   const { user } = useAuth();
+  const userId = user?.id || "";
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const handler = () => setTick(n => n + 1);
+    window.addEventListener(AANKONDIGINGEN_SEEN_EVENT, handler);
+    return () => window.removeEventListener(AANKONDIGINGEN_SEEN_EVENT, handler);
+  }, []);
 
   const { data: announcements } = useQuery<Announcement[]>({
     queryKey: ["/api/announcements"],
@@ -573,8 +590,6 @@ export function useAankondigingenNotifications() {
   const { data: nieuwsbrieven } = useQuery<NieuwsbriefFile[]>({
     queryKey: ["/api/uploads/nieuwsbrief"],
   });
-
-  const userId = user?.id || "";
 
   const newAnnouncementsCount = (announcements || []).filter(
     a => new Date(a.createdAt).getTime() > getLastSeen(userId, "announcements")

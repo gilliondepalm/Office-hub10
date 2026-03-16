@@ -43,8 +43,14 @@ function getKalenderLastSeenKey(userId: string) {
 }
 
 function getKalenderLastSeen(userId: string): number {
-  const val = localStorage.getItem(getKalenderLastSeenKey(userId));
-  return val ? parseInt(val, 10) : 0;
+  const key = getKalenderLastSeenKey(userId);
+  const val = localStorage.getItem(key);
+  if (!val) {
+    const now = Date.now().toString();
+    localStorage.setItem(key, now);
+    return parseInt(now, 10);
+  }
+  return parseInt(val, 10);
 }
 
 const KALENDER_SEEN_EVENT = "kalender-seen";
