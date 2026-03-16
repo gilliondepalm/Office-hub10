@@ -55,6 +55,7 @@ const absenceFormSchema = z.object({
   reason: z.string().optional(),
   bvvdReason: z.string().optional(),
   halfDay: z.string().optional(),
+  deductVacation: z.boolean().optional(),
 }).refine((data) => {
   if (data.type === "bvvd" && !data.bvvdReason) return false;
   return true;
@@ -309,8 +310,8 @@ function AbsenceReportDialog({
   const typeLabels: Record<string, string> = {
     sick: "Ziekte",
     vacation: "Vakantie",
-    personal: "Persoonlijk",
-    other: "Overig",
+    personal: "Geoorloofd",
+    other: "Ongeoorloofd",
     bvvd: "BVVD",
   };
 
@@ -319,6 +320,8 @@ function AbsenceReportDialog({
     approved: "Goedgekeurd",
     rejected: "Afgewezen",
   };
+
+  const [filterType, setFilterType] = useState<string>("all");
 
   const departments = Array.from(new Set([
     ...users.filter(u => u.active && u.department).map(u => u.department!),
@@ -339,6 +342,7 @@ function AbsenceReportDialog({
   const filtered = !validRange ? [] : absences.filter(a => {
     if (filterDept !== "all" && (a as any).userDepartment !== filterDept) return false;
     if (filterEmployee !== "all" && String(a.userId) !== filterEmployee) return false;
+    if (filterType !== "all" && a.type !== filterType) return false;
     if (filterStart && a.endDate < filterStart) return false;
     if (filterEnd && a.startDate > filterEnd) return false;
     return true;
@@ -372,7 +376,7 @@ function AbsenceReportDialog({
   const totalDays = filtered.reduce((sum, a) => sum + countBusinessDays(a.startDate, a.endDate, a.halfDay), 0);
 
   const handlePrint = () => {
-    const typeLabelsLocal: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Persoonlijk", other: "Overig", bvvd: "BVVD" };
+    const typeLabelsLocal: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Geoorloofd", other: "Ongeoorloofd", bvvd: "BVVD" };
     const statusLabelsLocal: Record<string, string> = { pending: "In afwachting", approved: "Goedgekeurd", rejected: "Afgewezen" };
 
     const periodLabel = filterStart && filterEnd
@@ -508,6 +512,22 @@ function AbsenceReportDialog({
                 {employeeOptions.map(u => (
                   <SelectItem key={u.id} value={String(u.id)}>{u.fullName || u.username}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Type</label>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger data-testid="select-report-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle types</SelectItem>
+                <SelectItem value="sick">Ziekte</SelectItem>
+                <SelectItem value="vacation">Vakantie</SelectItem>
+                <SelectItem value="personal">Geoorloofd</SelectItem>
+                <SelectItem value="other">Ongeoorloofd</SelectItem>
+                <SelectItem value="bvvd">BVVD</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -650,7 +670,7 @@ export default function VerzuimPage() {
 
   const form = useForm<z.infer<typeof absenceFormSchema>>({
     resolver: zodResolver(absenceFormSchema),
-    defaultValues: { type: "sick", startDate: "", endDate: "", reason: "", bvvdReason: "", halfDay: "" },
+    defaultValues: { type: "sick", startDate: "", endDate: "", reason: "", bvvdReason: "", halfDay: "", deductVacation: false },
   });
 
   const watchType = form.watch("type");
@@ -779,8 +799,8 @@ export default function VerzuimPage() {
   const typeLabels: Record<string, string> = {
     sick: "Ziekte",
     vacation: "Vakantie",
-    personal: "Persoonlijk",
-    other: "Overig",
+    personal: "Geoorloofd",
+    other: "Ongeoorloofd",
     bvvd: "BVVD",
   };
 
@@ -976,14 +996,41 @@ export default function VerzuimPage() {
                         <SelectContent>
                           <SelectItem value="sick">Ziekte</SelectItem>
                           <SelectItem value="vacation">Vakantie</SelectItem>
-                          <SelectItem value="personal">Persoonlijk</SelectItem>
+                          <SelectItem value="personal">Geoorloofd</SelectItem>
                           <SelectItem value="bvvd">BVVD (Bijzonder Verlof)</SelectItem>
-                          <SelectItem value="other">Overig</SelectItem>
+                          <SelectItem value="other">Ongeoorloofd</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
+                  {(watchType === "personal" || watchType === "other") && (
+                    <FormField control={form.control} name="deductVacation" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-sm">Aftrekbaar van vakantiedagen?</FormLabel>
+                        </div>
+                        <FormControl>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={field.value === true ? "default" : "outline"}
+                              onClick={() => field.onChange(true)}
+                              data-testid="button-deduct-yes"
+                            >J</Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={field.value !== true ? "default" : "outline"}
+                              onClick={() => field.onChange(false)}
+                              data-testid="button-deduct-no"
+                            >N</Button>
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )} />
+                  )}
                   {watchType === "bvvd" && (
                     <FormField control={form.control} name="bvvdReason" render={({ field }) => (
                       <FormItem>

@@ -1054,7 +1054,8 @@ export async function registerRoutes(
 
       const balances = allUsers.filter(u => u.active).map(u => {
         const userVacAbsences = allAbsences.filter(
-          a => a.userId === u.id && a.type === "vacation" &&
+          a => a.userId === u.id &&
+            (a.type === "vacation" || ((a.type === "personal" || a.type === "other") && (a as any).deductVacation === true)) &&
             new Date(a.startDate).getFullYear() === currentYear
         );
         const userSickAbsences = allAbsences.filter(
