@@ -2564,20 +2564,18 @@ export default function BeloningenPage() {
           <FileText className="h-4 w-4 inline mr-1.5 -mt-0.5" />
           Jaarplan
         </button>
-        {isAdminRole(user?.role) && (
-          <button
-            onClick={() => setActiveTab("beloningsysteem")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "beloningsysteem"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="tab-beloningsysteem"
-          >
-            <Gift className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-            Beloning
-          </button>
-        )}
+        <button
+          onClick={() => setActiveTab("beloningsysteem")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "beloningsysteem"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-beloningsysteem"
+        >
+          <Gift className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Beloning
+        </button>
       </div>
 
       {activeTab === "functionering" && (
@@ -2592,7 +2590,7 @@ export default function BeloningenPage() {
         <JaarplanSection users={users} currentUser={user} />
       )}
 
-      {activeTab === "beloningsysteem" && isAdminRole(user?.role) && (
+      {activeTab === "beloningsysteem" && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => setSelectedYear(y => y - 1)} data-testid="button-award-year-prev">
@@ -2631,9 +2629,11 @@ export default function BeloningenPage() {
                               <p className="text-sm font-semibold">{award.name}</p>
                               <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-dept-award-${award.id}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isAdminRole(user?.role) && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-dept-award-${award.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -2669,9 +2669,11 @@ export default function BeloningenPage() {
                               <p className="text-sm font-semibold">{award.name}</p>
                               <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {isAdminRole(user?.role) && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
