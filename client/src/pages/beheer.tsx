@@ -193,7 +193,10 @@ function RechtenTab() {
       const formData = new FormData();
       formData.append("photo", file);
       const res = await fetch(`/api/users/${userId}/avatar`, { method: "POST", body: formData, credentials: "include" });
-      if (!res.ok) throw new Error("Upload mislukt");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Upload mislukt");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -202,7 +205,7 @@ function RechtenTab() {
       toast({ title: "Pasfoto bijgewerkt" });
       setPasfotoUserId(null);
     },
-    onError: () => { toast({ title: "Fout bij uploaden pasfoto", variant: "destructive" }); },
+    onError: (err: any) => { toast({ title: err.message || "Fout bij uploaden pasfoto", variant: "destructive" }); },
   });
 
   const { data: allUsers, isLoading } = useQuery<SafeUser[]>({ queryKey: ["/api/users"] });

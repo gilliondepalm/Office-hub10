@@ -134,7 +134,7 @@ const uploadPasfoto = multer({
     if (file.mimetype.startsWith("image/")) { cb(null, true); }
     else { cb(new Error("Alleen afbeeldingen zijn toegestaan")); }
   },
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 const appPicsDir = path.join(uploadsDir, "App_pics");
@@ -801,7 +801,17 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/users/:id/avatar", requireAdmin, uploadPasfoto.single("photo"), async (req: any, res) => {
+  app.post("/api/users/:id/avatar", requireAdmin, (req: any, res: any, next: any) => {
+    uploadPasfoto.single("photo")(req, res, (err: any) => {
+      if (err) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ message: "Bestand is te groot (maximaal 20 MB)" });
+        }
+        return res.status(400).json({ message: err.message || "Upload mislukt" });
+      }
+      next();
+    });
+  }, async (req: any, res: any) => {
     try {
       if (!req.file) return res.status(400).json({ message: "Geen bestand geüpload" });
       const avatarPath = `/uploads/Pasfoto/${req.file.filename}`;
