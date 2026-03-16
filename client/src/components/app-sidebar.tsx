@@ -114,9 +114,9 @@ export function AppSidebar() {
         <div className="space-y-2">
           <Link href="/profiel" data-testid="nav-profiel">
             <div className={`flex items-center gap-3 p-2 rounded-md cursor-pointer hover-elevate ${location === "/profiel" ? "bg-sidebar-accent" : ""}`}>
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-12 w-12 shrink-0">
                 {user?.avatar && <AvatarImage src={user.avatar} alt={user.fullName || ""} className="object-cover" />}
-                <AvatarFallback className="text-xs bg-[hsl(48,96%,53%)] text-[hsl(152,30%,10%)] font-semibold">
+                <AvatarFallback className="text-sm bg-[hsl(48,96%,53%)] text-[hsl(152,30%,10%)] font-semibold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
