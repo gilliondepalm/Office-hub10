@@ -25,6 +25,7 @@ import OrganisatiePage from "@/pages/organisatie";
 import PersonaliaPage from "@/pages/personalia";
 import VerzuimPage from "@/pages/verzuim";
 import ApplicatiesPage from "@/pages/applicaties";
+import RapportenPage from "@/pages/rapporten";
 import BeheerPage from "@/pages/beheer";
 import BeloningenPage from "@/pages/beloningen";
 import ProfielPage from "@/pages/profiel";
@@ -163,6 +164,7 @@ function Router() {
       {perms.includes("verzuim") && <Route path="/verzuim" component={VerzuimPage} />}
       {perms.includes("beloningen") && <Route path="/beloningen" component={BeloningenPage} />}
       {perms.includes("applicaties") && <Route path="/applicaties" component={ApplicatiesPage} />}
+      {perms.includes("rapporten") && <Route path="/rapporten" component={RapportenPage} />}
       {perms.includes("beheer") && <Route path="/beheer" component={BeheerPage} />}
       <Route path="/profiel" component={ProfielPage} />
       <Route path="/" component={DashboardPage} />

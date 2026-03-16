@@ -43,6 +43,7 @@ const ALL_MODULES = [
   { key: "verzuim", label: "Verzuim" },
   { key: "beloningen", label: "Beloningen" },
   { key: "applicaties", label: "Applicaties" },
+  { key: "rapporten", label: "Rapporten" },
   { key: "beheer", label: "Beheer (Admin)" },
 ];
 

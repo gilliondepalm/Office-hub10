@@ -44,6 +44,11 @@ const userFormSchema = z.object({
   birthDate: z.string().optional(),
   phoneExtension: z.string().max(4, "Maximaal 4 cijfers").optional(),
   functie: z.string().optional(),
+  kadasterId: z.string().optional(),
+  cedulaNr: z.string().optional(),
+  telefoonnr: z.string().optional(),
+  mobielnr: z.string().optional(),
+  adres: z.string().optional(),
 });
 
 const editFormSchema = z.object({
@@ -57,6 +62,11 @@ const editFormSchema = z.object({
   birthDate: z.string().optional(),
   phoneExtension: z.string().max(4, "Maximaal 4 cijfers").optional(),
   functie: z.string().optional(),
+  kadasterId: z.string().optional(),
+  cedulaNr: z.string().optional(),
+  telefoonnr: z.string().optional(),
+  mobielnr: z.string().optional(),
+  adres: z.string().optional(),
 });
 
 const deactivateFormSchema = z.object({
@@ -89,6 +99,11 @@ function EditDialog({
       birthDate: user.birthDate || "",
       phoneExtension: user.phoneExtension || "",
       functie: user.functie || "",
+      kadasterId: (user as any).kadasterId || "",
+      cedulaNr: (user as any).cedulaNr || "",
+      telefoonnr: (user as any).telefoonnr || "",
+      mobielnr: (user as any).mobielnr || "",
+      adres: (user as any).adres || "",
     },
   });
 
@@ -104,6 +119,11 @@ function EditDialog({
         birthDate: data.birthDate || null,
         phoneExtension: data.phoneExtension || null,
         functie: (data.functie === "none" || !data.functie) ? null : data.functie,
+        kadasterId: data.kadasterId || null,
+        cedulaNr: data.cedulaNr || null,
+        telefoonnr: data.telefoonnr || null,
+        mobielnr: data.mobielnr || null,
+        adres: data.adres || null,
       };
       if (data.password && data.password.length > 0) {
         payload.password = data.password;
@@ -128,7 +148,7 @@ function EditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Medewerker Bewerken</DialogTitle>
         </DialogHeader>
@@ -243,6 +263,45 @@ function EditDialog({
                 ) : (
                   <FormControl><Input {...field} placeholder="bijv. Landmeter, Administratief Medewerker" data-testid="input-edit-functie" /></FormControl>
                 )}
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="kadasterId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Kadaster ID</FormLabel>
+                  <FormControl><Input {...field} placeholder="bijv. K-12345" data-testid="input-edit-kadaster-id" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="cedulaNr" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cedulanr.</FormLabel>
+                  <FormControl><Input {...field} placeholder="Cedula nummer" data-testid="input-edit-cedula-nr" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="telefoonnr" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefoonnr.</FormLabel>
+                  <FormControl><Input {...field} placeholder="bijv. +5999 123 4567" data-testid="input-edit-telefoonnr" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="mobielnr" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mobielnr.</FormLabel>
+                  <FormControl><Input {...field} placeholder="bijv. +5999 987 6543" data-testid="input-edit-mobielnr" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="adres" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Adres</FormLabel>
+                <FormControl><Input {...field} placeholder="Straat en huisnummer, Woonplaats" data-testid="input-edit-adres" /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -963,6 +1022,7 @@ export default function PersonaliaPage() {
       role: "employee", department: "",
       startDate: new Date().toISOString().split("T")[0],
       birthDate: "", phoneExtension: "", functie: "",
+      kadasterId: "", cedulaNr: "", telefoonnr: "", mobielnr: "", adres: "",
     },
   });
 
@@ -975,6 +1035,11 @@ export default function PersonaliaPage() {
         birthDate: data.birthDate || null,
         phoneExtension: data.phoneExtension || null,
         functie: (data.functie === "none" || !data.functie) ? null : data.functie,
+        kadasterId: data.kadasterId || null,
+        cedulaNr: data.cedulaNr || null,
+        telefoonnr: data.telefoonnr || null,
+        mobielnr: data.mobielnr || null,
+        adres: data.adres || null,
         avatar: null,
         active: true,
         endDate: null,
@@ -1050,7 +1115,7 @@ export default function PersonaliaPage() {
                 Nieuwe Medewerker
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Nieuwe Medewerker</DialogTitle>
               </DialogHeader>
@@ -1165,6 +1230,45 @@ export default function PersonaliaPage() {
                       ) : (
                         <FormControl><Input {...field} placeholder="bijv. Landmeter, Administratief Medewerker" data-testid="input-user-functie" /></FormControl>
                       )}
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={createForm.control} name="kadasterId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kadaster ID</FormLabel>
+                        <FormControl><Input {...field} placeholder="bijv. K-12345" data-testid="input-user-kadaster-id" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="cedulaNr" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cedulanr.</FormLabel>
+                        <FormControl><Input {...field} placeholder="Cedula nummer" data-testid="input-user-cedula-nr" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={createForm.control} name="telefoonnr" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefoonnr.</FormLabel>
+                        <FormControl><Input {...field} placeholder="bijv. +5999 123 4567" data-testid="input-user-telefoonnr" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={createForm.control} name="mobielnr" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mobielnr.</FormLabel>
+                        <FormControl><Input {...field} placeholder="bijv. +5999 987 6543" data-testid="input-user-mobielnr" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={createForm.control} name="adres" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Adres</FormLabel>
+                      <FormControl><Input {...field} placeholder="Straat en huisnummer, Woonplaats" data-testid="input-user-adres" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />

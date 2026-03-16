@@ -25,6 +25,11 @@ export const users = pgTable("users", {
   vacationDaysSaldoOud: integer("vacation_days_saldo_oud").default(0),
   phoneExtension: text("phone_extension"),
   functie: text("functie"),
+  kadasterId: text("kadaster_id"),
+  cedulaNr: text("cedula_nr"),
+  telefoonnr: text("telefoonnr"),
+  mobielnr: text("mobielnr"),
+  adres: text("adres"),
 });
 
 export const events = pgTable("events", {

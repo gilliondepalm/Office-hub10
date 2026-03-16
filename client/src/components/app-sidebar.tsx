@@ -11,6 +11,7 @@ import {
   Shield,
   UserCircle,
   Star,
+  FileBarChart,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const menuItems = [
   { title: "Verzuim", url: "/verzuim", icon: Clock, key: "verzuim" },
   { title: "Beloningen", url: "/beloningen", icon: Star, key: "beloningen" },
   { title: "Applicaties", url: "/applicaties", icon: AppWindow, key: "applicaties" },
+  { title: "Rapporten", url: "/rapporten", icon: FileBarChart, key: "rapporten" },
   { title: "Beheer", url: "/beheer", icon: Shield, key: "beheer" },
 ];
 
