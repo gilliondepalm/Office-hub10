@@ -115,6 +115,11 @@ if (!fs.existsSync(pasfotoDir)) {
   fs.mkdirSync(pasfotoDir, { recursive: true });
 }
 
+const huishoudelijkDir = path.join(uploadsDir, "Huishoudelijkreglement");
+if (!fs.existsSync(huishoudelijkDir)) {
+  fs.mkdirSync(huishoudelijkDir, { recursive: true });
+}
+
 const pasfotoStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, pasfotoDir),
   filename: (req: any, file, cb) => {
@@ -248,6 +253,7 @@ export async function registerRoutes(
   app.use("/uploads/Beloning", express.default.static(beloningDir));
   app.use("/uploads/Functies", express.default.static(functiesDir));
   app.use("/uploads/Pasfoto", express.default.static(pasfotoDir));
+  app.use("/uploads/Huishoudelijkreglement", express.default.static(huishoudelijkDir));
 
   app.get("/uploads/public/:filename", (req, res) => {
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
@@ -405,6 +411,60 @@ export async function registerRoutes(
     }
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(wetgevingDir, filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      res.json({ message: "Verwijderd" });
+    } else {
+      res.status(404).json({ message: "Bestand niet gevonden" });
+    }
+  });
+
+  app.get("/api/uploads/huishoudelijkreglement", requireAuth, (_req, res) => {
+    try {
+      const files = fs.readdirSync(huishoudelijkDir)
+        .filter((f: string) => f.toLowerCase().endsWith(".pdf"))
+        .map((f: string) => {
+          const stat = fs.statSync(path.join(huishoudelijkDir, f));
+          return { name: f, path: `/uploads/Huishoudelijkreglement/${f}`, size: stat.size, modified: stat.mtime };
+        })
+        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+      res.json(files);
+    } catch {
+      res.json([]);
+    }
+  });
+
+  const huishoudelijkUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req: any, _file: any, cb: any) => cb(null, huishoudelijkDir),
+      filename: (_req: any, file: any, cb: any) => cb(null, file.originalname),
+    }),
+    fileFilter: (_req: any, file: any, cb: any) => {
+      if (file.mimetype === "application/pdf") cb(null, true);
+      else cb(new Error("Alleen PDF-bestanden"));
+    },
+  });
+
+  app.post("/api/uploads/huishoudelijkreglement", requireAuth, huishoudelijkUpload.single("pdf"), async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user || !isAdminRole(user.role)) {
+      return res.status(403).json({ message: "Alleen beheerders" });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
+    }
+    res.json({ name: req.file.originalname, path: `/uploads/Huishoudelijkreglement/${req.file.originalname}` });
+  });
+
+  app.delete("/api/uploads/huishoudelijkreglement/:filename", requireAuth, async (req: any, res) => {
+    const userId = (req.session as any).userId;
+    const user = await storage.getUser(userId);
+    if (!user || !isAdminRole(user.role)) {
+      return res.status(403).json({ message: "Alleen beheerders" });
+    }
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
+    const filePath = path.join(huishoudelijkDir, filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       res.json({ message: "Verwijderd" });
