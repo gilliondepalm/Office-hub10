@@ -1069,11 +1069,25 @@ export default function VerzuimPage() {
   const isAdminOrManager = isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az";
   const canVacation = canManageVacation(user?.role);
 
+  const isPureManager = user?.role === "manager";
+  const myDept = user?.department || "";
+
+  const deptFilteredAbsences = isPureManager && myDept
+    ? (absences || []).filter(a => (a as any).userDepartment === myDept)
+    : (absences || []);
+
+  const deptFilteredUsers = isPureManager && myDept
+    ? (allUsers || []).filter(u => u.department === myDept)
+    : (allUsers || []);
+
   const canApprove = (absence: any) => {
     if (absence.status !== "pending" || absence.userId === user?.id) return false;
     if (user?.role === "directeur") return true;
     if (isAdminRole(user?.role) && !isAdminRole(absence.userRole) && absence.userRole !== "manager" && absence.userRole !== "manager_az") return true;
-    if ((user?.role === "manager" || user?.role === "manager_az") && absence.userRole === "employee") return true;
+    if ((user?.role === "manager" || user?.role === "manager_az") && absence.userRole === "employee") {
+      if (isPureManager && myDept && (absence as any).userDepartment !== myDept) return false;
+      return true;
+    }
     return false;
   };
 
@@ -1472,8 +1486,8 @@ export default function VerzuimPage() {
 
           {(() => {
             const filtered = isAdminOrManager
-              ? (absences || []).filter(a => a.status === "pending")
-              : (absences || []);
+              ? deptFilteredAbsences.filter(a => a.status === "pending")
+              : deptFilteredAbsences;
             if (filtered.length === 0) {
               return (
                 <Card>
@@ -1643,7 +1657,7 @@ export default function VerzuimPage() {
       {activeTab === "overzicht" && isAdminOrManager && (
         <div className="space-y-3">
           {(() => {
-            const processed = (absences || []).filter(a => a.status === "approved" || a.status === "rejected" || a.status === "cancelled");
+            const processed = deptFilteredAbsences.filter(a => a.status === "approved" || a.status === "rejected" || a.status === "cancelled");
             if (processed.length === 0) {
               return (
                 <Card>
@@ -1842,8 +1856,8 @@ export default function VerzuimPage() {
       <AbsenceReportDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
-        absences={absences || []}
-        users={allUsers || []}
+        absences={deptFilteredAbsences}
+        users={deptFilteredUsers}
       />
 
       {activeTab === "vakantiesaldo" && isAdminOrManager && (
@@ -1875,7 +1889,10 @@ export default function VerzuimPage() {
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      const sorted = [...(vacationBalances || [])].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
+                      const allBalances = isPureManager && myDept
+                        ? (vacationBalances || []).filter(b => b.department === myDept)
+                        : (vacationBalances || []);
+                      const sorted = [...allBalances].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
                       const departments = Array.from(new Set(sorted.map(b => b.department))).sort((a, b) => a.localeCompare(b, "nl"));
                       return departments.map(dept => (
                         <>
