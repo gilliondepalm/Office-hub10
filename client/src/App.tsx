@@ -30,6 +30,67 @@ import BeheerPage from "@/pages/beheer";
 import BeloningenPage from "@/pages/beloningen";
 import ProfielPage from "@/pages/profiel";
 
+function RollenRechtentabel() {
+  const rollen = ["Directeur", "Beheerder", "Beheerder AZ", "Manager", "Medewerker"];
+  const JA = <span className="text-green-600 dark:text-green-400 font-bold">✓</span>;
+  const JA_AFDELING = <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs">✓ afd.</span>;
+  const NEE = <span className="text-muted-foreground/40">—</span>;
+
+  const rows: { label: string; cells: React.ReactNode[] }[] = [
+    { label: "Dashboard", cells: [JA, JA, JA, JA, JA] },
+    { label: "Kalender bekijken", cells: [JA, JA, JA, JA, JA] },
+    { label: "Kalender beheren", cells: [JA, JA, JA, JA, NEE] },
+    { label: "Aankondigingen bekijken", cells: [JA, JA, JA, JA, JA] },
+    { label: "Aankondigingen aanmaken", cells: [JA, JA, JA, NEE, NEE] },
+    { label: "Berichten sturen", cells: [JA, JA, JA, JA, NEE] },
+    { label: "Organisatie", cells: [JA, JA, JA, JA, NEE] },
+    { label: "Personalia bekijken", cells: [JA, JA, JA, JA, NEE] },
+    { label: "Personalia bewerken", cells: [JA, JA, NEE, NEE, NEE] },
+    { label: "Verzuim (eigen aanvragen)", cells: [JA, JA, JA, JA, JA] },
+    { label: "Verzuim goedkeuren", cells: [JA, JA, JA, JA_AFDELING, NEE] },
+    { label: "Vakantiesaldo beheren", cells: [JA, JA, JA, NEE, NEE] },
+    { label: "Beloningen bekijken", cells: [JA, JA, JA, JA, JA] },
+    { label: "Functionering / Beoordeling / Jaarplan", cells: [JA, JA, JA, JA_AFDELING, NEE] },
+    { label: "Beloning (Jaaraward) toekennen", cells: [JA, JA, JA, NEE, NEE] },
+    { label: "Applicaties", cells: [JA, JA, JA, JA, JA] },
+    { label: "Rapporten", cells: [JA, JA, JA, JA, NEE] },
+    { label: "Beheer panel", cells: [JA, JA, NEE, NEE, NEE] },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        Overzicht van alle rechten per rol. <span className="text-amber-600 dark:text-amber-400 font-semibold">✓ afd.</span> betekent: alleen voor medewerkers van de eigen afdeling.
+      </p>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-xs border-collapse min-w-[520px]">
+          <thead>
+            <tr className="bg-muted/60 border-b border-border">
+              <th className="text-left py-2 px-3 font-semibold text-muted-foreground w-[200px]">Module / Functie</th>
+              {rollen.map(r => (
+                <th key={r} className="text-center py-2 px-2 font-semibold text-muted-foreground whitespace-nowrap">{r}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className={`border-b border-border/50 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
+                <td className="py-2 px-3 font-medium text-foreground">{row.label}</td>
+                {row.cells.map((cell, j) => (
+                  <td key={j} className="py-2 px-2 text-center">{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground italic">
+        Moduletoegang wordt ook bepaald door de toegewezen modules per medewerker in het Beheer panel.
+      </p>
+    </div>
+  );
+}
+
 const helpContent: Record<string, { title: string; content: string }> = {
   "/": {
     title: "Dashboard",
@@ -265,7 +326,7 @@ function AuthenticatedApp() {
       </div>
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className={`max-h-[85vh] overflow-y-auto ${location === "/beheer" ? "max-w-3xl" : "max-w-lg"}`}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-primary" />
@@ -294,8 +355,14 @@ function AuthenticatedApp() {
               <div className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed" data-testid="text-help-content">
                 {currentHelp.content}
               </div>
+              {location === "/beheer" && (
+                <div className="mt-4 pt-4 border-t">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Rechtenoverzicht per rol</h3>
+                  <RollenRechtentabel />
+                </div>
+              )}
               {isAdmin && (
-                <div className="flex justify-end pt-2 border-t">
+                <div className="flex justify-end pt-2 border-t mt-2">
                   <Button variant="outline" size="sm" onClick={handleEdit} data-testid="button-edit-help">
                     <Pencil className="h-4 w-4 mr-1" />
                     Bewerken
