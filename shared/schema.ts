@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, date, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, date, timestamp, pgEnum, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -33,7 +33,7 @@ export const users = pgTable("users", {
   voornamen: text("voornamen"),
   voorvoegsel: text("voorvoegsel"),
   achternaam: text("achternaam"),
-  vacationDaysCancel: integer("vacation_days_cancel").default(0),
+  vacationDaysCancel: real("vacation_days_cancel").default(0),
 });
 
 export const events = pgTable("events", {

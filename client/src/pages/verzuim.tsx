@@ -728,6 +728,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             const isPast = dateStr < today;
 
             let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none";
+            const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
+
             if (absence) {
               if (absence.status === "pending") {
                 cellClass += " bg-yellow-200 text-yellow-900 dark:bg-yellow-800/50 dark:text-yellow-200 cursor-pointer hover:bg-yellow-300 font-semibold";
@@ -742,15 +744,23 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
               cellClass += " text-foreground/70";
             }
 
+            const halfLabel = isHalfDay ? (absence.halfDay === "am" ? " (ochtend)" : " (middag)") : "";
+            const titleText = absence
+              ? (absence.status === "pending" ? `Gepland${halfLabel} — klik om te cancelen` : isPast ? `Opgenomen${halfLabel} — klik om te cancelen` : `Toegekend${halfLabel} — klik om te cancelen`)
+              : undefined;
+
             return (
               <div
                 key={dateStr}
-                className={cellClass}
-                title={absence ? (absence.status === "pending" ? "Gepland — klik om te cancelen" : isPast ? "Opgenomen — klik om te cancelen" : "Toegekend — klik om te cancelen") : undefined}
+                className={`${cellClass} relative`}
+                title={titleText}
                 onClick={absence ? () => setConfirmAbsence(absence) : undefined}
                 data-testid={absence ? `day-cancel-${dateStr}` : undefined}
               >
                 {date.getDate()}
+                {isHalfDay && (
+                  <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold">½</span>
+                )}
               </div>
             );
           })}
@@ -838,11 +848,16 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                   <> t/m <strong>{formatDate(confirmAbsence.endDate)}</strong></>
                 )}
               </p>
-              <p>
+              <p className="flex items-center gap-2">
                 <span className="text-muted-foreground">Status: </span>
                 <Badge variant={confirmAbsence.status === "pending" ? "outline" : "default"} className="text-xs">
                   {confirmAbsence.status === "pending" ? "Gepland" : "Goedgekeurd"}
                 </Badge>
+                {(confirmAbsence.halfDay === "am" || confirmAbsence.halfDay === "pm") && (
+                  <Badge variant="secondary" className="text-xs">
+                    Halve dag ({confirmAbsence.halfDay === "am" ? "ochtend" : "middag"})
+                  </Badge>
+                )}
               </p>
               {confirmAbsence.status === "approved" && confirmAbsence.startDate <= today ? (
                 <p className="text-amber-600 dark:text-amber-400">
