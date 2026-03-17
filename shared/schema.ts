@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const roleEnum = pgEnum("role", ["directeur", "admin", "manager", "manager_az", "employee"]);
 export const absenceTypeEnum = pgEnum("absence_type", ["sick", "vacation", "personal", "other", "bvvd"]);
-export const absenceStatusEnum = pgEnum("absence_status", ["pending", "approved", "rejected"]);
+export const absenceStatusEnum = pgEnum("absence_status", ["pending", "approved", "rejected", "cancelled"]);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

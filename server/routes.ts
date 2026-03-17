@@ -1252,7 +1252,7 @@ export async function registerRoutes(
         }
       }
 
-      await storage.deleteAbsence(absence.id);
+      await storage.updateAbsenceStatus(absence.id, "cancelled", null);
 
       if (takenDays > 0) {
         const user = await storage.getUser(absence.userId);

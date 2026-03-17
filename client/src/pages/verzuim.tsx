@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -320,6 +320,7 @@ function AbsenceReportDialog({
     pending: "In afwachting",
     approved: "Goedgekeurd",
     rejected: "Afgewezen",
+    cancelled: "Gecanceld",
   };
 
   const [filterType, setFilterType] = useState<string>("all");
@@ -378,7 +379,7 @@ function AbsenceReportDialog({
 
   const handlePrint = () => {
     const typeLabelsLocal: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Geoorloofd", other: "Ongeoorloofd", bvvd: "BVVD" };
-    const statusLabelsLocal: Record<string, string> = { pending: "In afwachting", approved: "Goedgekeurd", rejected: "Afgewezen" };
+    const statusLabelsLocal: Record<string, string> = { pending: "In afwachting", approved: "Goedgekeurd", rejected: "Afgewezen", cancelled: "Gecanceld" };
 
     const periodLabel = filterStart && filterEnd
       ? `${formatDate(filterStart)} – ${formatDate(filterEnd)}`
@@ -395,7 +396,7 @@ function AbsenceReportDialog({
             ? a.bvvdReason + (a.reason ? ` - ${a.reason}` : "")
             : a.reason || "-";
           const halfDayLabel = a.halfDay === "am" ? " (Ochtend)" : a.halfDay === "pm" ? " (Middag)" : "";
-          const statusColor = a.status === "approved" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : "#6b7280";
+          const statusColor = a.status === "approved" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : a.status === "cancelled" ? "#ea580c" : "#6b7280";
           return `<tr>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;padding-left:20px">${(a as any).userName || "Medewerker"}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${typeLabelsLocal[a.type] || a.type}</td>
@@ -617,9 +618,10 @@ function AbsenceReportDialog({
                             </TableCell>
                             <TableCell>
                               <Badge
-                                variant={absence.status === "approved" ? "default" : absence.status === "rejected" ? "destructive" : "outline"}
-                                className="text-xs"
+                                variant={absence.status === "approved" ? "default" : absence.status === "rejected" ? "destructive" : "secondary"}
+                                className={`text-xs ${absence.status === "cancelled" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : absence.status === "pending" ? "bg-background border" : ""}`}
                               >
+                                {absence.status === "cancelled" && <Ban className="h-3 w-3 mr-1" />}
                                 {statusLabels[absence.status] || absence.status}
                               </Badge>
                             </TableCell>
@@ -848,8 +850,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                   <> t/m <strong>{formatDate(confirmAbsence.endDate)}</strong></>
                 )}
               </p>
-              <p className="flex items-center gap-2">
-                <span className="text-muted-foreground">Status: </span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">Status: </span>
                 <Badge variant={confirmAbsence.status === "pending" ? "outline" : "default"} className="text-xs">
                   {confirmAbsence.status === "pending" ? "Gepland" : "Goedgekeurd"}
                 </Badge>
@@ -858,7 +860,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                     Halve dag ({confirmAbsence.halfDay === "am" ? "ochtend" : "middag"})
                   </Badge>
                 )}
-              </p>
+              </div>
               {confirmAbsence.status === "approved" && confirmAbsence.startDate <= today ? (
                 <p className="text-amber-600 dark:text-amber-400">
                   Een deel van dit verlof is al opgenomen. De opgenomen dagen worden teruggeboekt op het vakantiesaldo en zichtbaar in de kolom "Cancel".
@@ -1056,10 +1058,11 @@ export default function VerzuimPage() {
     bvvd: "BVVD",
   };
 
-  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any; className?: string }> = {
     pending: { label: "In afwachting", variant: "outline", icon: AlertCircle },
     approved: { label: "Goedgekeurd", variant: "default", icon: CheckCircle },
     rejected: { label: "Afgewezen", variant: "destructive", icon: XCircle },
+    cancelled: { label: "Gecanceld", variant: "secondary", icon: Ban, className: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
   };
 
   const isAdmin = isAdminRole(user?.role);
@@ -1584,7 +1587,7 @@ export default function VerzuimPage() {
                                     {displayReason}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant={sc.variant} className="text-xs gap-1">
+                                    <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
                                       <StatusIcon className="h-3 w-3" />
                                       {sc.label}
                                     </Badge>
@@ -1640,7 +1643,7 @@ export default function VerzuimPage() {
       {activeTab === "overzicht" && isAdminOrManager && (
         <div className="space-y-3">
           {(() => {
-            const processed = (absences || []).filter(a => a.status === "approved" || a.status === "rejected");
+            const processed = (absences || []).filter(a => a.status === "approved" || a.status === "rejected" || a.status === "cancelled");
             if (processed.length === 0) {
               return (
                 <Card>
@@ -1699,7 +1702,7 @@ export default function VerzuimPage() {
                                       {displayReason}
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant={sc.variant} className="text-xs gap-1">
+                                      <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
                                         <StatusIcon className="h-3 w-3" />
                                         {sc.label}
                                       </Badge>
