@@ -1725,14 +1725,14 @@ export default function VerzuimPage() {
                                 const displayReason = absence.status === "cancelled" && (absence as any).cancelReason
                                   ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
                                   : baseReason;
-                                const isCancelledWithReason = absence.status === "cancelled" && !!(absence as any).cancelReason;
+                                const isCancelled = absence.status === "cancelled";
                                 return (
                                   <TableRow
                                     key={absence.id}
                                     data-testid={`row-overzicht-${absence.id}`}
-                                    className={isCancelledWithReason ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
-                                    onClick={isCancelledWithReason ? () => setCancelDetailAbsence(absence) : undefined}
-                                    title={isCancelledWithReason ? "Klik om annuleringsreden te bekijken" : undefined}
+                                    className={isCancelled ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
+                                    onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
+                                    title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
                                   >
                                     <TableCell className="font-medium text-sm pl-6">
                                       {(absence as any).userName || "Medewerker"}
@@ -1754,8 +1754,8 @@ export default function VerzuimPage() {
                                           <StatusIcon className="h-3 w-3" />
                                           {sc.label}
                                         </Badge>
-                                        {isCancelledWithReason && (
-                                          <span className="text-xs text-orange-500 underline underline-offset-2">reden</span>
+                                        {isCancelled && (
+                                          <span className="text-xs text-orange-500 underline underline-offset-2">details</span>
                                         )}
                                       </div>
                                     </TableCell>
@@ -2036,9 +2036,13 @@ export default function VerzuimPage() {
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Reden voor annulering</span>
-                <p className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-md px-3 py-2 text-orange-900 dark:text-orange-200 leading-relaxed">
-                  {cancelDetailAbsence.cancelReason}
-                </p>
+                {cancelDetailAbsence.cancelReason ? (
+                  <p className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-md px-3 py-2 text-orange-900 dark:text-orange-200 leading-relaxed">
+                    {cancelDetailAbsence.cancelReason}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground italic text-sm">Geen reden opgegeven</p>
+                )}
               </div>
             </div>
             <div className="flex justify-end mt-1">
