@@ -220,7 +220,10 @@ function ReadOnlyFunctioneringForm({ review }: { review: FunctioneringReview }) 
 
 function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
   const { toast } = useToast();
-  const isAdmin = isAdminRole(currentUser?.role);
+  const isAdmin = isAdminRole(currentUser?.role) || currentUser?.role === "manager_az";
+  const isPureManager = currentUser?.role === "manager";
+  const myDept = currentUser?.department || "";
+  const canEdit = isAdmin || isPureManager;
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [viewMode, setViewMode] = useState<"form" | "overview">("overview");
@@ -265,12 +268,12 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: isAdmin,
+    enabled: isAdmin || isPureManager,
   });
 
   const { data: myReviews } = useQuery<FunctioneringReview[]>({
     queryKey: ["/api/functionering/mine"],
-    enabled: !isAdmin,
+    enabled: !isAdmin && !isPureManager,
   });
 
   const saveMutation = useMutation({
@@ -303,7 +306,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
   });
 
   const updateField = (field: string, value: string) => {
-    if (!isAdmin) return;
+    if (!canEdit) return;
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -391,7 +394,13 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
     setSelectedUserId("");
   };
 
-  const reviewsToShow = isAdmin ? reviewsByYear : myReviews;
+  const allReviews = (isAdmin || isPureManager) ? reviewsByYear : myReviews;
+  const reviewsToShow = isPureManager && myDept
+    ? allReviews?.filter(r => {
+        const u = users?.find(u2 => u2.id === r.userId);
+        return u?.department === myDept;
+      })
+    : allReviews;
 
   if (viewMode === "overview") {
     return (
@@ -406,7 +415,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          {isAdmin && (
+          {canEdit && (
             <Button onClick={handleNewForm} data-testid="button-new-functionering">
               <Plus className="h-4 w-4 mr-2" />
               Nieuw Gesprek
@@ -425,7 +434,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
             <CardContent className="flex flex-col items-center py-10">
               <FileText className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-muted-foreground text-sm">Geen functioneringsgesprekken gevonden voor {selectedYear}</p>
-              {isAdmin && (
+              {canEdit && (
                 <Button variant="link" onClick={handleNewForm} className="mt-2" data-testid="button-new-functionering-empty">
                   Nieuw gesprek aanmaken
                 </Button>
@@ -457,7 +466,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                       <Eye className="h-4 w-4 mr-1" />
                       Bekijken
                     </Button>
-                    {isAdmin && (
+                    {canEdit && (
                       <Button variant="outline" size="sm" onClick={() => deleteMutation.mutate(review.id)} data-testid={`button-delete-review-${review.id}`}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -481,13 +490,13 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
             Overzicht
           </Button>
           <p className="text-sm text-muted-foreground">
-            {isAdmin
+            {canEdit
               ? (viewingReview ? "Bekijk of bewerk het functioneringsgesprek" : "Vul het formulier in en sla op")
               : "Bekijk het functioneringsgesprek"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {canEdit && (
             <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-functionering">
               <Save className="h-4 w-4 mr-2" />
               {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
@@ -513,7 +522,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground print:text-black">Medewerker</label>
-                {isAdmin ? (
+                {canEdit ? (
                   <div className="flex gap-2">
                     <Input
                       value={formData.medewerker}
@@ -527,7 +536,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                         <SelectValue placeholder="Kies..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {users?.filter(u => u.active).map(u => (
+                        {users?.filter(u => u.active && (!isPureManager || !myDept || u.department === myDept)).map(u => (
                           <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                         ))}
                       </SelectContent>
@@ -547,7 +556,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 <Input
                   value={formData.functie}
                   onChange={(e) => updateField("functie", e.target.value)}
-                  readOnly={!isAdmin}
+                  readOnly={!canEdit}
                   placeholder="Functie"
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-functie"
@@ -558,7 +567,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 <Input
                   value={formData.afdeling}
                   onChange={(e) => updateField("afdeling", e.target.value)}
-                  readOnly={!isAdmin}
+                  readOnly={!canEdit}
                   placeholder="Afdeling"
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-afdeling"
@@ -566,7 +575,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground print:text-black">Leidinggevende</label>
-                {isAdmin ? (
+                {canEdit ? (
                   <div className="flex gap-2">
                     <Input
                       value={formData.leidinggevende}
@@ -601,7 +610,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                   type="date"
                   value={formData.datum}
                   onChange={(e) => updateField("datum", e.target.value)}
-                  readOnly={!isAdmin}
+                  readOnly={!canEdit}
                   className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                   data-testid="input-func-datum"
                 />
@@ -612,7 +621,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                   <Input
                     value={formData.periode}
                     onChange={(e) => updateField("periode", e.target.value)}
-                    readOnly={!isAdmin}
+                    readOnly={!canEdit}
                     placeholder="bijv. jan 2025 - dec 2025"
                     className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                     data-testid="input-func-periode"
@@ -624,7 +633,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                     type="number"
                     value={formData.functioneringsJaar}
                     onChange={e => setFormData(prev => ({ ...prev, functioneringsJaar: parseInt(e.target.value) || new Date().getFullYear() }))}
-                    readOnly={!isAdmin}
+                    readOnly={!canEdit}
                     className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                     data-testid="input-func-jaar"
                   />
@@ -642,7 +651,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.terugblikTaken}
                 onChange={(e) => updateField("terugblikTaken", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-terugblik-taken"
@@ -653,7 +662,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.terugblikResultaten}
                 onChange={(e) => updateField("terugblikResultaten", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-terugblik-resultaten"
@@ -664,7 +673,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.terugblikKnelpunten}
                 onChange={(e) => updateField("terugblikKnelpunten", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-terugblik-knelpunten"
@@ -681,7 +690,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.werkinhoud}
                 onChange={(e) => updateField("werkinhoud", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 placeholder="Hoe ervaart u uw huidige takenpakket?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -693,7 +702,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.arbeidsomstandigheden}
                 onChange={(e) => updateField("arbeidsomstandigheden", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 placeholder="Hoe ervaart u de werkomgeving en faciliteiten?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -711,7 +720,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.samenwerking}
                 onChange={(e) => updateField("samenwerking", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 placeholder="Hoe verloopt de samenwerking binnen en buiten de afdeling?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -723,7 +732,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.communicatie}
                 onChange={(e) => updateField("communicatie", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 placeholder="Hoe ervaart u de communicatie met leidinggevende en collega's?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -735,7 +744,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.leidinggeven}
                 onChange={(e) => updateField("leidinggeven", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 placeholder="Hoe ervaart u de stijl van leidinggeven?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -753,7 +762,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.persoonlijkeOntwikkeling}
                 onChange={(e) => updateField("persoonlijkeOntwikkeling", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 placeholder="Welke competenties wilt u verder ontwikkelen?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -765,7 +774,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.scholingswensen}
                 onChange={(e) => updateField("scholingswensen", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 placeholder="Welke cursussen of opleidingen heeft u nodig?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -777,7 +786,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.loopbaanwensen}
                 onChange={(e) => updateField("loopbaanwensen", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 placeholder="Wat zijn uw loopbaanwensen en ambities?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -798,7 +807,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                     <Textarea
                       value={(formData as any)[`doelstelling${n}`]}
                       onChange={(e) => updateField(`doelstelling${n}`, e.target.value)}
-                      readOnly={!isAdmin}
+                      readOnly={!canEdit}
                       rows={2}
                       placeholder={`Omschrijving doelstelling ${n}`}
                       className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -810,7 +819,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                     <Input
                       value={(formData as any)[`doelstelling${n}Termijn`]}
                       onChange={(e) => updateField(`doelstelling${n}Termijn`, e.target.value)}
-                      readOnly={!isAdmin}
+                      readOnly={!canEdit}
                       placeholder="bijv. Q2 2026"
                       className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                       data-testid={`input-func-termijn-${n}`}
@@ -830,7 +839,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.afspraken}
                 onChange={(e) => updateField("afspraken", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={3}
                 placeholder="Welke concrete afspraken zijn er gemaakt?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
@@ -842,7 +851,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.opmerkingMedewerker}
                 onChange={(e) => updateField("opmerkingMedewerker", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-opmerking-medewerker"
@@ -853,7 +862,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
               <Textarea
                 value={formData.opmerkingLeidinggevende}
                 onChange={(e) => updateField("opmerkingLeidinggevende", e.target.value)}
-                readOnly={!isAdmin}
+                readOnly={!canEdit}
                 rows={2}
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-opmerking-leidinggevende"
@@ -908,7 +917,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
       </div>
 
       <div className="flex justify-end gap-2 print:hidden">
-        {isAdmin && (
+        {canEdit && (
           <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-functionering-bottom">
             <Save className="h-4 w-4 mr-2" />
             {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
@@ -925,7 +934,10 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
 
 function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
   const { toast } = useToast();
-  const isAdmin = isAdminRole(currentUser?.role);
+  const isAdmin = isAdminRole(currentUser?.role) || currentUser?.role === "manager_az";
+  const isPureManager = currentUser?.role === "manager";
+  const myDept = currentUser?.department || "";
+  const canEdit = isAdmin || isPureManager;
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedFunctie, setSelectedFunctie] = useState<string>("");
@@ -957,12 +969,12 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: isAdmin,
+    enabled: isAdmin || isPureManager,
   });
 
   const { data: myReviews } = useQuery<BeoordelingReview[]>({
     queryKey: ["/api/beoordeling/mine"],
-    enabled: !isAdmin,
+    enabled: !isAdmin && !isPureManager,
   });
 
   const { data: functieCompetencies } = useQuery<Competency[]>({
@@ -1159,7 +1171,13 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
     5: "Uitstekend/voorbeeld voor anderen",
   };
 
-  const reviewsToShow = isAdmin ? reviewsByYear : myReviews;
+  const allBeoordelingen = (isAdmin || isPureManager) ? reviewsByYear : myReviews;
+  const reviewsToShow = isPureManager && myDept
+    ? allBeoordelingen?.filter(r => {
+        const u = users?.find(u2 => u2.id === r.userId);
+        return u?.department === myDept;
+      })
+    : allBeoordelingen;
 
   if (viewMode === "competencies" && isAdmin) {
     const normLabels: Record<number, string> = { 1: "Onvoldoende", 2: "Nog te ontwikkelen", 3: "Normaal/goed", 4: "Zeer goed/aantoonbaar beter", 5: "Uitstekend/voorbeeld voor anderen" };
@@ -1421,7 +1439,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       <div className="space-y-4">
         <div className="flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
-            {isAdmin && (
+            {canEdit && (
               <>
                 <Button variant="outline" size="icon" onClick={() => setSelectedYear(y => y - 1)} data-testid="button-beoor-year-prev">
                   <ChevronLeft className="h-4 w-4" />
@@ -1433,12 +1451,14 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
               </>
             )}
           </div>
-          {isAdmin && (
+          {canEdit && (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setViewMode("competencies")} data-testid="button-manage-competencies">
-                <Settings className="h-4 w-4 mr-2" />
-                Competenties
-              </Button>
+              {isAdmin && (
+                <Button variant="outline" onClick={() => setViewMode("competencies")} data-testid="button-manage-competencies">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Competenties
+                </Button>
+              )}
               <Button onClick={handleNewForm} data-testid="button-new-beoordeling">
                 <Plus className="h-4 w-4 mr-2" />
                 Nieuwe Beoordeling
@@ -1457,11 +1477,11 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
             <CardContent className="flex flex-col items-center py-10">
               <UserCheck className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-muted-foreground text-sm">
-                {isAdmin
+                {canEdit
                   ? `Geen beoordelingen gevonden voor ${selectedYear}`
                   : "U heeft nog geen beoordelingen ontvangen"}
               </p>
-              {isAdmin && (
+              {canEdit && (
                 <Button variant="link" onClick={handleNewForm} className="mt-2">
                   Nieuwe beoordeling aanmaken
                 </Button>
@@ -1492,7 +1512,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                       <Eye className="h-4 w-4 mr-1" />
                       Bekijken
                     </Button>
-                    {isAdmin && (
+                    {canEdit && (
                       <Button variant="outline" size="sm" onClick={() => deleteMutation.mutate(review.id)} data-testid={`button-delete-beoor-${review.id}`}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -1508,7 +1528,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
   }
 
   const compList = functieCompetencies || [];
-  const isReadOnly = !isAdmin;
+  const isReadOnly = !canEdit;
 
   return (
     <div className="space-y-4">
@@ -1522,18 +1542,18 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
             {viewingReview ? "Bekijk of bewerk de beoordeling" : "Vul de beoordeling in"}
           </p>
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {canEdit && (
             <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-beoordeling">
               <Save className="h-4 w-4 mr-2" />
               {saveMutation.isPending ? "Opslaan..." : "Opslaan"}
             </Button>
-            <Button onClick={() => window.print()} variant="outline" data-testid="button-print-beoordeling">
-              <Printer className="h-4 w-4 mr-2" />
-              Afdrukken
-            </Button>
-          </div>
-        )}
+          )}
+          <Button onClick={() => window.print()} variant="outline" data-testid="button-print-beoordeling">
+            <Printer className="h-4 w-4 mr-2" />
+            Afdrukken
+          </Button>
+        </div>
       </div>
 
       <div id="beoordeling-form" className="space-y-6 print:hidden">
@@ -1547,7 +1567,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-2">
-              {isAdmin ? (
+              {canEdit ? (
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground print:text-black">Medewerker</label>
                   <Select onValueChange={handleSelectEmployee} value={selectedUserId} disabled={isReadOnly}>
@@ -1555,7 +1575,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                       <SelectValue placeholder="Kies een medewerker..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {users?.filter(u => u.active).map(u => (
+                      {users?.filter(u => u.active && (!isPureManager || !myDept || u.department === myDept)).map(u => (
                         <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                       ))}
                     </SelectContent>
@@ -1569,7 +1589,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
               )}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground print:text-black">Functie</label>
-                {isAdmin ? (
+                {canEdit ? (
                   <Select onValueChange={val => setSelectedFunctie(val)} value={selectedFunctie}>
                     <SelectTrigger className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none" data-testid="select-beoor-functie">
                       <SelectValue placeholder="Selecteer functie..." />
@@ -1595,7 +1615,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                     className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none"
                     data-testid="input-beoor-beoordelaar"
                   />
-                  {isAdmin && (
+                  {canEdit && (
                     <Select onValueChange={val => { const mgr = users?.find(u => u.id === val); if (mgr) setFormData(prev => ({ ...prev, beoordelaar: mgr.fullName })); }}>
                       <SelectTrigger className="w-[140px] print:hidden" data-testid="select-beoor-beoordelaar">
                         <SelectValue placeholder="Kies..." />
@@ -1688,7 +1708,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                               <td className="py-3 px-3 text-muted-foreground align-top">{i + 1}</td>
                               <td className="py-3 px-3 align-top">
                                 <p className="font-medium">{comp.name}</p>
-                                {isAdmin && hasNorms && currentScore && (
+                                {canEdit && hasNorms && currentScore && (
                                   <p className="text-xs text-muted-foreground mt-1">
                                     {(comp as any)[`norm${currentScore}`]}
                                   </p>
@@ -1724,7 +1744,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
                                 </div>
                               </td>
                               <td className="py-3 px-3 align-top">
-                                {isAdmin ? (
+                                {canEdit ? (
                                   <Input
                                     value={currentToelichting}
                                     onChange={e => setFormScores(prev => ({
@@ -1970,7 +1990,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
         </Card>
       </div>
 
-      {isAdmin && (
+      {canEdit && (
         <div className="flex justify-end gap-2 print:hidden">
           <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-beoordeling-bottom">
             <Save className="h-4 w-4 mr-2" />
@@ -1997,7 +2017,10 @@ const statusOptions = [
 
 function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
   const { toast } = useToast();
-  const isAdmin = isAdminRole(currentUser?.role);
+  const isAdmin = isAdminRole(currentUser?.role) || currentUser?.role === "manager_az";
+  const isPureManager = currentUser?.role === "manager";
+  const myDept = currentUser?.department || "";
+  const canEdit = isAdmin || isPureManager;
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [editingItem, setEditingItem] = useState<(JaarplanItem & { userName?: string }) | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -2009,7 +2032,9 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
     enabled: isAdmin,
   });
 
-  const filteredUsers = users?.filter(u => u.active && (selectedDepartment ? u.department === selectedDepartment : true)) || [];
+  const filteredUsers = users?.filter(u => u.active &&
+    (isPureManager && myDept ? u.department === myDept : (selectedDepartment ? u.department === selectedDepartment : true))
+  ) || [];
   const [formData, setFormData] = useState({
     afspraken: "",
     startDatum: "",
@@ -2025,12 +2050,12 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: isAdmin,
+    enabled: isAdmin || isPureManager,
   });
 
   const { data: myItems } = useQuery<(JaarplanItem & { userName?: string })[]>({
     queryKey: ["/api/jaarplan/mine"],
-    enabled: !isAdmin,
+    enabled: !isAdmin && !isPureManager,
   });
 
   const saveMutation = useMutation({
@@ -2105,7 +2130,13 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
     });
   };
 
-  const itemsToShow = isAdmin ? itemsByYear : myItems?.filter(i => i.year === selectedYear);
+  const allItems = (isAdmin || isPureManager) ? itemsByYear : myItems?.filter(i => i.year === selectedYear);
+  const itemsToShow = isPureManager && myDept
+    ? allItems?.filter(item => {
+        const u = users?.find(u2 => u2.id === item.userId);
+        return u?.department === myDept;
+      })
+    : allItems;
   const groupedByUser = (itemsToShow || []).reduce((acc, item) => {
     const name = (item as any).userName || "Onbekend";
     if (!acc[name]) acc[name] = [];
@@ -2125,7 +2156,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        {isAdmin && (
+        {canEdit && (
           <Button onClick={handleNewItem} data-testid="button-new-jaarplan">
             <Plus className="h-4 w-4 mr-2" />
             Nieuw Item
@@ -2133,7 +2164,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
         )}
       </div>
 
-      {showForm && isAdmin && (
+      {showForm && canEdit && (
         <Card className="border border-border/60">
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -2143,24 +2174,26 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Afdeling</label>
-                <Select value={selectedDepartment} onValueChange={v => { setSelectedDepartment(v); setSelectedUserId(""); }}>
-                  <SelectTrigger data-testid="select-jaarplan-department">
-                    <SelectValue placeholder="Selecteer afdeling" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments?.sort((a, b) => a.name.localeCompare(b.name)).map(d => (
-                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isPureManager && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Afdeling</label>
+                  <Select value={selectedDepartment} onValueChange={v => { setSelectedDepartment(v); setSelectedUserId(""); }}>
+                    <SelectTrigger data-testid="select-jaarplan-department">
+                      <SelectValue placeholder="Selecteer afdeling" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments?.sort((a, b) => a.name.localeCompare(b.name)).map(d => (
+                        <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Medewerker</label>
-                <Select value={selectedUserId} onValueChange={setSelectedUserId} disabled={!selectedDepartment}>
+                <Select value={selectedUserId} onValueChange={setSelectedUserId} disabled={!isPureManager && !selectedDepartment}>
                   <SelectTrigger data-testid="select-jaarplan-user">
-                    <SelectValue placeholder={selectedDepartment ? "Selecteer medewerker" : "Selecteer eerst een afdeling"} />
+                    <SelectValue placeholder={isPureManager || selectedDepartment ? "Selecteer medewerker" : "Selecteer eerst een afdeling"} />
                   </SelectTrigger>
                   <SelectContent>
                     {filteredUsers.map(u => (
@@ -2173,7 +2206,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
                 <label className="text-xs font-medium text-muted-foreground">Plan</label>
                 {(() => {
                   const userPlans = [...new Set(
-                    (isAdmin ? itemsByYear : myItems)
+                    (canEdit ? itemsByYear : myItems)
                       ?.filter(i => i.userId === selectedUserId)
                       .map(i => i.afspraken) || []
                   )].sort();
@@ -2266,7 +2299,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
           <CardContent className="p-8 text-center">
             <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Geen jaarplan items voor {selectedYear}</p>
-            {isAdmin && (
+            {canEdit && (
               <Button variant="link" onClick={handleNewItem} className="mt-2" data-testid="button-new-jaarplan-empty">
                 Voeg een item toe
               </Button>
@@ -2319,7 +2352,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
                             <span>Start</span>
                             <span>Einde</span>
                             <span>Voortgang</span>
-                            {isAdmin && <span className="w-16"></span>}
+                            {canEdit && <span className="w-16"></span>}
                           </div>
                           {sortedItems.map((item, idx) => {
                             const statusOpt = statusOptions.find(s => s.value === item.status) || statusOptions[0];
@@ -2337,7 +2370,7 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
                                     {statusOpt.label}
                                   </Badge>
                                 </div>
-                                {isAdmin && (
+                                {canEdit && (
                                   <div className="flex items-center gap-0.5 w-16 justify-end">
                                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditItem(item)} data-testid={`button-edit-jaarplan-${item.id}`}>
                                       <Pencil className="h-3 w-3" />
@@ -2458,7 +2491,7 @@ export default function BeloningenPage() {
       />
       <div className="p-6 space-y-4">
       <div className="flex items-center justify-end gap-4 flex-wrap print:hidden">
-        {activeTab === "beloningsysteem" && isAdminRole(user?.role) && (
+        {activeTab === "beloningsysteem" && (isAdminRole(user?.role) || user?.role === "manager_az") && (
           <>
             <Dialog open={deptOpen} onOpenChange={setDeptOpen}>
               <DialogTrigger asChild>
@@ -2629,7 +2662,7 @@ export default function BeloningenPage() {
                               <p className="text-sm font-semibold">{award.name}</p>
                               <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
                             </div>
-                            {isAdminRole(user?.role) && (
+                            {(isAdminRole(user?.role) || user?.role === "manager_az") && (
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-dept-award-${award.id}`}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -2672,7 +2705,7 @@ export default function BeloningenPage() {
                                 <p className="text-sm font-semibold">{award.name}</p>
                                 <p className="text-xs text-muted-foreground">{formatDate(award.awardedAt)}</p>
                               </div>
-                              {isAdminRole(user?.role) && (
+                              {(isAdminRole(user?.role) || user?.role === "manager_az") && (
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAwardMutation.mutate(award.id)} data-testid={`button-delete-mgr-award-${award.id}`}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
