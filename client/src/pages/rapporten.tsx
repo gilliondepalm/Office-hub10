@@ -70,15 +70,51 @@ function PrintButton({ label }: { label: string }) {
   );
 }
 
+type InfoSortField = "afdeling" | "naam" | "voornamen" | "kadasterId";
+
 function MedewerkerInfoTab({ users }: { users: UserExt[] }) {
+  const [sortField, setSortField] = useState<InfoSortField>("naam");
+
   const active = users.filter(u => u.active);
+
+  const sorted = [...active].sort((a, b) => {
+    switch (sortField) {
+      case "afdeling": {
+        const deptCmp = (a.department || "").localeCompare(b.department || "", "nl");
+        return deptCmp !== 0 ? deptCmp : (a.fullName || "").localeCompare(b.fullName || "", "nl");
+      }
+      case "naam":
+        return (a.fullName || "").localeCompare(b.fullName || "", "nl");
+      case "voornamen":
+        return ((a as any).voornamen || a.fullName || "").localeCompare((b as any).voornamen || b.fullName || "", "nl");
+      case "kadasterId":
+        return ((a as any).kadasterId || "").localeCompare((b as any).kadasterId || "", "nl");
+      default:
+        return 0;
+    }
+  });
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
         <p className="text-sm text-muted-foreground">
           Overzicht van medewerkergegevens — {active.length} actieve medewerkers
         </p>
-        <PrintButton label="Afdrukken" />
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          <Select value={sortField} onValueChange={(v) => setSortField(v as InfoSortField)}>
+            <SelectTrigger className="w-44" data-testid="select-info-sort">
+              <SelectValue placeholder="Sorteren op…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="afdeling">Afdeling</SelectItem>
+              <SelectItem value="naam">Naam</SelectItem>
+              <SelectItem value="voornamen">Voornamen</SelectItem>
+              <SelectItem value="kadasterId">Kadaster ID</SelectItem>
+            </SelectContent>
+          </Select>
+          <PrintButton label="Afdrukken" />
+        </div>
       </div>
       <div className="overflow-x-auto rounded-lg border">
         <Table>
@@ -86,6 +122,7 @@ function MedewerkerInfoTab({ users }: { users: UserExt[] }) {
             <TableRow>
               <TableHead>Kadaster ID</TableHead>
               <TableHead>Naam</TableHead>
+              <TableHead>Afdeling</TableHead>
               <TableHead>Cedulanr.</TableHead>
               <TableHead>Telefoonnr.</TableHead>
               <TableHead>Mobielnr.</TableHead>
@@ -93,25 +130,24 @@ function MedewerkerInfoTab({ users }: { users: UserExt[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {active.length === 0 ? (
+            {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   Geen medewerkers gevonden
                 </TableCell>
               </TableRow>
             ) : (
-              active
-                .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || "", "nl"))
-                .map(u => (
-                  <TableRow key={u.id} data-testid={`row-medewerker-info-${u.id}`}>
-                    <TableCell className="text-sm font-mono">{u.kadasterId || "—"}</TableCell>
-                    <TableCell className="font-medium">{u.fullName}</TableCell>
-                    <TableCell className="text-sm">{u.cedulaNr || "—"}</TableCell>
-                    <TableCell className="text-sm">{u.telefoonnr || "—"}</TableCell>
-                    <TableCell className="text-sm">{u.mobielnr || "—"}</TableCell>
-                    <TableCell className="text-sm">{u.adres || "—"}</TableCell>
-                  </TableRow>
-                ))
+              sorted.map(u => (
+                <TableRow key={u.id} data-testid={`row-medewerker-info-${u.id}`}>
+                  <TableCell className="text-sm font-mono">{u.kadasterId || "—"}</TableCell>
+                  <TableCell className="font-medium">{u.fullName}</TableCell>
+                  <TableCell className="text-sm">{u.department || "—"}</TableCell>
+                  <TableCell className="text-sm">{u.cedulaNr || "—"}</TableCell>
+                  <TableCell className="text-sm">{u.telefoonnr || "—"}</TableCell>
+                  <TableCell className="text-sm">{u.mobielnr || "—"}</TableCell>
+                  <TableCell className="text-sm">{u.adres || "—"}</TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
