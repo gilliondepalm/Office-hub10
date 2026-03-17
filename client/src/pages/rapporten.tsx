@@ -232,7 +232,7 @@ function JubileaTab({ users }: { users: UserExt[] }) {
     return yB - yA;
   });
 
-  const milestones = [5, 10, 15, 20, 25, 30];
+  const milestones = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 
   return (
     <div className="space-y-4">
