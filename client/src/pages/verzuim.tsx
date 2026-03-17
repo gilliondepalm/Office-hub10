@@ -643,6 +643,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
   const [selectedDept, setSelectedDept] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [confirmAbsence, setConfirmAbsence] = useState<Absence | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>("");
   const { toast } = useToast();
 
   const year = new Date().getFullYear();
@@ -679,8 +680,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
   }, [userAbsences]);
 
   const cancelMutation = useMutation({
-    mutationFn: async (absenceId: string) => {
-      const res = await apiRequest("POST", `/api/absences/${absenceId}/cancel`);
+    mutationFn: async ({ absenceId, reason }: { absenceId: string; reason: string }) => {
+      const res = await apiRequest("POST", `/api/absences/${absenceId}/cancel`, { cancelReason: reason });
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -693,6 +694,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
         toast({ title: "Gepland verlof gecanceld" });
       }
       setConfirmAbsence(null);
+      setCancelReason("");
     },
     onError: (err: any) => {
       toast({ title: err.message || "Annuleren mislukt", variant: "destructive" });
@@ -837,7 +839,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
       )}
 
       {confirmAbsence && (
-        <Dialog open={!!confirmAbsence} onOpenChange={() => setConfirmAbsence(null)}>
+        <Dialog open={!!confirmAbsence} onOpenChange={(open) => { if (!open) { setConfirmAbsence(null); setCancelReason(""); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Verlofperiode cancelen</DialogTitle>
@@ -870,13 +872,24 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                   Dit verlof was nog niet opgenomen. Annuleren heeft geen effect op het vakantiesaldo.
                 </p>
               )}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Reden voor annulering</label>
+                <textarea
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                  rows={3}
+                  placeholder="Geef een reden op voor de annulering (optioneel)…"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  data-testid="textarea-cancel-reason"
+                />
+              </div>
             </div>
             <div className="flex gap-2 justify-end mt-2">
-              <Button variant="outline" onClick={() => setConfirmAbsence(null)}>Sluiten</Button>
+              <Button variant="outline" onClick={() => { setConfirmAbsence(null); setCancelReason(""); }}>Sluiten</Button>
               <Button
                 variant="destructive"
                 disabled={cancelMutation.isPending}
-                onClick={() => cancelMutation.mutate(confirmAbsence.id)}
+                onClick={() => cancelMutation.mutate({ absenceId: confirmAbsence.id, reason: cancelReason })}
                 data-testid="button-confirm-cancel"
               >
                 <XCircle className="h-4 w-4 mr-1.5" />
@@ -1580,9 +1593,12 @@ export default function VerzuimPage() {
                             {sorted.filter(a => ((a as any).userDepartment || "Geen afdeling") === dept).map((absence) => {
                               const sc = statusConfig[absence.status] || statusConfig.pending;
                               const StatusIcon = sc.icon;
-                              const displayReason = absence.type === "bvvd" && absence.bvvdReason
+                              const baseReason = absence.type === "bvvd" && absence.bvvdReason
                                 ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
                                 : absence.reason || "-";
+                              const displayReason = absence.status === "cancelled" && (absence as any).cancelReason
+                                ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
+                                : baseReason;
                               const isApprovable = canApprove(absence);
                               return (
                                 <TableRow key={absence.id} data-testid={`row-absence-${absence.id}`}>
@@ -1696,9 +1712,12 @@ export default function VerzuimPage() {
                               {sorted.filter(a => ((a as any).userDepartment || "Geen afdeling") === dept).map((absence) => {
                                 const sc = statusConfig[absence.status] || statusConfig.pending;
                                 const StatusIcon = sc.icon;
-                                const displayReason = absence.type === "bvvd" && absence.bvvdReason
+                                const baseReason = absence.type === "bvvd" && absence.bvvdReason
                                   ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
                                   : absence.reason || "-";
+                                const displayReason = absence.status === "cancelled" && (absence as any).cancelReason
+                                  ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
+                                  : baseReason;
                                 return (
                                   <TableRow key={absence.id} data-testid={`row-overzicht-${absence.id}`}>
                                     <TableCell className="font-medium text-sm pl-6">

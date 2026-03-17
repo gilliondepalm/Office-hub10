@@ -79,6 +79,7 @@ export const absences = pgTable("absences", {
   status: absenceStatusEnum("status").notNull().default("pending"),
   approvedBy: varchar("approved_by").references(() => users.id),
   deductVacation: boolean("deduct_vacation").default(false),
+  cancelReason: text("cancel_reason"),
 });
 
 export const rewards = pgTable("rewards", {
