@@ -1903,7 +1903,7 @@ export async function registerRoutes(
   });
 
   const publicSettingKeys = ["login_photo"];
-  const authSettingKeys = ["dashboard_photo"];
+  const authSettingKeys = ["dashboard_photo", "rapporten_photo"];
 
   app.get("/api/site-settings/public/:key", async (req, res) => {
     if (!publicSettingKeys.includes(req.params.key)) {
@@ -1952,6 +1952,24 @@ export async function registerRoutes(
       }
       const photoUrl = `/uploads/App_pics/${req.file.filename}`;
       await storage.setSiteSetting("login_photo", photoUrl);
+      res.json({ value: photoUrl });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Upload mislukt" });
+    }
+  });
+
+  app.post("/api/site-settings/rapporten-photo", requireAuth, uploadImage.single("photo"), async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || !isAdminRole(user.role)) {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "Geen afbeelding geüpload" });
+      }
+      const photoUrl = `/uploads/App_pics/${req.file.filename}`;
+      await storage.setSiteSetting("rapporten_photo", photoUrl);
       res.json({ value: photoUrl });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Upload mislukt" });

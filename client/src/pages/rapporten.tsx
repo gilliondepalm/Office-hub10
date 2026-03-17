@@ -421,13 +421,21 @@ function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
 
 export default function RapportenPage() {
   const { data: users, isLoading } = useQuery<UserExt[]>({ queryKey: ["/api/users"] });
+  const { data: rapportenPhoto } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/site-settings", "rapporten_photo"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings/rapporten_photo", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
 
   return (
     <div className="overflow-auto h-full">
       <PageHero
         title="Rapporten"
         subtitle="Overzichten en afdrukbare rapporten van medewerkergegevens"
-        imageSrc="/uploads/App_pics/rapporten.png"
+        imageSrc={rapportenPhoto?.value || "/uploads/App_pics/rapporten.png"}
         imageAlt="rapporten"
       />
       <div className="p-6">

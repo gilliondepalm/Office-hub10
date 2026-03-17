@@ -185,6 +185,7 @@ function RechtenTab() {
   const [editUser, setEditUser] = useState<SafeUser | null>(null);
   const [resetUser, setResetUser] = useState<SafeUser | null>(null);
   const loginPhotoInputRef = useRef<HTMLInputElement>(null);
+  const rapportenPhotoInputRef = useRef<HTMLInputElement>(null);
   const pasfotoInputRef = useRef<HTMLInputElement>(null);
   const [pasfotoUserId, setPasfotoUserId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -231,6 +232,30 @@ function RechtenTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/site-settings", "login_photo"] });
       toast({ title: "Inlogfoto bijgewerkt", description: "De achtergrondafbeelding van de inlogpagina is gewijzigd." });
+    },
+    onError: () => { toast({ title: "Fout", description: "Het uploaden van de foto is mislukt.", variant: "destructive" }); },
+  });
+
+  const { data: rapportenPhoto } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/site-settings", "rapporten_photo"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings/rapporten_photo", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const uploadRapportenPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch("/api/site-settings/rapporten-photo", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error("Upload mislukt");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/site-settings", "rapporten_photo"] });
+      toast({ title: "Rapportenfoto bijgewerkt", description: "De achtergrondafbeelding van de Rapporten pagina is gewijzigd." });
     },
     onError: () => { toast({ title: "Fout", description: "Het uploaden van de foto is mislukt.", variant: "destructive" }); },
   });
@@ -343,6 +368,48 @@ function RechtenTab() {
               <Button variant="outline" size="sm" className="gap-2" onClick={() => loginPhotoInputRef.current?.click()} disabled={uploadLoginPhotoMutation.isPending} data-testid="button-change-login-photo">
                 <Camera className="h-4 w-4" />
                 {uploadLoginPhotoMutation.isPending ? "Uploaden..." : "Foto wijzigen"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 pb-3">
+          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-semibold text-sm">Rapporten Pagina Achtergrondafbeelding</h3>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex items-center gap-4">
+            <div className="relative w-48 h-28 rounded-lg overflow-hidden border border-border bg-muted shrink-0">
+              <img
+                src={rapportenPhoto?.value || "/uploads/App_pics/rapporten.png"}
+                alt="Rapporten achtergrond"
+                className="w-full h-full object-cover"
+                data-testid="img-rapporten-photo-preview"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Deze afbeelding wordt getoond als hero-achtergrond op de Rapporten pagina.</p>
+              <input
+                ref={rapportenPhotoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadRapportenPhotoMutation.mutate(f); }}
+                data-testid="input-rapporten-photo"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => rapportenPhotoInputRef.current?.click()}
+                disabled={uploadRapportenPhotoMutation.isPending}
+                data-testid="button-change-rapporten-photo"
+              >
+                <Camera className="h-4 w-4" />
+                {uploadRapportenPhotoMutation.isPending ? "Uploaden..." : "Foto wijzigen"}
               </Button>
             </div>
           </div>
