@@ -675,6 +675,7 @@ export default function AankondigingenPage() {
   const unreadCount = (messagesData || []).filter(m => m.toUserId === user?.id && !m.read).length;
 
   const isAdminOrManager = isAdminRole(user?.role) || user?.role === "manager";
+  const canCreateAnnouncement = isAdminRole(user?.role) || user?.role === "manager_az";
 
   if (isLoading) {
     return (
@@ -702,7 +703,7 @@ export default function AankondigingenPage() {
               Bericht Sturen
             </Button>
           )}
-          {isAdminOrManager && activeTab === "announcements" && (
+          {canCreateAnnouncement && activeTab === "announcements" && (
             <Button onClick={() => setCreateOpen(true)} data-testid="button-add-announcement">
               <Plus className="h-4 w-4 mr-2" />
               Nieuwe Aankondiging
@@ -823,7 +824,7 @@ export default function AankondigingenPage() {
                           {formatDateTime(ann.createdAt)}
                         </p>
                       </div>
-                      {isAdminOrManager && (
+                      {canCreateAnnouncement && (
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" onClick={() => setEditAnn(ann)} data-testid={`button-edit-announcement-${ann.id}`}>
                             <Pencil className="h-4 w-4 text-muted-foreground" />

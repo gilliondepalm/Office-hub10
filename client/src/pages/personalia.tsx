@@ -221,7 +221,7 @@ function EditDialog({
                     <SelectContent>
                       <SelectItem value="employee">Medewerker</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="manager_az">Manager AZ</SelectItem>
+                      <SelectItem value="manager_az">Beheerder AZ</SelectItem>
                       <SelectItem value="admin">Beheerder</SelectItem>
                       <SelectItem value="directeur">Directeur</SelectItem>
                     </SelectContent>
@@ -1107,7 +1107,7 @@ export default function PersonaliaPage() {
   const roleLabels: Record<string, string> = {
     admin: "Beheerder",
     manager: "Manager",
-    manager_az: "Manager AZ",
+    manager_az: "Beheerder AZ",
     employee: "Medewerker",
     directeur: "Directeur",
   };
@@ -1208,7 +1208,7 @@ export default function PersonaliaPage() {
                           <SelectContent>
                             <SelectItem value="employee">Medewerker</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
-                            <SelectItem value="manager_az">Manager AZ</SelectItem>
+                            <SelectItem value="manager_az">Beheerder AZ</SelectItem>
                             <SelectItem value="admin">Beheerder</SelectItem>
                             <SelectItem value="directeur">Directeur</SelectItem>
                           </SelectContent>

@@ -124,7 +124,7 @@ export function AppSidebar() {
               </Avatar>
               <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-sm font-medium truncate text-sidebar-foreground">{user?.fullName}</span>
-                <span className="text-xs text-sidebar-foreground/60 capitalize">{user?.role === "directeur" ? "Directeur" : user?.role === "admin" ? "Beheerder" : user?.role === "manager" ? "Manager" : user?.role === "manager_az" ? "Manager AZ" : "Medewerker"}</span>
+                <span className="text-xs text-sidebar-foreground/60 capitalize">{user?.role === "directeur" ? "Directeur" : user?.role === "admin" ? "Beheerder" : user?.role === "manager" ? "Manager" : user?.role === "manager_az" ? "Beheerder AZ" : "Medewerker"}</span>
               </div>
               <Button
                 size="icon"

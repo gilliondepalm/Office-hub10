@@ -26,7 +26,7 @@ const roleLabels: Record<string, string> = {
   directeur: "Directeur",
   admin: "Beheerder",
   manager: "Manager",
-  manager_az: "Manager AZ",
+  manager_az: "Beheerder AZ",
   employee: "Medewerker",
 };
 
