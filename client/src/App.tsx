@@ -99,16 +99,19 @@ const helpContent: Record<string, { title: string; content: string }> = {
 \u2022 Bovenaan ziet u statistieken over het aantal medewerkers, afdelingen en openstaande verlofaanvragen.
 \u2022 Recente aankondigingen worden getoond zodat u snel op de hoogte bent van het laatste nieuws.
 \u2022 De agenda toont aankomende evenementen en belangrijke data.
+\u2022 Vandaag afwezige medewerkers zijn direct zichtbaar op het dashboard.
 \u2022 U kunt direct doorklikken naar de verschillende modules via de zijbalk.
-\u2022 Een rode badge op een module in de zijbalk betekent dat er nieuwe items zijn sinds uw laatste bezoek.`,
+\u2022 Een rode badge op een module in de zijbalk betekent dat er nieuwe items zijn sinds uw laatste bezoek.
+\u2022 Beheerder en Directeur kunnen de hero-achtergrondafbeelding van het dashboard wijzigen via de foto-knop bovenaan.`,
   },
   "/kalender": {
     title: "Kalender",
     content: `De Kalender module biedt een overzicht van alle evenementen, feestdagen en snipperdagen.
 
 \u2022 Bekijk evenementen per maand. Klik op een datum om de details van die dag te bekijken.
+\u2022 Bij de dagdetails wordt de profielfoto (avatar) van de aanmaker van elk evenement getoond.
 \u2022 Gebruik de pijltjes links/rechts om door de maanden te navigeren.
-\u2022 Beheerders kunnen evenementen toevoegen, bewerken en verwijderen via de \u201cNieuw Evenement\u201d knop.
+\u2022 Beheerder, Beheerder AZ, Directeur en Manager kunnen evenementen toevoegen, bewerken en verwijderen via de \u201cNieuw Evenement\u201d knop.
 \u2022 Categorie\u00ebn: vergadering, training, sociaal en deadline \u2014 elk met een eigen kleur.
 \u2022 Offici\u00eble feestdagen (groen) kunnen door beheerders ge\u00fcpload worden via CSV of handmatig worden toegevoegd per jaar.
 \u2022 Snipperdagen (rood) zijn verplichte vrije dagen die automatisch worden afgetrokken van ieders vakantiesaldo.
@@ -121,10 +124,11 @@ const helpContent: Record<string, { title: string; content: string }> = {
 
 \u2022 Bekijk alle aankondigingen gesorteerd op datum. Vastgepinde aankondigingen staan altijd bovenaan.
 \u2022 Aankondigingen kunnen de prioriteit \u201cHoog\u201d krijgen (rood label) of geen prioriteit (standaard).
-\u2022 Beheerders kunnen aankondigingen maken met een PDF-bijlage en deze vastzetten bovenaan de lijst.
-\u2022 Het tabblad \u201cBerichten\u201d bevat directe communicatie: beheerders/managers kunnen berichten sturen naar medewerkers.
+\u2022 Beheerder, Beheerder AZ en Directeur kunnen aankondigingen aanmaken met een PDF-bijlage en deze vastzetten bovenaan de lijst.
+\u2022 Managers en Medewerkers kunnen aankondigingen alleen bekijken, niet aanmaken.
+\u2022 Het tabblad \u201cBerichten\u201d bevat directe communicatie: Beheerder, Beheerder AZ, Directeur en Manager kunnen berichten sturen naar medewerkers.
 \u2022 Medewerkers ontvangen berichten en kunnen daarop reageren.
-\u2022 Het tabblad \u201cNieuwsbrief\u201d toont ge\u00fcploade nieuwsbrieven.
+\u2022 Het tabblad \u201cNieuwsbrief\u201d toont ge\u00fcploade nieuwsbrieven (PDF). Beheerder, Beheerder AZ en Directeur kunnen nieuwe nieuwsbrieven uploaden.
 \u2022 Een rode badge in de zijbalk geeft aan dat er nieuwe aankondigingen of berichten zijn sinds uw laatste bezoek.`,
   },
   "/organisatie": {
@@ -133,81 +137,123 @@ const helpContent: Record<string, { title: string; content: string }> = {
 
 \u2022 Afdelingen: Overzicht van alle afdelingen met managers en het aantal medewerkers per afdeling.
 \u2022 AO-Procedures: Administratieve procedures per afdeling. Beheerders kunnen procedures aanmaken met stapsgewijze instructies.
-\u2022 Organogram: Visueel organisatieschema dat de hi\u00ebrarchie toont met de directeur bovenaan, managers per afdeling en medewerkers daaronder.
-\u2022 CAO Info: Informatie over de collectieve arbeidsovereenkomst.
-\u2022 Wetgeving: Relevante wet- en regelgeving gegroepeerd per categorie, met directe links naar externe bronnen.`,
+\u2022 Organogram: Visueel organisatieschema dat de hi\u00ebrarchie toont met de directeur bovenaan, managers per afdeling en medewerkers daaronder. Inclusief pasfoto per medewerker.
+\u2022 CAO Info: Informatie over de collectieve arbeidsovereenkomst, gegroepeerd per categorie. Documenten zijn direct te downloaden.
+\u2022 Wetgeving: Relevante wet- en regelgeving gegroepeerd per categorie, met directe links naar externe bronnen.
+\u2022 Instructies & Huishoudelijk Reglement: Interne werkinstructies en het bedrijfsreglement zijn hier raadpleegbaar als PDF.`,
   },
   "/personalia": {
     title: "Personalia",
     content: `Personalia is het medewerkersoverzicht van de organisatie.
 
-\u2022 Bekijk alle medewerkers met hun naam, functie, afdeling, e-mail en telefoonnummer.
-\u2022 Gebruik de zoekbalk om snel een specifieke medewerker te vinden.
-\u2022 Beheerders kunnen nieuwe medewerkers toevoegen en bestaande gegevens bewerken (naam, functie, afdeling, contactgegevens).
-\u2022 Medewerkers kunnen actief of inactief worden gezet. Inactieve medewerkers worden niet getoond in het standaard overzicht.
-\u2022 Per medewerker is de functiehistorie (loopbaanpad) inzichtelijk.`,
+\u2022 Bekijk alle medewerkers met hun naam, functie, afdeling, e-mail en contactgegevens.
+\u2022 Gebruik de zoekbalk om snel een specifieke medewerker te vinden op naam, functie of afdeling.
+\u2022 Beheerder en Directeur kunnen nieuwe medewerkers toevoegen en alle persoonlijke gegevens bewerken: voornamen, voorvoegsel, achternaam, e-mail, afdeling, functie, datum in dienst, geboortedatum, toestelnummer, cedula-nr, kadaster-ID, telefoon- en mobielnummer en adres.
+\u2022 Medewerkers kunnen actief of inactief worden gezet via de \u201cUit Dienst\u201d knop. Inactieve medewerkers zijn zichtbaar op het tabblad \u201cInactief\u201d.
+\u2022 Per medewerker is de functiehistorie (loopbaanpad) inzichtelijk via het tabblad \u201cLoopbaan\u201d, inclusief eerdere functies met data.
+\u2022 Pasfoto\u2019s worden beheerd via het Beheer panel (Camera-knop per medewerker).`,
   },
   "/verzuim": {
     title: "Verzuim",
     content: `De Verzuim module beheert alle verlof- en afwezigheidsaanvragen.
 
 Meldingen:
-\u2022 Medewerkers dienen verlofaanvragen in (vakantie, ziek, BVVD, persoonlijk). Aanvragen komen terecht bij de beheerder/manager ter goedkeuring.
+\u2022 Medewerkers dienen verlofaanvragen in (vakantie, ziek, BVVD, persoonlijk). Aanvragen komen ter goedkeuring bij de beheerder of manager terecht.
 \u2022 BVVD (Bijzonder Verlof en Vakantie Dagen): verlof met vooraf gedefinieerde redenen zoals huwelijk, overlijden of verhuizing.
-\u2022 Beheerders/managers kunnen aanvragen individueel goedkeuren of afwijzen, of meerdere tegelijk selecteren via het selectievakje in de kolom \u201cActie\u201d en dan \u201cAlles Goedkeuren\u201d.
+\u2022 Statussen: In behandeling (geel), Goedgekeurd (groen), Afgewezen (rood), Geannuleerd (oranje).
+\u2022 Een oranje \u201cGecanceld\u201d label geeft aan dat de medewerker heeft verzocht een goedgekeurde aanvraag te annuleren. Beheerder of Directeur beslist hierover.
+\u2022 Beheerder, Beheerder AZ en Directeur zien en beheren aanvragen van alle afdelingen.
+\u2022 Manager ziet en beheert alleen aanvragen van medewerkers uit de eigen afdeling.
+\u2022 Meerdere aanvragen tegelijk goedkeuren: gebruik de selectievakjes per aanvraag en klik \u201cAlles Goedkeuren\u201d.
 
 Overzicht:
 \u2022 Afwezigheidsrapport: overzicht van alle afwezigheden per afdeling en medewerker, filterbaar op periode.
+\u2022 Manager ziet het rapport gefilterd op de eigen afdeling.
 
 Vakantiesaldo:
 \u2022 Recht: het aantal vakantiedagen waarop een medewerker recht heeft per 1 januari.
 \u2022 Saldo Oud: het resterende saldo van het vorige jaar (per 31 december), overgedragen naar het nieuwe jaar.
 \u2022 Totaal: Recht + Saldo Oud.
 \u2022 Saldo Nieuw: het resterende saldo na aftrek van toegekende, geplande dagen en snipperdagen.
-\u2022 Beheerders kunnen via \u201cVakantierecht Instellen\u201d het Recht en Saldo Oud per medewerker instellen.
-\u2022 Snipperdagen zijn verplichte vrije dagen die door beheerders worden toegevoegd en automatisch van ieders saldo worden afgetrokken.`,
+\u2022 Beheerder, Beheerder AZ en Directeur kunnen via \u201cVakantierecht Instellen\u201d het Recht en Saldo Oud per medewerker aanpassen.
+\u2022 Snipperdagen zijn verplichte vrije dagen die door beheerders worden toegevoegd en automatisch van ieders saldo worden afgetrokken.
+\u2022 Manager ziet alleen het vakantiesaldo van de eigen afdeling.`,
   },
   "/beloningen": {
     title: "Beloningen",
     content: `De Beloningen module bevat vier onderdelen voor prestatiebeheer.
 
-\u2022 Functionering: Functioneringsgesprekken per medewerker per jaar. Bevat ontwikkelpunten, afspraken en opmerkingen. Filterbaar op jaar.
-\u2022 Beoordeling: Beoordelingsgesprekken op basis van competenties per functie. Beheerders configureren competenties met normeringen (score 1\u20135 met beschrijvingen per niveau). Het totaal en gemiddelde worden automatisch berekend.
-\u2022 Jaarplan: Jaarlijkse planning per medewerker. Selecteer eerst een afdeling, dan een medewerker. Per afspraak wordt de voortgang bijgehouden met statussen: niet gestart, in uitvoering, op schema, vertraagd, afgerond of geannuleerd.
-\u2022 Beloning: Puntensysteem waarmee medewerkers beloond worden. Het leaderboard toont de ranglijst.`,
+Functionering:
+\u2022 Functioneringsgesprekken per medewerker per jaar. Bevat ontwikkelpunten, afspraken en opmerkingen. Filterbaar op jaar.
+\u2022 Beheerder, Beheerder AZ en Directeur kunnen formulieren invullen voor alle medewerkers.
+\u2022 Manager kan functioneringsgesprekken invullen en beheren voor medewerkers uit de eigen afdeling.
+\u2022 Medewerkers zien alleen hun eigen functioneringsgesprekken (alleen-lezen).
+
+Beoordeling:
+\u2022 Beoordelingsgesprekken op basis van competenties per functie (score 1\u20135 per competentie). Totaal en gemiddelde worden automatisch berekend.
+\u2022 Competenties instellen en beheren: alleen toegankelijk voor Beheerder, Beheerder AZ en Directeur.
+\u2022 Beheerder, Beheerder AZ en Directeur kunnen beoordelingen invullen voor alle medewerkers.
+\u2022 Manager kan beoordelingen invullen voor medewerkers uit de eigen afdeling.
+
+Jaarplan:
+\u2022 Jaarlijkse planning per medewerker met voortgangsstatussen: niet gestart, in uitvoering, op schema, vertraagd, afgerond of geannuleerd.
+\u2022 Beheerder, Beheerder AZ en Directeur kiezen vrij een afdeling en medewerker.
+\u2022 Manager kiest automatisch de eigen afdeling en selecteert een medewerker uit de eigen afdeling.
+
+Beloning (Jaaraward):
+\u2022 Puntensysteem waarmee medewerkers beloond worden. Het leaderboard toont de ranglijst van alle medewerkers.
+\u2022 Alleen Beheerder, Beheerder AZ en Directeur kunnen beloningspunten toekennen of verwijderen.
+\u2022 Alle medewerkers kunnen het leaderboard bekijken.`,
   },
   "/applicaties": {
     title: "Applicaties",
     content: `De Applicaties module beheert toegang tot externe applicaties en systemen.
 
 \u2022 Bekijk alle beschikbare applicaties met hun beschrijving en directe link.
-\u2022 Beheerders kunnen nieuwe applicaties toevoegen, bewerken of verwijderen.
+\u2022 Beheerder, Beheerder AZ en Directeur kunnen nieuwe applicaties toevoegen, bewerken of verwijderen.
 \u2022 Per applicatie kan worden ingesteld welke medewerkers toegang hebben.
-\u2022 Klik op een applicatie om deze te openen in een nieuw venster.`,
+\u2022 Klik op een applicatie-tegel om deze te openen in een nieuw venster.`,
+  },
+  "/rapporten": {
+    title: "Rapporten",
+    content: `De Rapporten module biedt afdrukbare overzichten van medewerkergegevens.
+
+\u2022 Medewerkersinformatie: volledig overzicht van alle medewerkers met persoonsgegevens, contactgegevens en functie-informatie. Afdrukbaar via de \u201cAfdrukken\u201d knop.
+\u2022 Verjaardagen: overzicht van alle medewerkers gesorteerd op geboortedatum (dag en maand). Handig voor jubileumplanning.
+\u2022 Dienstjaren: overzicht van het aantal dienstjaren per medewerker, berekend op basis van de datum in dienst.
+\u2022 Rapporten zijn toegankelijk voor Beheerder, Beheerder AZ, Directeur en Manager.
+\u2022 De hero-achtergrondafbeelding van de Rapporten pagina kan door Beheerder en Directeur worden gewijzigd via het Beheer panel.`,
   },
   "/beheer": {
     title: "Beheer",
-    content: `Het Beheer panel is alleen toegankelijk voor administrators (admin/directeur).
+    content: `Het Beheer panel is alleen toegankelijk voor Beheerder (admin) en Directeur.
 
 \u2022 Gebruikers & Rechten: Beheer de toegangsrechten van elke medewerker. Per medewerker kunt u instellen welke modules zichtbaar zijn in de zijbalk. Gebruik \u201cAlles selecteren\u201d of \u201cAlles wissen\u201d voor snelle aanpassingen.
+\u2022 Pasfoto: Upload of wijzig de profielfoto van een medewerker via de \u201cPasfoto\u201d knop (camera-icoon) naast de medewerker in de lijst.
 \u2022 Wachtwoord resetten: Stel een nieuw wachtwoord in voor een medewerker via de \u201cWachtwoord\u201d knop. Het wachtwoord moet minimaal 8 tekens lang zijn.
 \u2022 Inlogpagina achtergrond: Upload een nieuwe achtergrondafbeelding voor het inlogscherm.
+\u2022 Rapporten pagina achtergrond: Upload een nieuwe hero-afbeelding voor de Rapporten pagina.
+\u2022 Afdelingen: Beheer afdelingen \u2014 aanmaken, bewerken, verwijderen en een manager toewijzen.
+\u2022 Functies: Beheer functies/job-titels \u2014 aanmaken, bewerken, verwijderen en een functiebeschrijving uploaden (PDF).
 
 Rollen:
-\u2022 Directeur: volledige toegang tot alle modules en kan alle verlofaanvragen goedkeuren, inclusief die van managers en admins.
-\u2022 Admin: toegang tot alle modules, kan verlofaanvragen van medewerkers goedkeuren.
-\u2022 Manager: toegang tot de meeste modules (behalve Beheer), kan verlofaanvragen van medewerkers in eigen afdeling goedkeuren.
-\u2022 Medewerker: toegang tot Dashboard, Kalender, Aankondigingen, Verzuim en Beloningen.`,
+\u2022 Directeur: volledige toegang tot alle modules en kan alle verlofaanvragen goedkeuren, inclusief die van managers en beheerders.
+\u2022 Beheerder (admin): volledige toegang tot alle modules inclusief Beheer panel. Kan verlofaanvragen van alle medewerkers goedkeuren.
+\u2022 Beheerder AZ (manager_az): toegang tot bijna alle modules (uitgezonderd Beheer panel). Kan verlofaanvragen van alle medewerkers goedkeuren en heeft volledige schrijfrechten in Beloningen voor alle medewerkers.
+\u2022 Manager: toegang tot de meeste modules (uitgezonderd Beheer panel). Beheert verlofaanvragen en vult Beloningen in uitsluitend voor medewerkers uit de eigen afdeling. Kan geen aankondigingen aanmaken.
+\u2022 Medewerker: toegang tot Dashboard, Kalender, Aankondigingen, Verzuim, Beloningen en Applicaties (conform de toegewezen modules).
+
+Zie het rechtenoverzicht hieronder voor een volledig overzicht per module en rol.`,
   },
   "/profiel": {
     title: "Mijn Profiel",
     content: `Op de profielpagina vindt u uw persoonlijke gegevens en overzichten.
 
-\u2022 Bekijk uw persoonlijke informatie zoals naam, e-mail, afdeling, functie en startdatum.
-\u2022 Overzicht van uw verlofaanvragen met status en vakantiedagen saldo.
-\u2022 Bekijk uw beloningspunten en positie op het leaderboard.
-\u2022 Overzicht van de modules waartoe u toegang heeft.
-\u2022 Uw loopbaanpad (functiehistorie) is hier inzichtelijk.`,
+\u2022 Bekijk uw persoonlijke informatie zoals naam, e-mail, afdeling, functie, startdatum en contactgegevens.
+\u2022 Overzicht van uw verlofaanvragen met status (in behandeling, goedgekeurd, afgewezen, geannuleerd) en uw actueel vakantiedagensaldo.
+\u2022 Bekijk uw beloningspunten en uw positie op het leaderboard.
+\u2022 Overzicht van de modules waartoe u toegang heeft binnen het systeem.
+\u2022 Uw loopbaanpad (functiehistorie) is hier inzichtelijk \u2014 inclusief eerdere functies met start- en einddatum.`,
   },
 };
 
