@@ -392,9 +392,12 @@ function AbsenceReportDialog({
         .sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl") || a.startDate.localeCompare(b.startDate))
         .map(a => {
           const days = countBusinessDays(a.startDate, a.endDate, a.halfDay);
-          const reason = a.type === "bvvd" && a.bvvdReason
+          const baseReason = a.type === "bvvd" && a.bvvdReason
             ? a.bvvdReason + (a.reason ? ` - ${a.reason}` : "")
             : a.reason || "-";
+          const reason = a.status === "cancelled" && (a as any).cancelReason
+            ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(a as any).cancelReason}`
+            : baseReason;
           const halfDayLabel = a.halfDay === "am" ? " (Ochtend)" : a.halfDay === "pm" ? " (Middag)" : "";
           const statusColor = a.status === "approved" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : a.status === "cancelled" ? "#ea580c" : "#6b7280";
           return `<tr>
@@ -596,9 +599,12 @@ function AbsenceReportDialog({
                       .sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl") || a.startDate.localeCompare(b.startDate))
                       .map(absence => {
                         const days = countBusinessDays(absence.startDate, absence.endDate, absence.halfDay);
-                        const displayReason = absence.type === "bvvd" && absence.bvvdReason
+                        const baseReason = absence.type === "bvvd" && absence.bvvdReason
                           ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
                           : absence.reason || "-";
+                        const displayReason = absence.status === "cancelled" && (absence as any).cancelReason
+                          ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
+                          : baseReason;
                         return (
                           <TableRow key={absence.id} data-testid={`row-report-${absence.id}`}>
                             <TableCell className="font-medium text-sm pl-6">
@@ -908,6 +914,7 @@ export default function VerzuimPage() {
   const [irregularOpen, setIrregularOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [snipperdagOpen, setSnipperdagOpen] = useState(false);
+  const [cancelDetailAbsence, setCancelDetailAbsence] = useState<any | null>(null);
   const [snipperdagName, setSnipperdagName] = useState("");
   const [snipperdagDate, setSnipperdagDate] = useState("");
   const [rechtOpen, setRechtOpen] = useState(false);
@@ -1718,8 +1725,15 @@ export default function VerzuimPage() {
                                 const displayReason = absence.status === "cancelled" && (absence as any).cancelReason
                                   ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
                                   : baseReason;
+                                const isCancelledWithReason = absence.status === "cancelled" && !!(absence as any).cancelReason;
                                 return (
-                                  <TableRow key={absence.id} data-testid={`row-overzicht-${absence.id}`}>
+                                  <TableRow
+                                    key={absence.id}
+                                    data-testid={`row-overzicht-${absence.id}`}
+                                    className={isCancelledWithReason ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
+                                    onClick={isCancelledWithReason ? () => setCancelDetailAbsence(absence) : undefined}
+                                    title={isCancelledWithReason ? "Klik om annuleringsreden te bekijken" : undefined}
+                                  >
                                     <TableCell className="font-medium text-sm pl-6">
                                       {(absence as any).userName || "Medewerker"}
                                     </TableCell>
@@ -1735,10 +1749,15 @@ export default function VerzuimPage() {
                                       {displayReason}
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
-                                        <StatusIcon className="h-3 w-3" />
-                                        {sc.label}
-                                      </Badge>
+                                      <div className="flex items-center gap-1.5">
+                                        <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
+                                          <StatusIcon className="h-3 w-3" />
+                                          {sc.label}
+                                        </Badge>
+                                        {isCancelledWithReason && (
+                                          <span className="text-xs text-orange-500 underline underline-offset-2">reden</span>
+                                        )}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
                                 );
@@ -1992,6 +2011,42 @@ export default function VerzuimPage() {
         </Card>
       )}
       </div>
+
+      {cancelDetailAbsence && (
+        <Dialog open={!!cancelDetailAbsence} onOpenChange={(v) => { if (!v) setCancelDetailAbsence(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Ban className="h-4 w-4 text-orange-500" />
+                Reden voor annulering
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Medewerker</span>
+                <span className="font-medium">{cancelDetailAbsence.userName || "Medewerker"}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Periode</span>
+                <span>{formatDate(cancelDetailAbsence.startDate)}{cancelDetailAbsence.startDate !== cancelDetailAbsence.endDate ? ` t/m ${formatDate(cancelDetailAbsence.endDate)}` : ""}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Type</span>
+                <span>{({ sick: "Ziekte", vacation: "Vakantie", personal: "Geoorloofd", other: "Ongeoorloofd", bvvd: "BVVD" } as any)[cancelDetailAbsence.type] || cancelDetailAbsence.type}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Reden voor annulering</span>
+                <p className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-md px-3 py-2 text-orange-900 dark:text-orange-200 leading-relaxed">
+                  {cancelDetailAbsence.cancelReason}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end mt-1">
+              <Button variant="outline" size="sm" onClick={() => setCancelDetailAbsence(null)}>Sluiten</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
