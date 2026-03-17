@@ -37,6 +37,7 @@ import type { Event, User, OfficialHoliday, Snipperdag } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 function getKalenderLastSeenKey(userId: string) {
   return `kalender_last_seen_${userId}`;
@@ -129,6 +130,7 @@ interface CalendarEntry {
   time?: string | null;
   location?: string | null;
   event?: Event;
+  createdByUser?: User;
 }
 
 function getDutchHolidays(year: number): CalendarEntry[] {
@@ -435,6 +437,12 @@ function DayDetail({
                 ? categoryColors[entry.category] || ""
                 : conf.color;
 
+              const creator = entry.createdByUser;
+              const creatorInitials = creator
+                ? [creator.voornamen || creator.fullName?.split(" ")[0], creator.achternaam || creator.fullName?.split(" ").slice(-1)[0]]
+                    .filter(Boolean).map(s => s![0].toUpperCase()).join("")
+                : "";
+
               return (
                 <div key={entry.id} className="flex items-start gap-3 p-2 rounded-md hover-elevate" data-testid={`detail-entry-${entry.id}`}>
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${colorClass || "bg-muted"}`}>
@@ -458,6 +466,17 @@ function DayDetail({
                         </span>
                       )}
                     </div>
+                    {entry.type === "event" && creator && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Avatar className="h-5 w-5">
+                          {creator.avatar && <AvatarImage src={creator.avatar} alt={creator.fullName || ""} className="object-cover" />}
+                          <AvatarFallback className="text-[8px] bg-[hsl(48,96%,53%)] text-[hsl(152,30%,10%)] font-semibold">
+                            {creatorInitials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs text-muted-foreground">{creator.fullName}</span>
+                      </div>
+                    )}
                   </div>
                   {entry.type === "event" && entry.event && canManage && (
                     <div className="flex gap-1 shrink-0">
@@ -778,6 +797,7 @@ export default function KalenderPage() {
 
     if (events) {
       for (const ev of events) {
+        const creator = ev.createdBy ? users?.find(u => u.id === ev.createdBy) : undefined;
         entries.push({
           id: `event-${ev.id}`,
           title: ev.title,
@@ -788,6 +808,7 @@ export default function KalenderPage() {
           time: ev.time,
           location: ev.location,
           event: ev,
+          createdByUser: creator,
         });
       }
     }
