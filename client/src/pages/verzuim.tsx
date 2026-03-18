@@ -723,8 +723,11 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
   });
 
   const cancelledDates = useMemo(() => {
-    const map = new Map<string, string>(); // date → absenceId
-    for (const c of dayCancellations || []) map.set(c.cancelledDate, c.absenceId);
+    const map = new Map<string, Set<string>>(); // date → Set of absenceIds
+    for (const c of dayCancellations || []) {
+      if (!map.has(c.cancelledDate)) map.set(c.cancelledDate, new Set());
+      map.get(c.cancelledDate)!.add(c.absenceId);
+    }
     return map;
   }, [dayCancellations]);
 
@@ -740,8 +743,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
         if (dow !== 0 && dow !== 6) {
           const dateStr = cur.toISOString().split("T")[0];
           const existing = map[dateStr];
-          const thisCancelled = cancelledDates.get(dateStr) === abs.id;
-          const existingCancelled = existing && cancelledDates.get(dateStr) === existing.id;
+          const thisCancelled = cancelledDates.get(dateStr)?.has(abs.id) ?? false;
+          const existingCancelled = !!(existing && (cancelledDates.get(dateStr)?.has(existing.id) ?? false));
           if (!existing || (existingCancelled && !thisCancelled)) {
             map[dateStr] = abs;
           }
@@ -825,7 +828,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             const dow = date.getDay();
             const isWeekend = dow === 0 || dow === 6;
             const absence = dateToAbsence[dateStr];
-            const isCancelledDay = !!absence && cancelledDates.get(dateStr) === absence.id;
+            const isCancelledDay = !!absence && (cancelledDates.get(dateStr)?.has(absence.id) ?? false);
             const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
 
             let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none relative";
