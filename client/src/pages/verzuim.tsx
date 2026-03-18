@@ -723,9 +723,9 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
   });
 
   const cancelledDates = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of dayCancellations || []) set.add(c.cancelledDate);
-    return set;
+    const map = new Map<string, string>(); // date → absenceId
+    for (const c of dayCancellations || []) map.set(c.cancelledDate, c.absenceId);
+    return map;
   }, [dayCancellations]);
 
   const dateToAbsence = useMemo(() => {
@@ -738,13 +738,19 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
       while (cur <= end) {
         const dow = cur.getDay();
         if (dow !== 0 && dow !== 6) {
-          map[cur.toISOString().split("T")[0]] = abs;
+          const dateStr = cur.toISOString().split("T")[0];
+          const existing = map[dateStr];
+          const thisCancelled = cancelledDates.get(dateStr) === abs.id;
+          const existingCancelled = existing && cancelledDates.get(dateStr) === existing.id;
+          if (!existing || (existingCancelled && !thisCancelled)) {
+            map[dateStr] = abs;
+          }
         }
         cur.setDate(cur.getDate() + 1);
       }
     }
     return map;
-  }, [userAbsences]);
+  }, [userAbsences, cancelledDates]);
 
   const cancelMutation = useMutation({
     mutationFn: async ({ absenceId, cancelledDate, reason }: { absenceId: string; cancelledDate: string; reason: string }) => {
@@ -819,7 +825,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             const dow = date.getDay();
             const isWeekend = dow === 0 || dow === 6;
             const absence = dateToAbsence[dateStr];
-            const isCancelledDay = cancelledDates.has(dateStr);
+            const isCancelledDay = !!absence && cancelledDates.get(dateStr) === absence.id;
             const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
 
             let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none relative";
