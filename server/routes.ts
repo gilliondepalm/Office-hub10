@@ -1105,7 +1105,7 @@ export async function registerRoutes(
         const futureCancelDays = Math.max(0, cancelDays - pastCancelDays);
         const toegekendDays = Math.max(0, countDays(approved) - cancelDays);
         const geplandDays = countDays(pending);
-        const opgenomenDays = Math.max(0, countDays(futureApproved) - futureCancelDays);
+        const opgenomenDays = Math.max(0, countDaysUpTo(approved, todayStr) - pastCancelDays);
         const sickDays = Math.max(0, countDays(userSickAbsences) - (perDaySickCancelByUser[u.id] || 0));
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
