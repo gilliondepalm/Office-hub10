@@ -155,29 +155,40 @@ const helpContent: Record<string, { title: string; content: string }> = {
   },
   "/verzuim": {
     title: "Verzuim",
-    content: `De Verzuim module beheert alle verlof- en afwezigheidsaanvragen.
+    content: `De Verzuim module beheert alle verlof- en afwezigheidsaanvragen voor de hele organisatie.
 
 Meldingen:
-\u2022 Medewerkers dienen verlofaanvragen in (vakantie, ziek, BVVD, persoonlijk). Aanvragen komen ter goedkeuring bij de beheerder of manager terecht.
-\u2022 BVVD (Bijzonder Verlof en Vakantie Dagen): verlof met vooraf gedefinieerde redenen zoals huwelijk, overlijden of verhuizing.
-\u2022 Statussen: In behandeling (geel), Goedgekeurd (groen), Afgewezen (rood), Geannuleerd (oranje).
-\u2022 Een oranje \u201cGecanceld\u201d label geeft aan dat de medewerker heeft verzocht een goedgekeurde aanvraag te annuleren. Beheerder of Directeur beslist hierover.
+\u2022 Dien zelf een verlofaanvraag in via \u201cNieuw Verzoek\u201d: kies het type (Vakantie, Ziekte, BVVD, Geoorloofd of Ongeoorloofd), de periode en eventueel een reden.
+\u2022 BVVD (Bijzonder Verlof en Vakantie Dagen): verlof met vooraf gedefinieerde redenen zoals huwelijk, overlijden, bevalling of verhuizing. Geef altijd een reden op.
+\u2022 Na indiening is de aanvraag zichtbaar met status \u201cIn behandeling\u201d (geel). Na beoordeling verandert de status naar Goedgekeurd (groen) of Afgewezen (rood).
+\u2022 Gecanceld (oranje): een goedgekeurde aanvraag is handmatig geannuleerd door een beheerder.
 \u2022 Beheerder, Beheerder AZ en Directeur zien en beheren aanvragen van alle afdelingen.
 \u2022 Manager ziet en beheert alleen aanvragen van medewerkers uit de eigen afdeling.
 \u2022 Meerdere aanvragen tegelijk goedkeuren: gebruik de selectievakjes per aanvraag en klik \u201cAlles Goedkeuren\u201d.
+\u2022 Afwezigheidsrapport: PDF-overzicht van alle afwezigheden per afdeling en medewerker, filterbaar op periode.
 
 Overzicht:
-\u2022 Afwezigheidsrapport: overzicht van alle afwezigheden per afdeling en medewerker, filterbaar op periode.
-\u2022 Manager ziet het rapport gefilterd op de eigen afdeling.
+\u2022 Toont alle verwerkte aanvragen: goedgekeurd, afgewezen en gecanceld.
+\u2022 Gecancelde aanvragen zijn klikbaar \u2014 klik op \u201cdetails\u201d om de annuleringsreden te bekijken.
+\u2022 Per-dag annuleringen verschijnen als aparte rijen met een oranje \u201cdag\u201d markering en de specifieke datum.
 
 Vakantiesaldo:
-\u2022 Recht: het aantal vakantiedagen waarop een medewerker recht heeft per 1 januari.
-\u2022 Saldo Oud: het resterende saldo van het vorige jaar (per 31 december), overgedragen naar het nieuwe jaar.
-\u2022 Totaal: Recht + Saldo Oud.
-\u2022 Saldo Nieuw: het resterende saldo na aftrek van toegekende, geplande dagen en snipperdagen.
-\u2022 Beheerder, Beheerder AZ en Directeur kunnen via \u201cVakantierecht Instellen\u201d het Recht en Saldo Oud per medewerker aanpassen.
-\u2022 Snipperdagen zijn verplichte vrije dagen die door beheerders worden toegevoegd en automatisch van ieders saldo worden afgetrokken.
-\u2022 Manager ziet alleen het vakantiesaldo van de eigen afdeling.`,
+\u2022 Recht: het aantal vakantiedagen waarop een medewerker recht heeft per 1 januari van het huidige jaar.
+\u2022 Saldo Oud: het resterende saldo van het vorige jaar (per 31 december), automatisch overgedragen.
+\u2022 Totaal: Recht + Saldo Oud \u2014 het totale beschikbare saldo aan het begin van het jaar.
+\u2022 Saldo Nieuw: het resterende saldo na aftrek van goedgekeurde vakantiedagen, geplande dagen en snipperdagen.
+\u2022 Beheerder, Beheerder AZ en Directeur passen via \u201cVakantierecht Instellen\u201d het Recht en Saldo Oud per medewerker aan.
+\u2022 Snipperdagen: verplichte vrije dagen toegevoegd door beheerders; worden automatisch van ieders saldo afgetrokken.
+\u2022 Manager ziet alleen het vakantiesaldo van de eigen afdeling.
+
+Cancel Verzuim:
+\u2022 Alleen toegankelijk voor Beheerder, Beheerder AZ en Directeur.
+\u2022 Selecteer een afdeling en medewerker om de verlofkalender te tonen.
+\u2022 Klik op een specifieke dag (vakantie, ziekte of BVVD) in de kalender om die dag te annuleren.
+\u2022 Per annulering kan een reden worden opgegeven.
+\u2022 Bij annulering van een vakantiedag wordt automatisch 1 dag teruggestort op het vakantiesaldo van de medewerker.
+\u2022 Bij annulering van een ziektedag of BVVD-dag heeft dit geen effect op het vakantiesaldo.
+\u2022 Alle gecancelde dagen zijn zichtbaar in de tabel \u201cGecancelde dagen\u201d onderaan de kalender.`,
   },
   "/beloningen": {
     title: "Beloningen",
