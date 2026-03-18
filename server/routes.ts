@@ -1234,6 +1234,22 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/absences/:id", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const absence = await storage.getAbsenceById(req.params.id);
+      if (!absence) return res.status(404).json({ message: "Melding niet gevonden" });
+      const canDelete = isAdminRole(currentUser.role) || canManageVacation(currentUser.role) || absence.userId === currentUser.id;
+      if (!canDelete) return res.status(403).json({ message: "Geen rechten om deze melding te verwijderen" });
+      await storage.deleteAbsence(req.params.id);
+      res.json({ message: "Verwijderd" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Verwijderen mislukt" });
+    }
+  });
+
   app.get("/api/absences/user/:userId", requireAdmin, async (req, res) => {
     try {
       const absenceList = await storage.getAbsencesByUser(req.params.userId);

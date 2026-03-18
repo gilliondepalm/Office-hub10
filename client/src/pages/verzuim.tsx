@@ -33,6 +33,36 @@ import { isAdminRole, canManageVacation } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateShort } from "@/lib/dateUtils";
 
+function findDuplicateAbsenceIds(
+  absences: Array<{ id: string; userId: string; startDate: string; endDate: string; halfDay?: string | null; status: string; createdAt?: string | Date | null }>
+): Set<string> {
+  const active = absences.filter(a => a.status === "pending" || a.status === "approved");
+  const byUser = new Map<string, typeof active>();
+  for (const a of active) {
+    if (!byUser.has(a.userId)) byUser.set(a.userId, []);
+    byUser.get(a.userId)!.push(a);
+  }
+  const duplicateIds = new Set<string>();
+  for (const [, userAbsences] of byUser) {
+    for (let i = 0; i < userAbsences.length; i++) {
+      for (let j = i + 1; j < userAbsences.length; j++) {
+        const a = userAbsences[i];
+        const b = userAbsences[j];
+        if (a.endDate < b.startDate || b.endDate < a.startDate) continue;
+        const aHalf = a.halfDay || "full";
+        const bHalf = b.halfDay || "full";
+        const conflicts = aHalf === "full" || bHalf === "full" || aHalf === bHalf;
+        if (conflicts) {
+          const aTime = a.createdAt ? new Date(String(a.createdAt)).getTime() : 0;
+          const bTime = b.createdAt ? new Date(String(b.createdAt)).getTime() : 0;
+          duplicateIds.add(bTime >= aTime ? b.id : a.id);
+        }
+      }
+    }
+  }
+  return duplicateIds;
+}
+
 const BVVD_REASONS = [
   "Huwelijk/geregistreerd partnerschap",
   "Huwelijk bloed-/aanverwant",
@@ -1088,6 +1118,20 @@ export default function VerzuimPage() {
     },
   });
 
+  const deleteAbsenceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/absences/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/absences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      toast({ title: "Melding verwijderd" });
+    },
+    onError: () => {
+      toast({ title: "Verwijderen mislukt", variant: "destructive" });
+    },
+  });
+
   const createSnipperdagMutation = useMutation({
     mutationFn: async (data: { name: string; date: string }) => {
       await apiRequest("POST", "/api/snipperdagen", data);
@@ -1176,6 +1220,11 @@ export default function VerzuimPage() {
   const deptFilteredUsers = isPureManager && myDept
     ? (allUsers || []).filter(u => u.department === myDept)
     : (allUsers || []);
+
+  const duplicateAbsenceIds = useMemo(
+    () => findDuplicateAbsenceIds(deptFilteredAbsences),
+    [deptFilteredAbsences]
+  );
 
   const canApprove = (absence: any) => {
     if (absence.status !== "pending" || absence.userId === user?.id) return false;
@@ -1684,13 +1733,38 @@ export default function VerzuimPage() {
                                 ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
                                 : baseReason;
                               const isApprovable = canApprove(absence);
+                              const isDuplicate = duplicateAbsenceIds.has(absence.id);
+                              const canDeleteThis = isAdminOrManager || absence.userId === user?.id;
                               return (
-                                <TableRow key={absence.id} data-testid={`row-absence-${absence.id}`}>
+                                <TableRow key={absence.id} data-testid={`row-absence-${absence.id}`} className={isDuplicate ? "bg-red-50/40 dark:bg-red-950/20" : ""}>
                                   <TableCell className={`font-medium text-sm ${isAdminOrManager ? "pl-6" : ""}`}>
                                     {(absence as any).userName || "Medewerker"}
                                   </TableCell>
                                   <TableCell>
-                                    <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                    <div className="flex flex-col gap-0.5">
+                                      <div className="flex items-center gap-1">
+                                        <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                        {isDuplicate && <span className="text-destructive font-bold text-sm leading-none">*</span>}
+                                      </div>
+                                      {isDuplicate && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-xs text-destructive font-medium">Invoer dubbelvoudig, kan niet</span>
+                                          {canDeleteThis && (
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className="h-5 w-5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              onClick={() => deleteAbsenceMutation.mutate(absence.id)}
+                                              disabled={deleteAbsenceMutation.isPending}
+                                              data-testid={`button-delete-duplicate-${absence.id}`}
+                                              title="Verwijder dubbele invoer"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
                                     {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
@@ -1823,16 +1897,40 @@ export default function VerzuimPage() {
                                     ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${absence.cancelReason}`
                                     : baseReason;
                                   const isCancelled = absence.status === "cancelled";
+                                  const isDupOvz = duplicateAbsenceIds.has(absence.id);
                                   return (
                                     <TableRow
                                       key={`abs-${absence.id}`}
                                       data-testid={`row-overzicht-${absence.id}`}
-                                      className={isCancelled ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
+                                      className={isDupOvz ? "bg-red-50/40 dark:bg-red-950/20" : isCancelled ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
                                       onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
                                       title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
                                     >
                                       <TableCell className="font-medium text-sm pl-6">{absence.userName || "Medewerker"}</TableCell>
-                                      <TableCell><Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge></TableCell>
+                                      <TableCell>
+                                        <div className="flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-1">
+                                            <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                            {isDupOvz && <span className="text-destructive font-bold text-sm leading-none">*</span>}
+                                          </div>
+                                          {isDupOvz && (
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs text-destructive font-medium">Invoer dubbelvoudig, kan niet</span>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-5 w-5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                onClick={(e) => { e.stopPropagation(); deleteAbsenceMutation.mutate(absence.id); }}
+                                                disabled={deleteAbsenceMutation.isPending}
+                                                data-testid={`button-delete-duplicate-ovz-${absence.id}`}
+                                                title="Verwijder dubbele invoer"
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </TableCell>
                                       <TableCell className="text-sm text-muted-foreground">
                                         {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
                                         {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
