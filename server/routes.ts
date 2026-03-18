@@ -1211,10 +1211,10 @@ export async function registerRoutes(
   app.get("/api/absences/user/:userId", requireAdmin, async (req, res) => {
     try {
       const absenceList = await storage.getAbsencesByUser(req.params.userId);
-      const vacationOnly = absenceList.filter(a =>
-        a.type === "vacation" && (a.status === "pending" || a.status === "approved")
+      const active = absenceList.filter(a =>
+        a.status === "pending" || a.status === "approved"
       );
-      res.json(vacationOnly);
+      res.json(active);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Fout bij ophalen" });
     }
