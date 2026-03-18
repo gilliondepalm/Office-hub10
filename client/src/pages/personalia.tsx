@@ -1026,6 +1026,7 @@ export default function PersonaliaPage() {
   const [personelTab, setPersonelTab] = useState<"actief" | "oud">("actief");
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const canEditPersonalia = isAdminRole(currentUser?.role) || currentUser?.role === "manager_az";
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -1131,13 +1132,13 @@ export default function PersonaliaPage() {
     <div className="overflow-auto h-full">
       <PageHero
         title="Personalia"
-        subtitle={isAdminRole(currentUser?.role) ? "Overzicht van alle medewerkers" : "Uw persoonlijke gegevens"}
+        subtitle={canEditPersonalia ? "Overzicht van alle medewerkers" : "Uw persoonlijke gegevens"}
         imageSrc="/uploads/App_pics/personalia.png"
         imageAlt="personalia"
       />
       <div className="p-6 space-y-6">
       <div className="flex items-center justify-end gap-4 flex-wrap">
-        {isAdminRole(currentUser?.role) && personelTab === "actief" && (
+        {canEditPersonalia && personelTab === "actief" && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-user">
@@ -1348,7 +1349,7 @@ export default function PersonaliaPage() {
           user={historyUser}
           open={!!historyUser}
           onOpenChange={(open) => { if (!open) setHistoryUser(null); }}
-          isAdmin={isAdminRole(currentUser?.role)}
+          isAdmin={canEditPersonalia}
         />
       )}
 
@@ -1357,11 +1358,11 @@ export default function PersonaliaPage() {
           user={devUser}
           open={!!devUser}
           onOpenChange={(open) => { if (!open) setDevUser(null); }}
-          isAdmin={isAdminRole(currentUser?.role)}
+          isAdmin={canEditPersonalia}
         />
       )}
 
-      {isAdminRole(currentUser?.role) && (
+      {canEditPersonalia && (
         <div className="flex gap-1 border-b" data-testid="tabs-personalia">
           {([
             { key: "actief", label: "Actieve Medewerkers" },
@@ -1384,8 +1385,8 @@ export default function PersonaliaPage() {
       )}
 
       {(() => {
-        const allVisible = isAdminRole(currentUser?.role) ? users : users?.filter(u => u.id === currentUser?.id);
-        const visibleUsers = isAdminRole(currentUser?.role)
+        const allVisible = canEditPersonalia ? users : users?.filter(u => u.id === currentUser?.id);
+        const visibleUsers = canEditPersonalia
           ? (personelTab === "oud" ? allVisible?.filter(u => !u.active) : allVisible?.filter(u => u.active !== false))
           : allVisible?.filter(u => u.active !== false);
         if (!visibleUsers || visibleUsers.length === 0) return (
@@ -1517,7 +1518,7 @@ export default function PersonaliaPage() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center justify-end gap-1">
-                                      {(isAdminRole(currentUser?.role) || currentUser?.id === u.id) && (
+                                      {(canEditPersonalia || currentUser?.id === u.id) && (
                                         <>
                                           <Button
                                             size="icon"
@@ -1539,7 +1540,7 @@ export default function PersonaliaPage() {
                                           </Button>
                                         </>
                                       )}
-                                      {isAdminRole(currentUser?.role) && (
+                                      {canEditPersonalia && (
                                         <>
                                           <Button
                                             size="icon"

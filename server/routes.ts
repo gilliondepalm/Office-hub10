@@ -245,6 +245,17 @@ export async function registerRoutes(
     next();
   }
 
+  async function requirePersonaliaAdmin(req: any, res: any, next: any) {
+    const userId = (req.session as any).userId;
+    if (!userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const user = await storage.getUser(userId);
+    if (!user || (!isAdminRole(user.role) && user.role !== "manager_az")) {
+      return res.status(403).json({ message: "Geen toegang - alleen beheerders" });
+    }
+    req.user = user;
+    next();
+  }
+
   const express = await import("express");
 
   app.use("/PDF", express.default.static(path.join(process.cwd(), "PDF")));
@@ -749,7 +760,7 @@ export async function registerRoutes(
     res.json(allUsers.map(({ password: _, ...u }) => u));
   });
 
-  app.post("/api/users", requireAdmin, async (req, res) => {
+  app.post("/api/users", requirePersonaliaAdmin, async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);
       if (parsed.password.length < 8) {
@@ -764,7 +775,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/users/:id", requireAdmin, async (req, res) => {
+  app.patch("/api/users/:id", requirePersonaliaAdmin, async (req, res) => {
     try {
       const data = { ...req.body };
       if (data.password) {
@@ -801,7 +812,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/users/:id/avatar", requireAdmin, (req: any, res: any, next: any) => {
+  app.post("/api/users/:id/avatar", requirePersonaliaAdmin, (req: any, res: any, next: any) => {
     uploadPasfoto.single("photo")(req, res, (err: any) => {
       if (err) {
         if (err.code === "LIMIT_FILE_SIZE") {

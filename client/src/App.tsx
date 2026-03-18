@@ -94,7 +94,7 @@ function RollenRechtentabel() {
     { label: "Berichten sturen", cells: [JA, JA, JA, JA, NEE] },
     { label: "Organisatie", cells: [JA, JA, JA, JA, NEE] },
     { label: "Personalia bekijken", cells: [JA, JA, JA, JA, NEE] },
-    { label: "Personalia bewerken", cells: [JA, JA, NEE, NEE, NEE] },
+    { label: "Personalia bewerken", cells: [JA, JA, JA, NEE, NEE] },
     { label: "Verzuim (eigen aanvragen)", cells: [JA, JA, JA, JA, JA] },
     { label: "Verzuim goedkeuren", cells: [JA, JA, JA, JA_AFDELING, NEE] },
     { label: "Vakantiesaldo beheren", cells: [JA, JA, JA, NEE, NEE] },
