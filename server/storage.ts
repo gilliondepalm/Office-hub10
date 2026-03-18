@@ -61,6 +61,7 @@ export interface IStorage {
   createAbsenceCancellation(data: InsertAbsenceCancellation): Promise<AbsenceCancellation>;
   getAbsenceCancellationsByUser(userId: string): Promise<(AbsenceCancellation & { absenceType?: string; cancelledByName?: string | null })[]>;
   getAbsenceCancellationsByAbsence(absenceId: string): Promise<AbsenceCancellation[]>;
+  getAllAbsenceCancellations(): Promise<(AbsenceCancellation & { absenceType?: string; userName?: string | null; userDepartment?: string | null; userRole?: string | null })[]>;
   getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsencesByDepartment(department: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsenceById(id: string): Promise<Absence | undefined>;
@@ -388,6 +389,28 @@ export class DatabaseStorage implements IStorage {
 
   async getAbsenceCancellationsByAbsence(absenceId: string): Promise<AbsenceCancellation[]> {
     return db.select().from(absenceCancellations).where(eq(absenceCancellations.absenceId, absenceId));
+  }
+
+  async getAllAbsenceCancellations(): Promise<(AbsenceCancellation & { absenceType?: string; userName?: string | null; userDepartment?: string | null; userRole?: string | null })[]> {
+    const result = await db
+      .select({
+        id: absenceCancellations.id,
+        absenceId: absenceCancellations.absenceId,
+        cancelledDate: absenceCancellations.cancelledDate,
+        cancelReason: absenceCancellations.cancelReason,
+        cancelledBy: absenceCancellations.cancelledBy,
+        affectsBalance: absenceCancellations.affectsBalance,
+        createdAt: absenceCancellations.createdAt,
+        absenceType: absences.type,
+        userName: users.fullName,
+        userDepartment: users.department,
+        userRole: users.role,
+      })
+      .from(absenceCancellations)
+      .innerJoin(absences, eq(absenceCancellations.absenceId, absences.id))
+      .leftJoin(users, eq(absences.userId, users.id))
+      .orderBy(desc(absenceCancellations.cancelledDate));
+    return result as any;
   }
 
   async getRewards(): Promise<(Reward & { userName?: string })[]> {

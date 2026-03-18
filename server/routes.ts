@@ -1269,6 +1269,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/absence-cancellations", requireAdmin, async (req, res) => {
+    try {
+      const all = await storage.getAllAbsenceCancellations();
+      res.json(all);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   app.get("/api/absence-cancellations/user/:userId", requireAdmin, async (req, res) => {
     try {
       const cancellations = await storage.getAbsenceCancellationsByUser(req.params.userId);
