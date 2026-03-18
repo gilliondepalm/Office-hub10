@@ -30,6 +30,55 @@ import BeheerPage from "@/pages/beheer";
 import BeloningenPage from "@/pages/beloningen";
 import ProfielPage from "@/pages/profiel";
 
+function OrganisatieZichtbaarheidTabel() {
+  const IEDEREEN = <span className="text-green-600 dark:text-green-400 font-bold">✓</span>;
+  const AFDELING = <span className="text-amber-600 dark:text-amber-400 font-semibold text-xs">✓ afd.</span>;
+  const EIGEN = <span className="text-blue-600 dark:text-blue-400 font-semibold text-xs">✓ eigen</span>;
+  const NEE = <span className="text-muted-foreground/40">—</span>;
+
+  const rows: { label: string; iedereen: React.ReactNode; afdeling: React.ReactNode; eigen: React.ReactNode }[] = [
+    { label: "Organogram",               iedereen: IEDEREEN, afdeling: NEE,      eigen: NEE },
+    { label: "CAO Info",                 iedereen: IEDEREEN, afdeling: NEE,      eigen: NEE },
+    { label: "Wetgeving",                iedereen: IEDEREEN, afdeling: NEE,      eigen: NEE },
+    { label: "Huishoudelijk Reglement",  iedereen: IEDEREEN, afdeling: NEE,      eigen: NEE },
+    { label: "AO-Procedures",            iedereen: NEE,      afdeling: AFDELING, eigen: NEE },
+    { label: "Instructies",              iedereen: NEE,      afdeling: AFDELING, eigen: NEE },
+    { label: "Functiebeschrijving",      iedereen: NEE,      afdeling: NEE,      eigen: EIGEN },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        Overzicht van de zichtbaarheid van documenten in de <strong>Organisatie</strong> module.{" "}
+        <span className="text-amber-600 dark:text-amber-400 font-semibold">✓ afd.</span> = alleen medewerkers van de eigen afdeling.{" "}
+        <span className="text-blue-600 dark:text-blue-400 font-semibold">✓ eigen</span> = alleen de ingelogde medewerker zelf.
+      </p>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-muted/60 border-b border-border">
+              <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Document / Sectie</th>
+              <th className="text-center py-2 px-3 font-semibold text-muted-foreground whitespace-nowrap">Iedereen</th>
+              <th className="text-center py-2 px-3 font-semibold text-muted-foreground whitespace-nowrap">Eigen afdeling</th>
+              <th className="text-center py-2 px-3 font-semibold text-muted-foreground whitespace-nowrap">Eigen medewerker</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className={`border-b border-border/50 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
+                <td className="py-2 px-3 font-medium text-foreground">{row.label}</td>
+                <td className="py-2 px-3 text-center">{row.iedereen}</td>
+                <td className="py-2 px-3 text-center">{row.afdeling}</td>
+                <td className="py-2 px-3 text-center">{row.eigen}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function RollenRechtentabel() {
   const rollen = ["Directeur", "Beheerder", "Beheerder AZ", "Manager", "Medewerker"];
   const JA = <span className="text-green-600 dark:text-green-400 font-bold">✓</span>;
@@ -254,7 +303,7 @@ Rollen:
 \u2022 Manager: toegang tot de meeste modules (uitgezonderd Beheer panel). Beheert verlofaanvragen en vult Beloningen in uitsluitend voor medewerkers uit de eigen afdeling. Kan geen aankondigingen aanmaken.
 \u2022 Medewerker: toegang tot Dashboard, Kalender, Aankondigingen, Verzuim, Beloningen en Applicaties (conform de toegewezen modules).
 
-Zie het rechtenoverzicht hieronder voor een volledig overzicht per module en rol.`,
+Zie het rechtenoverzicht hieronder voor een volledig overzicht per module en rol, en de zichtbaarheidstabel voor de Organisatie module.`,
   },
   "/profiel": {
     title: "Mijn Profiel",
@@ -413,9 +462,15 @@ function AuthenticatedApp() {
                 {currentHelp.content}
               </div>
               {location === "/beheer" && (
-                <div className="mt-4 pt-4 border-t">
-                  <h3 className="text-sm font-semibold text-foreground mb-3">Rechtenoverzicht per rol</h3>
-                  <RollenRechtentabel />
+                <div className="mt-4 pt-4 border-t space-y-6">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Rechtenoverzicht per rol</h3>
+                    <RollenRechtentabel />
+                  </div>
+                  <div className="pt-4 border-t">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Organisatie — zichtbaarheid documenten</h3>
+                    <OrganisatieZichtbaarheidTabel />
+                  </div>
                 </div>
               )}
               {isAdmin && (
