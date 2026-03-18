@@ -1917,8 +1917,8 @@ export default function VerzuimPage() {
             });
 
             const allRows = [
-              ...processedAbsences.map(a => ({ _kind: "absence" as const, dept: (a as any).userDepartment || "Geen afdeling", row: a })),
-              ...filteredDayCancels.map(c => ({ _kind: "dayCancel" as const, dept: c.userDepartment || "Geen afdeling", row: c })),
+              ...processedAbsences.map(a => ({ _kind: "absence" as const, row: a })),
+              ...filteredDayCancels.map(c => ({ _kind: "dayCancel" as const, row: c })),
             ];
 
             if (allRows.length === 0) {
@@ -1932,7 +1932,15 @@ export default function VerzuimPage() {
               );
             }
 
-            const depts = Array.from(new Set(allRows.map(r => r.dept))).sort((a, b) => a.localeCompare(b, "nl"));
+            const sortedRows = [...allRows].sort((a, b) => {
+              const tsA = a._kind === "absence"
+                ? (a.row.createdAt ? new Date(a.row.createdAt).getTime() : new Date(a.row.startDate).getTime())
+                : (a.row.createdAt ? new Date(a.row.createdAt).getTime() : new Date(a.row.cancelledDate).getTime());
+              const tsB = b._kind === "absence"
+                ? (b.row.createdAt ? new Date(b.row.createdAt).getTime() : new Date(b.row.startDate).getTime())
+                : (b.row.createdAt ? new Date(b.row.createdAt).getTime() : new Date(b.row.cancelledDate).getTime());
+              return tsB - tsA;
+            });
 
             return (
               <Card>
@@ -1949,118 +1957,106 @@ export default function VerzuimPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {depts.map(dept => {
-                          const deptRows = allRows
-                            .filter(r => r.dept === dept)
-                            .sort((a, b) => {
-                              const dateA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
-                              const dateB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
-                              return dateB.localeCompare(dateA);
-                            });
-                          return (
-                            <Fragment key={dept}>
-                              <TableRow>
-                                <TableCell colSpan={5} className="bg-muted/50 font-bold text-sm py-1.5">
-                                  {dept}
+                        {sortedRows.map((item) => {
+                          if (item._kind === "absence") {
+                            const absence = item.row;
+                            const sc = statusConfig[absence.status] || statusConfig.pending;
+                            const StatusIcon = sc.icon;
+                            const baseReason = absence.type === "bvvd" && absence.bvvdReason
+                              ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
+                              : absence.reason || "-";
+                            const displayReason = absence.status === "cancelled" && absence.cancelReason
+                              ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${absence.cancelReason}`
+                              : baseReason;
+                            const isCancelled = absence.status === "cancelled";
+                            const isDupOvz = duplicateAbsenceIds.has(absence.id);
+                            return (
+                              <TableRow
+                                key={`abs-${absence.id}`}
+                                data-testid={`row-overzicht-${absence.id}`}
+                                className={isDupOvz ? "bg-red-50/40 dark:bg-red-950/20" : isCancelled ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
+                                onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
+                                title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
+                              >
+                                <TableCell className="font-medium text-sm">
+                                  <div>{absence.userName || "Medewerker"}</div>
+                                  <div className="text-xs text-muted-foreground">{(absence as any).userDepartment || ""}</div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1">
+                                      <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                      {isDupOvz && <span className="text-destructive font-bold text-sm leading-none">*</span>}
+                                    </div>
+                                    {isDupOvz && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs text-destructive font-medium">Invoer dubbelvoudig, kan niet</span>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-5 w-5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={(e) => { e.stopPropagation(); deleteAbsenceMutation.mutate(absence.id); }}
+                                          disabled={deleteAbsenceMutation.isPending}
+                                          data-testid={`button-delete-duplicate-ovz-${absence.id}`}
+                                          title="Verwijder dubbele invoer"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
+                                  {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
+                                  {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground max-w-48 truncate">{displayReason}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
+                                      <StatusIcon className="h-3 w-3" />{sc.label}
+                                    </Badge>
+                                    {isCancelled && <span className="text-xs text-orange-500 underline underline-offset-2">details</span>}
+                                  </div>
                                 </TableCell>
                               </TableRow>
-                              {deptRows.map((item) => {
-                                if (item._kind === "absence") {
-                                  const absence = item.row;
-                                  const sc = statusConfig[absence.status] || statusConfig.pending;
-                                  const StatusIcon = sc.icon;
-                                  const baseReason = absence.type === "bvvd" && absence.bvvdReason
-                                    ? absence.bvvdReason + (absence.reason ? ` - ${absence.reason}` : "")
-                                    : absence.reason || "-";
-                                  const displayReason = absence.status === "cancelled" && absence.cancelReason
-                                    ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${absence.cancelReason}`
-                                    : baseReason;
-                                  const isCancelled = absence.status === "cancelled";
-                                  const isDupOvz = duplicateAbsenceIds.has(absence.id);
-                                  return (
-                                    <TableRow
-                                      key={`abs-${absence.id}`}
-                                      data-testid={`row-overzicht-${absence.id}`}
-                                      className={isDupOvz ? "bg-red-50/40 dark:bg-red-950/20" : isCancelled ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
-                                      onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
-                                      title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
-                                    >
-                                      <TableCell className="font-medium text-sm pl-6">{absence.userName || "Medewerker"}</TableCell>
-                                      <TableCell>
-                                        <div className="flex flex-col gap-0.5">
-                                          <div className="flex items-center gap-1">
-                                            <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
-                                            {isDupOvz && <span className="text-destructive font-bold text-sm leading-none">*</span>}
-                                          </div>
-                                          {isDupOvz && (
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-xs text-destructive font-medium">Invoer dubbelvoudig, kan niet</span>
-                                              <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-5 w-5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                onClick={(e) => { e.stopPropagation(); deleteAbsenceMutation.mutate(absence.id); }}
-                                                disabled={deleteAbsenceMutation.isPending}
-                                                data-testid={`button-delete-duplicate-ovz-${absence.id}`}
-                                                title="Verwijder dubbele invoer"
-                                              >
-                                                <Trash2 className="h-3 w-3" />
-                                              </Button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-sm text-muted-foreground">
-                                        {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
-                                        {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
-                                        {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
-                                      </TableCell>
-                                      <TableCell className="text-sm text-muted-foreground max-w-48 truncate">{displayReason}</TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1.5">
-                                          <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
-                                            <StatusIcon className="h-3 w-3" />{sc.label}
-                                          </Badge>
-                                          {isCancelled && <span className="text-xs text-orange-500 underline underline-offset-2">details</span>}
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                } else {
-                                  const c = item.row;
-                                  return (
-                                    <TableRow
-                                      key={`dc-${c.id}`}
-                                      data-testid={`row-daycancel-${c.id}`}
-                                      className="cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20"
-                                      onClick={() => setCancelDetailAbsence({ _isDayCancel: true, ...c })}
-                                      title="Klik om details te bekijken"
-                                    >
-                                      <TableCell className="font-medium text-sm pl-6">{c.userName || "Medewerker"}</TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1.5">
-                                          <Badge variant="secondary" className="text-xs">{typeLabels[c.absenceType] || c.absenceType}</Badge>
-                                          <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600">dag</Badge>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-sm text-muted-foreground">{formatDate(c.cancelledDate)}</TableCell>
-                                      <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
-                                        {c.cancelReason || <span className="italic opacity-60">–</span>}
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1.5">
-                                          <Badge variant="secondary" className="text-xs gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                                            <Ban className="h-3 w-3" />Gecanceld
-                                          </Badge>
-                                          <span className="text-xs text-orange-500 underline underline-offset-2">details</span>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                }
-                              })}
-                            </Fragment>
-                          );
+                            );
+                          } else {
+                            const c = item.row;
+                            return (
+                              <TableRow
+                                key={`dc-${c.id}`}
+                                data-testid={`row-daycancel-${c.id}`}
+                                className="cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20"
+                                onClick={() => setCancelDetailAbsence({ _isDayCancel: true, ...c })}
+                                title="Klik om details te bekijken"
+                              >
+                                <TableCell className="font-medium text-sm">
+                                  <div>{c.userName || "Medewerker"}</div>
+                                  <div className="text-xs text-muted-foreground">{c.userDepartment || ""}</div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="secondary" className="text-xs">{typeLabels[c.absenceType] || c.absenceType}</Badge>
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600">dag</Badge>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{formatDate(c.cancelledDate)}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
+                                  {c.cancelReason || <span className="italic opacity-60">–</span>}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1.5">
+                                    <Badge variant="secondary" className="text-xs gap-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                      <Ban className="h-3 w-3" />Gecanceld
+                                    </Badge>
+                                    <span className="text-xs text-orange-500 underline underline-offset-2">details</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
                         })}
                       </TableBody>
                     </Table>
