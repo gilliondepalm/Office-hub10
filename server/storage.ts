@@ -360,6 +360,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteAbsence(id: string): Promise<void> {
+    await db.delete(absenceCancellations).where(eq(absenceCancellations.absenceId, id));
     await db.delete(absences).where(eq(absences.id, id));
   }
 
