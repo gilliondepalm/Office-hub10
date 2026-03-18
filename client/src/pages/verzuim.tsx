@@ -1953,9 +1953,9 @@ export default function VerzuimPage() {
                           const deptRows = allRows
                             .filter(r => r.dept === dept)
                             .sort((a, b) => {
-                              const nameA = a.row.userName || "";
-                              const nameB = b.row.userName || "";
-                              return nameA.localeCompare(nameB, "nl");
+                              const dateA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
+                              const dateB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
+                              return dateB.localeCompare(dateA);
                             });
                           return (
                             <Fragment key={dept}>

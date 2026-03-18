@@ -80,6 +80,7 @@ export const absences = pgTable("absences", {
   approvedBy: varchar("approved_by").references(() => users.id),
   deductVacation: boolean("deduct_vacation").default(false),
   cancelReason: text("cancel_reason"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const absenceCancellations = pgTable("absence_cancellations", {
@@ -264,7 +265,7 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, createdAt: true });
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
 export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true });
-export const insertAbsenceSchema = createInsertSchema(absences).omit({ id: true });
+export const insertAbsenceSchema = createInsertSchema(absences).omit({ id: true, createdAt: true });
 export const insertAbsenceCancellationSchema = createInsertSchema(absenceCancellations).omit({ id: true, createdAt: true });
 export const insertRewardSchema = createInsertSchema(rewards).omit({ id: true, awardedAt: true });
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true });
