@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1763,11 +1763,7 @@ export default function VerzuimPage() {
               return true;
             });
 
-            type AbsRow = { _kind: "absence"; dept: string; row: any };
-            type DcRow = { _kind: "dayCancel"; dept: string; row: any };
-            type MixRow = AbsRow | DcRow;
-
-            const allRows: MixRow[] = [
+            const allRows = [
               ...processedAbsences.map(a => ({ _kind: "absence" as const, dept: (a as any).userDepartment || "Geen afdeling", row: a })),
               ...filteredDayCancels.map(c => ({ _kind: "dayCancel" as const, dept: c.userDepartment || "Geen afdeling", row: c })),
             ];
@@ -1794,7 +1790,7 @@ export default function VerzuimPage() {
                         <TableRow>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
-                          <TableHead>Periode</TableHead>
+                          <TableHead>Periode / Datum</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -1809,8 +1805,8 @@ export default function VerzuimPage() {
                               return nameA.localeCompare(nameB, "nl");
                             });
                           return (
-                            <>
-                              <TableRow key={`dept-${dept}`}>
+                            <Fragment key={dept}>
+                              <TableRow>
                                 <TableCell colSpan={5} className="bg-muted/50 font-bold text-sm py-1.5">
                                   {dept}
                                 </TableCell>
@@ -1886,7 +1882,7 @@ export default function VerzuimPage() {
                                   );
                                 }
                               })}
-                            </>
+                            </Fragment>
                           );
                         })}
                       </TableBody>
