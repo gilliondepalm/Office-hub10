@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { eq, desc, sql, and } from "drizzle-orm";
 import {
-  users, events, announcements, departments, absences, rewards, applications, appAccess, messages,
+  users, events, announcements, departments, absences, absenceCancellations, rewards, applications, appAccess, messages,
   aoProcedures, aoInstructions, positionHistory, personalDevelopment, legislationLinks, caoDocuments, siteSettings,
   functioneringReviews, competencies, beoordelingReviews, beoordelingScores, jaarplanItems,
   type User, type InsertUser,
@@ -9,6 +9,7 @@ import {
   type Announcement, type InsertAnnouncement,
   type Department, type InsertDepartment,
   type Absence, type InsertAbsence,
+  type AbsenceCancellation, type InsertAbsenceCancellation,
   type Reward, type InsertReward,
   type Application, type InsertApplication,
   type AppAccess, type InsertAppAccess,
@@ -57,6 +58,9 @@ export interface IStorage {
   deleteDepartment(id: string): Promise<void>;
 
   getAbsences(): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
+  createAbsenceCancellation(data: InsertAbsenceCancellation): Promise<AbsenceCancellation>;
+  getAbsenceCancellationsByUser(userId: string): Promise<(AbsenceCancellation & { absenceType?: string; cancelledByName?: string | null })[]>;
+  getAbsenceCancellationsByAbsence(absenceId: string): Promise<AbsenceCancellation[]>;
   getAbsencesByUser(userId: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsencesByDepartment(department: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsenceById(id: string): Promise<Absence | undefined>;
@@ -356,6 +360,34 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAbsence(id: string): Promise<void> {
     await db.delete(absences).where(eq(absences.id, id));
+  }
+
+  async createAbsenceCancellation(data: InsertAbsenceCancellation): Promise<AbsenceCancellation> {
+    const [created] = await db.insert(absenceCancellations).values(data).returning();
+    return created;
+  }
+
+  async getAbsenceCancellationsByUser(userId: string): Promise<(AbsenceCancellation & { absenceType?: string; cancelledByName?: string | null })[]> {
+    const result = await db
+      .select({
+        id: absenceCancellations.id,
+        absenceId: absenceCancellations.absenceId,
+        cancelledDate: absenceCancellations.cancelledDate,
+        cancelReason: absenceCancellations.cancelReason,
+        cancelledBy: absenceCancellations.cancelledBy,
+        affectsBalance: absenceCancellations.affectsBalance,
+        createdAt: absenceCancellations.createdAt,
+        absenceType: absences.type,
+      })
+      .from(absenceCancellations)
+      .innerJoin(absences, eq(absenceCancellations.absenceId, absences.id))
+      .where(eq(absences.userId, userId))
+      .orderBy(desc(absenceCancellations.cancelledDate));
+    return result as any;
+  }
+
+  async getAbsenceCancellationsByAbsence(absenceId: string): Promise<AbsenceCancellation[]> {
+    return db.select().from(absenceCancellations).where(eq(absenceCancellations.absenceId, absenceId));
   }
 
   async getRewards(): Promise<(Reward & { userName?: string })[]> {

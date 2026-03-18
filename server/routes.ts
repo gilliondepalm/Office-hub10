@@ -1269,6 +1269,51 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/absence-cancellations/user/:userId", requireAdmin, async (req, res) => {
+    try {
+      const cancellations = await storage.getAbsenceCancellationsByUser(req.params.userId);
+      res.json(cancellations);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/absence-cancellations", requireAdmin, async (req, res) => {
+    try {
+      const { absenceId, cancelledDate, cancelReason } = req.body;
+      if (!absenceId || !cancelledDate) {
+        return res.status(400).json({ message: "absenceId en cancelledDate zijn verplicht" });
+      }
+
+      const absence = await storage.getAbsenceById(absenceId);
+      if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
+
+      const affectsBalance = absence.type === "vacation" && (absence.deductVacation !== false);
+
+      const cancellation = await storage.createAbsenceCancellation({
+        absenceId,
+        cancelledDate,
+        cancelReason: cancelReason?.trim() || null,
+        cancelledBy: (req.session as any).userId,
+        affectsBalance,
+      });
+
+      if (affectsBalance) {
+        const user = await storage.getUser(absence.userId);
+        if (user) {
+          const isHalfDay = absence.halfDay === "am" || absence.halfDay === "pm";
+          const days = isHalfDay ? 0.5 : 1;
+          const currentCancel = (user as any).vacationDaysCancel ?? 0;
+          await storage.updateUser(absence.userId, { vacationDaysCancel: currentCancel + days } as any);
+        }
+      }
+
+      res.json({ ...cancellation, affectsBalance, daysBooked: affectsBalance ? (absence.halfDay ? 0.5 : 1) : 0 });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Annuleren mislukt" });
+    }
+  });
+
   app.get("/api/rewards", requireAuth, async (_req, res) => {
     const all = await storage.getRewards();
     res.json(all);

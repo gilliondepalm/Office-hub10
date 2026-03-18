@@ -82,6 +82,16 @@ export const absences = pgTable("absences", {
   cancelReason: text("cancel_reason"),
 });
 
+export const absenceCancellations = pgTable("absence_cancellations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  absenceId: varchar("absence_id").references(() => absences.id).notNull(),
+  cancelledDate: date("cancelled_date").notNull(),
+  cancelReason: text("cancel_reason"),
+  cancelledBy: varchar("cancelled_by").references(() => users.id),
+  affectsBalance: boolean("affects_balance").default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const rewards = pgTable("rewards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
@@ -255,6 +265,7 @@ export const insertEventSchema = createInsertSchema(events).omit({ id: true, cre
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({ id: true, createdAt: true });
 export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true });
 export const insertAbsenceSchema = createInsertSchema(absences).omit({ id: true });
+export const insertAbsenceCancellationSchema = createInsertSchema(absenceCancellations).omit({ id: true, createdAt: true });
 export const insertRewardSchema = createInsertSchema(rewards).omit({ id: true, awardedAt: true });
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true });
 export const insertAppAccessSchema = createInsertSchema(appAccess).omit({ id: true, grantedAt: true });
@@ -301,6 +312,8 @@ export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type Department = typeof departments.$inferSelect;
 export type InsertAbsence = z.infer<typeof insertAbsenceSchema>;
 export type Absence = typeof absences.$inferSelect;
+export type InsertAbsenceCancellation = z.infer<typeof insertAbsenceCancellationSchema>;
+export type AbsenceCancellation = typeof absenceCancellations.$inferSelect;
 export type InsertReward = z.infer<typeof insertRewardSchema>;
 export type Reward = typeof rewards.$inferSelect;
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;

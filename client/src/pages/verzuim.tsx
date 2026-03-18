@@ -648,12 +648,16 @@ function AbsenceReportDialog({
 function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; currentUser: User }) {
   const [selectedDept, setSelectedDept] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [confirmAbsence, setConfirmAbsence] = useState<Absence | null>(null);
+  const [confirmDay, setConfirmDay] = useState<{ dateStr: string; absence: Absence } | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("");
   const { toast } = useToast();
 
   const year = new Date().getFullYear();
   const today = new Date().toISOString().split("T")[0];
+
+  const typeLabelsCancel: Record<string, string> = {
+    vacation: "Vakantie", sick: "Ziekte", personal: "Geoorloofd", other: "Ongeoorloofd", bvvd: "BVVD",
+  };
 
   const departments = [...new Set(
     allUsers.filter(u => u.active).map(u => u.department || "Geen afdeling")
@@ -668,9 +672,21 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
     enabled: !!selectedUserId,
   });
 
+  const { data: dayCancellations, isLoading: loadingCancellations } = useQuery<any[]>({
+    queryKey: ["/api/absence-cancellations/user", selectedUserId],
+    enabled: !!selectedUserId,
+  });
+
+  const cancelledDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of dayCancellations || []) set.add(c.cancelledDate);
+    return set;
+  }, [dayCancellations]);
+
   const dateToAbsence = useMemo(() => {
     const map: Record<string, Absence> = {};
     for (const abs of userAbsences || []) {
+      if (abs.status === "cancelled") continue;
       const start = new Date(abs.startDate + "T00:00:00");
       const end = new Date(abs.endDate + "T00:00:00");
       const cur = new Date(start);
@@ -686,26 +702,48 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
   }, [userAbsences]);
 
   const cancelMutation = useMutation({
-    mutationFn: async ({ absenceId, reason }: { absenceId: string; reason: string }) => {
-      const res = await apiRequest("POST", `/api/absences/${absenceId}/cancel`, { cancelReason: reason });
+    mutationFn: async ({ absenceId, cancelledDate, reason }: { absenceId: string; cancelledDate: string; reason: string }) => {
+      const res = await apiRequest("POST", `/api/absence-cancellations`, { absenceId, cancelledDate, cancelReason: reason });
       return res.json();
     },
     onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/absence-cancellations/user", selectedUserId] });
       queryClient.invalidateQueries({ queryKey: ["/api/absences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/absences/user", selectedUserId] });
       queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
-      if (data.takenDays > 0) {
-        toast({ title: `Verlof gecanceld — ${data.takenDays} dag(en) teruggeboekt op saldo` });
+      const dateLabel = confirmDay?.dateStr ? formatDate(confirmDay.dateStr) : "datum";
+      if (data.affectsBalance) {
+        toast({ title: `${dateLabel} gecanceld — ${data.daysBooked} dag(en) teruggeboekt op vakantiesaldo` });
       } else {
-        toast({ title: "Gepland verlof gecanceld" });
+        toast({ title: `${dateLabel} gecanceld` });
       }
-      setConfirmAbsence(null);
+      setConfirmDay(null);
       setCancelReason("");
     },
     onError: (err: any) => {
       toast({ title: err.message || "Annuleren mislukt", variant: "destructive" });
     },
   });
+
+  const getTypeCellColor = (abs: Absence, isCancelledDay: boolean) => {
+    if (isCancelledDay) return "bg-slate-300 text-slate-500 dark:bg-slate-700 dark:text-slate-400 line-through cursor-default opacity-60";
+    const status = abs.status;
+    const type = abs.type;
+    if (type === "sick") {
+      return status === "pending"
+        ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200 cursor-pointer hover:bg-red-200 font-semibold"
+        : "bg-red-200 text-red-900 dark:bg-red-800/50 dark:text-red-200 cursor-pointer hover:bg-red-300 font-semibold";
+    }
+    if (type === "bvvd") {
+      return status === "pending"
+        ? "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 cursor-pointer hover:bg-purple-200 font-semibold"
+        : "bg-purple-200 text-purple-900 dark:bg-purple-800/50 dark:text-purple-200 cursor-pointer hover:bg-purple-300 font-semibold";
+    }
+    if (type === "vacation" || type === "personal" || type === "other") {
+      if (status === "pending") return "bg-yellow-200 text-yellow-900 dark:bg-yellow-800/50 dark:text-yellow-200 cursor-pointer hover:bg-yellow-300 font-semibold";
+      return "bg-green-200 text-green-900 dark:bg-green-800/50 dark:text-green-200 cursor-pointer hover:bg-green-300 font-semibold";
+    }
+    return "cursor-pointer hover:bg-muted font-semibold";
+  };
 
   const renderMonth = (monthIndex: number) => {
     const firstDay = new Date(year, monthIndex, 1);
@@ -720,10 +758,10 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
     for (let i = 0; i < paddingDays; i++) days.push(null);
     for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(year, monthIndex, d));
 
-    const hasVacation = days.some(d => d && dateToAbsence[d.toISOString().split("T")[0]]);
+    const hasAbsence = days.some(d => d && dateToAbsence[d.toISOString().split("T")[0]]);
 
     return (
-      <div key={monthIndex} className={`border rounded-lg p-3 space-y-2 ${hasVacation ? "border-primary/30 bg-primary/5" : ""}`}>
+      <div key={monthIndex} className={`border rounded-lg p-3 space-y-2 ${hasAbsence ? "border-primary/30 bg-primary/5" : ""}`}>
         <p className="text-xs font-semibold capitalize text-center text-muted-foreground">{monthName}</p>
         <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-muted-foreground mb-0.5">
           {["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"].map(d => <span key={d}>{d}</span>)}
@@ -735,41 +773,40 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             const dow = date.getDay();
             const isWeekend = dow === 0 || dow === 6;
             const absence = dateToAbsence[dateStr];
-            const isPast = dateStr < today;
-
-            let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none";
+            const isCancelledDay = cancelledDates.has(dateStr);
             const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
 
-            if (absence) {
-              if (absence.status === "pending") {
-                cellClass += " bg-yellow-200 text-yellow-900 dark:bg-yellow-800/50 dark:text-yellow-200 cursor-pointer hover:bg-yellow-300 font-semibold";
-              } else if (absence.status === "approved" && isPast) {
-                cellClass += " bg-blue-200 text-blue-900 dark:bg-blue-800/50 dark:text-blue-200 cursor-pointer hover:bg-blue-300 font-semibold";
-              } else {
-                cellClass += " bg-green-200 text-green-900 dark:bg-green-800/50 dark:text-green-200 cursor-pointer hover:bg-green-300 font-semibold";
-              }
+            let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none relative";
+
+            if (isCancelledDay && absence) {
+              cellClass += " " + getTypeCellColor(absence, true);
+            } else if (absence) {
+              cellClass += " " + getTypeCellColor(absence, false);
             } else if (isWeekend) {
               cellClass += " text-muted-foreground/40";
             } else {
               cellClass += " text-foreground/70";
             }
 
-            const halfLabel = isHalfDay ? (absence.halfDay === "am" ? " (ochtend)" : " (middag)") : "";
-            const titleText = absence
-              ? (absence.status === "pending" ? `Gepland${halfLabel} — klik om te cancelen` : isPast ? `Opgenomen${halfLabel} — klik om te cancelen` : `Toegekend${halfLabel} — klik om te cancelen`)
-              : undefined;
+            const typeLabel = absence ? (typeLabelsCancel[absence.type] || absence.type) : "";
+            const titleText = absence && !isCancelledDay
+              ? `${typeLabel} — klik om deze dag te cancelen`
+              : isCancelledDay ? `${typeLabel} — al gecanceld` : undefined;
 
             return (
               <div
                 key={dateStr}
-                className={`${cellClass} relative`}
+                className={cellClass}
                 title={titleText}
-                onClick={absence ? () => setConfirmAbsence(absence) : undefined}
+                onClick={absence && !isCancelledDay ? () => setConfirmDay({ dateStr, absence }) : undefined}
                 data-testid={absence ? `day-cancel-${dateStr}` : undefined}
               >
                 {date.getDate()}
-                {isHalfDay && (
+                {isHalfDay && !isCancelledDay && (
                   <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold">½</span>
+                )}
+                {isCancelledDay && (
+                  <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold text-slate-500">✕</span>
                 )}
               </div>
             );
@@ -778,6 +815,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
       </div>
     );
   };
+
+  const selectedUser = allUsers.find(u => u.id === selectedUserId);
 
   return (
     <div className="space-y-6">
@@ -809,26 +848,19 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
       </div>
 
       {selectedUserId && (
-        <div className="flex gap-4 text-xs text-muted-foreground flex-wrap items-center">
+        <div className="flex gap-3 text-xs text-muted-foreground flex-wrap items-center">
           <span className="font-medium">Legenda:</span>
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-400" />
-            Gepland (pending)
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-green-200 border border-green-400" />
-            Toegekend (toekomst)
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-blue-200 border border-blue-400" />
-            Opgenomen (verleden)
-          </div>
-          <span className="text-muted-foreground/60">— klik op een dag om verlof te cancelen</span>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-green-200 border border-green-400" />Vakantie</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-red-200 border border-red-400" />Ziekte</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-purple-200 border border-purple-400" />BVVD</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-400" />Gepland/pending</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
+          <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>
         </div>
       )}
 
       {selectedUserId && (
-        loadingAbsences ? (
+        loadingAbsences || loadingCancellations ? (
           <Skeleton className="h-64 w-full" />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -837,45 +869,84 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
         )
       )}
 
+      {selectedUserId && dayCancellations && dayCancellations.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Gecancelde dagen — {selectedUser?.fullName}</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-6 text-xs">Datum</TableHead>
+                    <TableHead className="text-xs">Type</TableHead>
+                    <TableHead className="text-xs">Effect saldo</TableHead>
+                    <TableHead className="text-xs">Reden</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dayCancellations.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="pl-6 text-sm font-medium">{formatDate(c.cancelledDate)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">{typeLabelsCancel[c.absenceType] || c.absenceType}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {c.affectsBalance
+                          ? <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-200">+1 dag teruggestort</Badge>
+                          : <Badge variant="outline" className="text-xs text-muted-foreground">Geen effect</Badge>
+                        }
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                        {c.cancelReason || <span className="italic opacity-60">–</span>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {!selectedUserId && (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <CalendarDays className="h-12 w-12 mb-3 opacity-25" />
-          <p className="text-sm">Selecteer een afdeling en medewerker om de verlofkalender te tonen</p>
+          <p className="text-sm">Selecteer een afdeling en medewerker om de kalender te tonen</p>
         </div>
       )}
 
-      {confirmAbsence && (
-        <Dialog open={!!confirmAbsence} onOpenChange={(open) => { if (!open) { setConfirmAbsence(null); setCancelReason(""); } }}>
+      {confirmDay && (
+        <Dialog open={!!confirmDay} onOpenChange={(open) => { if (!open) { setConfirmDay(null); setCancelReason(""); } }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Verlofperiode cancelen</DialogTitle>
+              <DialogTitle>Dag cancelen</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 text-sm">
-              <p>
-                <span className="text-muted-foreground">Periode: </span>
-                <strong>{formatDate(confirmAbsence.startDate)}</strong>
-                {confirmAbsence.startDate !== confirmAbsence.endDate && (
-                  <> t/m <strong>{formatDate(confirmAbsence.endDate)}</strong></>
-                )}
-              </p>
+              <div className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs">Te cancelen datum</span>
+                <span className="text-base font-semibold">{formatDate(confirmDay.dateStr)}</span>
+              </div>
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">Status: </span>
-                <Badge variant={confirmAbsence.status === "pending" ? "outline" : "default"} className="text-xs">
-                  {confirmAbsence.status === "pending" ? "Gepland" : "Goedgekeurd"}
-                </Badge>
-                {(confirmAbsence.halfDay === "am" || confirmAbsence.halfDay === "pm") && (
-                  <Badge variant="secondary" className="text-xs">
-                    Halve dag ({confirmAbsence.halfDay === "am" ? "ochtend" : "middag"})
-                  </Badge>
+                <span className="text-muted-foreground text-xs">Type:</span>
+                <Badge variant="secondary" className="text-xs">{typeLabelsCancel[confirmDay.absence.type] || confirmDay.absence.type}</Badge>
+                {(confirmDay.absence.halfDay === "am" || confirmDay.absence.halfDay === "pm") && (
+                  <Badge variant="outline" className="text-xs">Halve dag ({confirmDay.absence.halfDay === "am" ? "ochtend" : "middag"})</Badge>
                 )}
               </div>
-              {confirmAbsence.status === "approved" && confirmAbsence.startDate <= today ? (
-                <p className="text-amber-600 dark:text-amber-400">
-                  Een deel van dit verlof is al opgenomen. De opgenomen dagen worden teruggeboekt op het vakantiesaldo en zichtbaar in de kolom "Cancel".
+              <div className="flex gap-1 text-xs text-muted-foreground">
+                <span>Originele periode:</span>
+                <span className="font-medium">{formatDate(confirmDay.absence.startDate)}{confirmDay.absence.startDate !== confirmDay.absence.endDate ? ` t/m ${formatDate(confirmDay.absence.endDate)}` : ""}</span>
+                <span className="italic">(ongewijzigd)</span>
+              </div>
+              {confirmDay.absence.type === "vacation" ? (
+                <p className="text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-950/20 rounded px-2 py-1.5 border border-amber-200 dark:border-amber-800">
+                  Dit is een vakantiedag — annulering boekt 1 dag terug op het vakantiesaldo.
                 </p>
               ) : (
-                <p className="text-muted-foreground">
-                  Dit verlof was nog niet opgenomen. Annuleren heeft geen effect op het vakantiesaldo.
+                <p className="text-muted-foreground text-xs bg-muted/50 rounded px-2 py-1.5 border">
+                  Ziekte/BVVD — annulering wordt geregistreerd maar heeft geen effect op het vakantiesaldo.
                 </p>
               )}
               <div className="space-y-1.5">
@@ -883,7 +954,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                 <textarea
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
                   rows={3}
-                  placeholder="Geef een reden op voor de annulering (optioneel)…"
+                  placeholder="Geef een reden op (optioneel)…"
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   data-testid="textarea-cancel-reason"
@@ -891,15 +962,15 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
               </div>
             </div>
             <div className="flex gap-2 justify-end mt-2">
-              <Button variant="outline" onClick={() => { setConfirmAbsence(null); setCancelReason(""); }}>Sluiten</Button>
+              <Button variant="outline" onClick={() => { setConfirmDay(null); setCancelReason(""); }}>Sluiten</Button>
               <Button
                 variant="destructive"
                 disabled={cancelMutation.isPending}
-                onClick={() => cancelMutation.mutate({ absenceId: confirmAbsence.id, reason: cancelReason })}
+                onClick={() => cancelMutation.mutate({ absenceId: confirmDay.absence.id, cancelledDate: confirmDay.dateStr, reason: cancelReason })}
                 data-testid="button-confirm-cancel"
               >
                 <XCircle className="h-4 w-4 mr-1.5" />
-                {cancelMutation.isPending ? "Bezig…" : "Verlof cancelen"}
+                {cancelMutation.isPending ? "Bezig…" : "Dag cancelen"}
               </Button>
             </div>
           </DialogContent>
