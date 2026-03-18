@@ -33,8 +33,20 @@ import { isAdminRole, canManageVacation } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateShort } from "@/lib/dateUtils";
 
+function getOverlapDates(startA: string, endA: string, startB: string, endB: string): string[] {
+  const overlapStart = startA > startB ? startA : startB;
+  const overlapEnd = endA < endB ? endA : endB;
+  if (overlapStart > overlapEnd) return [];
+  const dates: string[] = [];
+  const cur = new Date(overlapStart + "T00:00:00");
+  const endD = new Date(overlapEnd + "T00:00:00");
+  while (cur <= endD) { dates.push(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1); }
+  return dates;
+}
+
 function findDuplicateAbsenceIds(
-  absences: Array<{ id: string; userId: string; startDate: string; endDate: string; halfDay?: string | null; status: string }>
+  absences: Array<{ id: string; userId: string; startDate: string; endDate: string; halfDay?: string | null; status: string }>,
+  cancellationsMap: Map<string, Set<string>> = new Map()
 ): Set<string> {
   const active = absences.filter(a => a.status === "pending" || a.status === "approved");
   const byUser = new Map<string, typeof active>();
@@ -51,8 +63,12 @@ function findDuplicateAbsenceIds(
         if (a.endDate < b.startDate || b.endDate < a.startDate) continue;
         const aHalf = a.halfDay || "full";
         const bHalf = b.halfDay || "full";
-        const conflicts = aHalf === "full" || bHalf === "full" || aHalf === bHalf;
-        if (conflicts) {
+        if (!(aHalf === "full" || bHalf === "full" || aHalf === bHalf)) continue;
+        const overlapDates = getOverlapDates(a.startDate, a.endDate, b.startDate, b.endDate);
+        const aCancelled = cancellationsMap.get(a.id) || new Set<string>();
+        const bCancelled = cancellationsMap.get(b.id) || new Set<string>();
+        const hasRealConflict = overlapDates.some(date => !aCancelled.has(date) && !bCancelled.has(date));
+        if (hasRealConflict) {
           duplicateIds.add(a.id);
           duplicateIds.add(b.id);
         }
@@ -1228,9 +1244,19 @@ export default function VerzuimPage() {
     ? (allUsers || []).filter(u => u.department === myDept)
     : (allUsers || []);
 
+  const cancellationsMap = useMemo(() => {
+    const source = allDayCancellations || myAbsenceCancellations || [];
+    const map = new Map<string, Set<string>>();
+    for (const c of source) {
+      if (!map.has(c.absenceId)) map.set(c.absenceId, new Set());
+      map.get(c.absenceId)!.add(c.cancelledDate);
+    }
+    return map;
+  }, [allDayCancellations, myAbsenceCancellations]);
+
   const duplicateAbsenceIds = useMemo(
-    () => findDuplicateAbsenceIds(deptFilteredAbsences),
-    [deptFilteredAbsences]
+    () => findDuplicateAbsenceIds(deptFilteredAbsences, cancellationsMap),
+    [deptFilteredAbsences, cancellationsMap]
   );
 
   const canApprove = (absence: any) => {
