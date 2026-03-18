@@ -1025,8 +1025,10 @@ export async function registerRoutes(
       const allCancellations = await storage.getAllAbsenceCancellations();
 
       const absenceById = new Map(allAbsences.map(a => [a.id, a]));
+      const todayStr = new Date().toISOString().split("T")[0];
 
       const perDayCancelByUser: Record<string, number> = {};
+      const perDayCancelOpgenomenByUser: Record<string, number> = {};
       const perDaySickCancelByUser: Record<string, number> = {};
       for (const c of allCancellations) {
         const absence = absenceById.get(c.absenceId);
@@ -1036,6 +1038,9 @@ export async function registerRoutes(
         const days = (absence.halfDay === "am" || absence.halfDay === "pm") ? 0.5 : 1;
         if ((c as any).affectsBalance) {
           perDayCancelByUser[absence.userId] = (perDayCancelByUser[absence.userId] || 0) + days;
+          if (c.cancelledDate <= todayStr) {
+            perDayCancelOpgenomenByUser[absence.userId] = (perDayCancelOpgenomenByUser[absence.userId] || 0) + days;
+          }
         }
         if (absence.type === "sick") {
           perDaySickCancelByUser[absence.userId] = (perDaySickCancelByUser[absence.userId] || 0) + days;
@@ -1081,8 +1086,6 @@ export async function registerRoutes(
         return days;
       };
 
-      const todayStr = new Date().toISOString().split("T")[0];
-
       const balances = allUsers.filter(u => u.active).map(u => {
         const userVacAbsences = allAbsences.filter(
           a => a.userId === u.id &&
@@ -1097,13 +1100,13 @@ export async function registerRoutes(
         const approved = userVacAbsences.filter(a => a.status === "approved");
         const pending = userVacAbsences.filter(a => a.status === "pending");
         const geplandDays = countDays(pending);
-        const toegekendDays = countDays(approved);
-        const opgenomenDays = countDaysUpTo(approved, todayStr);
+        const cancelDays = perDayCancelByUser[u.id] || 0;
+        const toegekendDays = Math.max(0, countDays(approved) - cancelDays);
+        const opgenomenDays = Math.max(0, countDaysUpTo(approved, todayStr) - (perDayCancelOpgenomenByUser[u.id] || 0));
         const sickDays = Math.max(0, countDays(userSickAbsences) - (perDaySickCancelByUser[u.id] || 0));
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
         const totaal = recht + saldoOud;
-        const cancelDays = perDayCancelByUser[u.id] || 0;
         return {
           userId: u.id,
           userName: u.fullName,
@@ -1117,7 +1120,7 @@ export async function registerRoutes(
           sickDays,
           snipperdagen: snipperdagenCount,
           cancelDays,
-          remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount + cancelDays,
+          remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount,
         };
       });
       res.json(balances);
