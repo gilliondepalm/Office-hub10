@@ -1099,14 +1099,13 @@ export async function registerRoutes(
         );
         const approved = userVacAbsences.filter(a => a.status === "approved");
         const pending = userVacAbsences.filter(a => a.status === "pending");
-        const pastApproved = approved.filter(a => a.startDate <= todayStr);
         const futureApproved = approved.filter(a => a.startDate > todayStr);
         const cancelDays = perDayCancelByUser[u.id] || 0;
         const pastCancelDays = perDayCancelOpgenomenByUser[u.id] || 0;
         const futureCancelDays = Math.max(0, cancelDays - pastCancelDays);
-        const geplandDays = Math.max(0, countDays(pending) + countDays(futureApproved) - futureCancelDays);
-        const toegekendDays = Math.max(0, countDays(pastApproved) - pastCancelDays);
-        const opgenomenDays = Math.max(0, countDaysUpTo(approved, todayStr) - pastCancelDays);
+        const toegekendDays = Math.max(0, countDays(approved) - cancelDays);
+        const geplandDays = countDays(pending);
+        const opgenomenDays = Math.max(0, countDays(futureApproved) - futureCancelDays);
         const sickDays = Math.max(0, countDays(userSickAbsences) - (perDaySickCancelByUser[u.id] || 0));
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
