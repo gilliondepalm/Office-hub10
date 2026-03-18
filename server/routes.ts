@@ -1022,6 +1022,21 @@ export async function registerRoutes(
       const yearSnipperdagen = await storage.getSnipperdagen(currentYear);
       const snipperdagenCount = yearSnipperdagen.length;
 
+      const allCancellations = await storage.getAllAbsenceCancellations();
+
+      const absenceById = new Map(allAbsences.map(a => [a.id, a]));
+
+      const perDayCancelByUser: Record<string, number> = {};
+      for (const c of allCancellations) {
+        if (!(c as any).affectsBalance) continue;
+        const absence = absenceById.get(c.absenceId);
+        if (!absence) continue;
+        const cancelYear = new Date(c.cancelledDate).getFullYear();
+        if (cancelYear !== currentYear) continue;
+        const days = (absence.halfDay === "am" || absence.halfDay === "pm") ? 0.5 : 1;
+        perDayCancelByUser[absence.userId] = (perDayCancelByUser[absence.userId] || 0) + days;
+      }
+
       const countWeekdays = (startStr: string, endStr: string): number => {
         const start = new Date(startStr + "T00:00:00");
         const end = new Date(endStr + "T00:00:00");
@@ -1083,7 +1098,7 @@ export async function registerRoutes(
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
         const totaal = recht + saldoOud;
-        const cancelDays = (u as any).vacationDaysCancel ?? 0;
+        const cancelDays = perDayCancelByUser[u.id] || 0;
         return {
           userId: u.id,
           userName: u.fullName,
@@ -1097,7 +1112,7 @@ export async function registerRoutes(
           sickDays,
           snipperdagen: snipperdagenCount,
           cancelDays,
-          remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount,
+          remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount + cancelDays,
         };
       });
       res.json(balances);
