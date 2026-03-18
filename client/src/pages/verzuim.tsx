@@ -1049,6 +1049,11 @@ export default function VerzuimPage() {
     enabled: isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az",
   });
 
+  const { data: myAbsenceCancellations } = useQuery<any[]>({
+    queryKey: ["/api/absence-cancellations/user", user?.id],
+    enabled: !!user?.id,
+  });
+
   const form = useForm<z.infer<typeof absenceFormSchema>>({
     resolver: zodResolver(absenceFormSchema),
     defaultValues: { type: "sick", startDate: "", endDate: "", reason: "", bvvdReason: "", halfDay: "", deductVacation: false },
@@ -1409,10 +1414,20 @@ export default function VerzuimPage() {
                   const newStart = d.startDate;
                   const newEnd = d.endDate;
                   const newHalf = (d.halfDay && d.halfDay !== "full") ? d.halfDay : "full";
+                  const cancelledDates = new Set(
+                    (myAbsenceCancellations || []).map((c: any) => c.cancelledDate)
+                  );
                   const conflicts = myAbsences.filter(a => {
                     if (a.endDate < newStart || newEnd < a.startDate) return false;
                     const aHalf = a.halfDay || "full";
-                    return aHalf === "full" || newHalf === "full" || aHalf === newHalf;
+                    if (!(aHalf === "full" || newHalf === "full" || aHalf === newHalf)) return false;
+                    const overlapStart = newStart > a.startDate ? newStart : a.startDate;
+                    const overlapEnd = newEnd < a.endDate ? newEnd : a.endDate;
+                    const dates: string[] = [];
+                    const cur = new Date(overlapStart + "T00:00:00");
+                    const endD = new Date(overlapEnd + "T00:00:00");
+                    while (cur <= endD) { dates.push(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1); }
+                    return !dates.every(date => cancelledDates.has(date));
                   });
                   if (conflicts.length > 0) {
                     const msgs = conflicts.map(a => {

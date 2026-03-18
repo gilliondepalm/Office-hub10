@@ -1320,9 +1320,14 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/absence-cancellations/user/:userId", requireAdmin, async (req, res) => {
+  app.get("/api/absence-cancellations/user/:userId", requireAuth, async (req, res) => {
     try {
-      const cancellations = await storage.getAbsenceCancellationsByUser(req.params.userId);
+      const currentUser = req.user as any;
+      const targetUserId = req.params.userId;
+      if (!isAdminRole(currentUser.role) && !canManageVacation(currentUser.role) && currentUser.id !== targetUserId) {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      const cancellations = await storage.getAbsenceCancellationsByUser(targetUserId);
       res.json(cancellations);
     } catch (err: any) {
       res.status(400).json({ message: err.message });
