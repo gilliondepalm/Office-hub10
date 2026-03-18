@@ -1012,6 +1012,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
 
 export default function VerzuimPage() {
   const [open, setOpen] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
   const [irregularOpen, setIrregularOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [snipperdagOpen, setSnipperdagOpen] = useState(false);
@@ -1389,7 +1390,7 @@ export default function VerzuimPage() {
               </DialogContent>
             </Dialog>
           )}
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setConflictError(null); form.reset(); } }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-absence">
                 <Plus className="h-4 w-4 mr-2" />
@@ -1401,7 +1402,31 @@ export default function VerzuimPage() {
                 <DialogTitle>Verzuimmelding</DialogTitle>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
+                <form onSubmit={form.handleSubmit((d) => {
+                  const myAbsences = (absences || []).filter(
+                    a => a.userId === user?.id && (a.status === "pending" || a.status === "approved")
+                  );
+                  const newStart = d.startDate;
+                  const newEnd = d.endDate;
+                  const newHalf = (d.halfDay && d.halfDay !== "full") ? d.halfDay : "full";
+                  const conflicts = myAbsences.filter(a => {
+                    if (a.endDate < newStart || newEnd < a.startDate) return false;
+                    const aHalf = a.halfDay || "full";
+                    return aHalf === "full" || newHalf === "full" || aHalf === newHalf;
+                  });
+                  if (conflicts.length > 0) {
+                    const msgs = conflicts.map(a => {
+                      const halfStr = a.halfDay === "am" ? " (Ochtend)" : a.halfDay === "pm" ? " (Middag)" : "";
+                      return a.startDate === a.endDate
+                        ? `${formatDate(a.startDate)}${halfStr}`
+                        : `${formatDateShort(a.startDate)} t/m ${formatDate(a.endDate)}${halfStr}`;
+                    });
+                    setConflictError(msgs.join(", "));
+                    return;
+                  }
+                  setConflictError(null);
+                  createMutation.mutate(d);
+                })} className="space-y-4">
                   <FormField control={form.control} name="type" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Type</FormLabel>
@@ -1507,6 +1532,15 @@ export default function VerzuimPage() {
                       <FormMessage />
                     </FormItem>
                   )} />
+                  {conflictError && (
+                    <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive" data-testid="error-duplicate-absence">
+                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">Invoer dubbelvoudig, kan niet</p>
+                        <p className="text-xs mt-0.5">Al ingediend voor: <span className="font-medium">{conflictError}</span></p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Button
                       type="button"
