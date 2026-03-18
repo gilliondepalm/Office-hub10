@@ -1027,14 +1027,19 @@ export async function registerRoutes(
       const absenceById = new Map(allAbsences.map(a => [a.id, a]));
 
       const perDayCancelByUser: Record<string, number> = {};
+      const perDaySickCancelByUser: Record<string, number> = {};
       for (const c of allCancellations) {
-        if (!(c as any).affectsBalance) continue;
         const absence = absenceById.get(c.absenceId);
         if (!absence) continue;
         const cancelYear = new Date(c.cancelledDate).getFullYear();
         if (cancelYear !== currentYear) continue;
         const days = (absence.halfDay === "am" || absence.halfDay === "pm") ? 0.5 : 1;
-        perDayCancelByUser[absence.userId] = (perDayCancelByUser[absence.userId] || 0) + days;
+        if ((c as any).affectsBalance) {
+          perDayCancelByUser[absence.userId] = (perDayCancelByUser[absence.userId] || 0) + days;
+        }
+        if (absence.type === "sick") {
+          perDaySickCancelByUser[absence.userId] = (perDaySickCancelByUser[absence.userId] || 0) + days;
+        }
       }
 
       const countWeekdays = (startStr: string, endStr: string): number => {
@@ -1094,7 +1099,7 @@ export async function registerRoutes(
         const geplandDays = countDays(pending);
         const toegekendDays = countDays(approved);
         const opgenomenDays = countDaysUpTo(approved, todayStr);
-        const sickDays = countDays(userSickAbsences);
+        const sickDays = Math.max(0, countDays(userSickAbsences) - (perDaySickCancelByUser[u.id] || 0));
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
         const totaal = recht + saldoOud;
