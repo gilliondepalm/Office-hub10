@@ -1297,7 +1297,8 @@ export async function registerRoutes(
       const absence = await storage.getAbsenceById(absenceId);
       if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
 
-      const affectsBalance = absence.type === "vacation" && (absence.deductVacation !== false);
+      const affectsBalance = absence.type === "vacation"
+        || (["sick", "bvvd"].includes(absence.type) && absence.deductVacation === true);
 
       const cancellation = await storage.createAbsenceCancellation({
         absenceId,

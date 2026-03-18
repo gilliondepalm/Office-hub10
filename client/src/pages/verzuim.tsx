@@ -899,8 +899,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                           : <Badge variant="outline" className="text-xs text-muted-foreground">Geen effect</Badge>
                         }
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {c.cancelReason || <span className="italic opacity-60">–</span>}
+                      <TableCell className="text-sm text-muted-foreground">
+                        <span className="whitespace-pre-wrap break-words">{c.cancelReason || <span className="italic opacity-60">–</span>}</span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -2158,7 +2158,7 @@ export default function VerzuimPage() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Effect op saldo</span>
-                    {cancelDetailAbsence.affectsBalance
+                    {(cancelDetailAbsence.affectsBalance || cancelDetailAbsence.absenceType === "vacation")
                       ? <Badge className="w-fit text-xs bg-amber-100 text-amber-800 border-amber-300">+1 dag teruggestort op vakantiesaldo</Badge>
                       : <span className="text-muted-foreground italic">Geen effect op vakantiesaldo</span>
                     }
