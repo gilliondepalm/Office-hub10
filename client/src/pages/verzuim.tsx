@@ -34,7 +34,7 @@ import { useAuth } from "@/lib/auth";
 import { formatDate, formatDateShort } from "@/lib/dateUtils";
 
 function findDuplicateAbsenceIds(
-  absences: Array<{ id: string; userId: string; startDate: string; endDate: string; halfDay?: string | null; status: string; createdAt?: string | Date | null }>
+  absences: Array<{ id: string; userId: string; startDate: string; endDate: string; halfDay?: string | null; status: string }>
 ): Set<string> {
   const active = absences.filter(a => a.status === "pending" || a.status === "approved");
   const byUser = new Map<string, typeof active>();
@@ -53,9 +53,8 @@ function findDuplicateAbsenceIds(
         const bHalf = b.halfDay || "full";
         const conflicts = aHalf === "full" || bHalf === "full" || aHalf === bHalf;
         if (conflicts) {
-          const aTime = a.createdAt ? new Date(String(a.createdAt)).getTime() : 0;
-          const bTime = b.createdAt ? new Date(String(b.createdAt)).getTime() : 0;
-          duplicateIds.add(bTime >= aTime ? b.id : a.id);
+          duplicateIds.add(a.id);
+          duplicateIds.add(b.id);
         }
       }
     }
@@ -1125,6 +1124,8 @@ export default function VerzuimPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/absences"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/absence-cancellations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Melding verwijderd" });
     },
     onError: () => {
