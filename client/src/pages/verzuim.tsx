@@ -1390,7 +1390,7 @@ export default function VerzuimPage() {
               </DialogContent>
             </Dialog>
           )}
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setConflictError(null); form.reset(); } }}>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setConflictError(null); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-absence">
                 <Plus className="h-4 w-4 mr-2" />
