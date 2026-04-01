@@ -856,9 +856,9 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
               cellClass += " " + getTypeCellColor(absence, true);
             } else if (absence) {
               cellClass += " " + getTypeCellColor(absence, false);
-              if (isHoliday) cellClass += " ring-2 ring-orange-400 dark:ring-orange-500";
+              if (isHoliday) cellClass += " ring-2 ring-sky-400 dark:ring-sky-400";
             } else if (isHoliday && !isWeekend) {
-              cellClass += " bg-orange-200 text-orange-800 dark:bg-orange-800/50 dark:text-orange-200 font-semibold cursor-default";
+              cellClass += " bg-sky-200 text-sky-800 dark:bg-sky-700/60 dark:text-sky-100 font-semibold cursor-default";
             } else if (isWeekend) {
               cellClass += " text-muted-foreground/40";
             } else {
@@ -889,7 +889,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                   <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold text-slate-500">✕</span>
                 )}
                 {isHoliday && !isWeekend && !isCancelledDay && (
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-orange-500 dark:bg-orange-400" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-sky-500 dark:bg-sky-400" />
                 )}
               </div>
             );
@@ -938,7 +938,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-purple-200 border border-purple-400" />BVVD</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-400" />Gepland/pending</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-orange-200 border border-orange-400" />Feestdag</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-sky-200 border border-sky-400" />Feestdag</div>
           <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>
         </div>
       )}
