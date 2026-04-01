@@ -816,7 +816,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
         : "bg-purple-200 text-purple-900 dark:bg-purple-800/50 dark:text-purple-200 cursor-pointer hover:bg-purple-300 font-semibold";
     }
     if (type === "vacation" || type === "personal" || type === "other") {
-      if (status === "pending") return "bg-amber-200 text-amber-900 dark:bg-amber-700/50 dark:text-amber-100 cursor-pointer hover:bg-amber-300 font-semibold";
+      if (status === "pending") return "bg-[#664B2A] text-white dark:bg-[#664B2A] dark:text-white cursor-pointer hover:bg-[#7a5a35] font-semibold";
       return "bg-green-200 text-green-900 dark:bg-green-800/50 dark:text-green-200 cursor-pointer hover:bg-green-300 font-semibold";
     }
     if (type === "persoonlijk") {
