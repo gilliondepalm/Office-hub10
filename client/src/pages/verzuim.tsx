@@ -657,7 +657,9 @@ function AbsenceReportDialog({
                               {(absence as any).userName || "Medewerker"}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                {absence.type === "persoonlijk" && (absence as any).persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[absence.type]}
+                              </Badge>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {formatDateShort(absence.startDate)} - {formatDate(absence.endDate)}
@@ -1857,7 +1859,9 @@ export default function VerzuimPage() {
                                   <TableCell>
                                     <div className="flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1">
-                                        <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {absence.type === "persoonlijk" && (absence as any).persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[absence.type]}
+                                        </Badge>
                                         {isDuplicate && <span className="text-destructive font-bold text-sm leading-none">*</span>}
                                       </div>
                                       {isDuplicate && (
@@ -1907,7 +1911,11 @@ export default function VerzuimPage() {
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => updateStatusMutation.mutate({ id: absence.id, status: "approved" })}
+                                            onClick={() => updateStatusMutation.mutate({
+                                              id: absence.id,
+                                              status: "approved",
+                                              ...(absence.type === "persoonlijk" ? { persoonlijkBesluit: "geoorloofd" } : {}),
+                                            })}
                                             data-testid={`button-approve-absence-${absence.id}`}
                                           >
                                             <CheckCircle className="h-3 w-3 mr-1" />
@@ -2089,7 +2097,9 @@ export default function VerzuimPage() {
                                       <TableCell>
                                         <div className="flex flex-col gap-0.5">
                                           <div className="flex items-center gap-1">
-                                            <Badge variant="secondary" className="text-xs">{typeLabels[absence.type]}</Badge>
+                                            <Badge variant="secondary" className="text-xs">
+                                              {absence.type === "persoonlijk" && (absence as any).persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[absence.type]}
+                                            </Badge>
                                             {isDupOvz && <span className="text-destructive font-bold text-sm leading-none">*</span>}
                                           </div>
                                           {isDupOvz && (
@@ -2322,6 +2332,7 @@ export default function VerzuimPage() {
                       <TableHead className="text-right">Ziek</TableHead>
                       <TableHead className="text-right">Snipper</TableHead>
                       <TableHead className="text-right">Cancel</TableHead>
+                      <TableHead className="text-right">Persoonlijk</TableHead>
                       <TableHead className="text-right">Saldo Nieuw</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -2335,7 +2346,7 @@ export default function VerzuimPage() {
                       return departments.map(dept => (
                         <>
                           <TableRow key={`dept-${dept}`}>
-                            <TableCell colSpan={11} className="bg-muted/50 font-bold text-sm py-1.5">
+                            <TableCell colSpan={12} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
                             </TableCell>
                           </TableRow>
@@ -2377,6 +2388,13 @@ export default function VerzuimPage() {
                               <TableCell className="text-right text-sm">
                                 {(b.cancelDays || 0) > 0 ? (
                                   <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">{b.cancelDays}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {((b as any).persoonlijkGeoorloofdDays || 0) > 0 ? (
+                                  <Badge variant="outline" className="text-xs text-sky-600 border-sky-300">{(b as any).persoonlijkGeoorloofdDays}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
