@@ -527,6 +527,205 @@ function BalieMedewerkerTab() {
   );
 }
 
+// ── Balie Medewerker III ─────────────────────────────────────────────────────
+
+const BALIE3_JAREN_ASC = ["2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
+
+type Balie3Rij = { inzagen: number; herInzage: number; naInzage: number; kadastraalLegger: number; verklaring: number; getuigschrift: number };
+
+// Arrays indexed [maandIdx 0-11][jaarIdx 0-17]
+const B3_IZ = [[602,460,502,405,365,523,512,348,500,624,963,1006,1090,1282,1637,1177,1675,1798],[1060,914,982,899,715,982,947,969,1303,1426,2160,2023,2153,2315,3117,2326,3079,3445],[1449,1361,1681,1347,1138,1461,1436,1510,2026,2255,3193,3539,3064,3402,4996,3791,4757,4971],[1779,1791,2210,1784,1513,1852,1877,2111,3205,2887,4068,4585,3123,4043,6252,4960,6403,6726],[2097,2149,2210,2199,1946,2277,2381,3371,3851,4010,5273,5646,3636,5057,7647,6365,7977,8473],[2097,2635,2210,2576,2491,2819,2792,3916,4935,5228,6479,6827,4246,7002,8989,7795,9783,10093],[2097,2985,2210,2962,3052,3300,3240,4480,5702,6300,7590,7818,5062,8381,10194,9057,11506,11916],[2097,3429,2210,3404,3627,3731,3755,4975,6414,7523,8721,8723,5963,9975,11589,10375,13086,13816],[2097,3956,2210,3796,4075,4227,4165,5848,7344,8467,9700,9746,6918,11719,12930,11613,14842,15631],[2097,4400,2210,4210,4629,4699,4586,6496,8024,9463,10659,10915,7870,13376,14112,12965,16536,17301],[2097,4925,2210,4656,5126,5162,5081,7304,8935,10468,11822,10915,8852,15335,15300,14484,18139,18960],[2097,5341,2210,4975,5482,5162,5761,7304,8935,11218,12835,10915,9879,17072,16249,15510,19573,20333]];
+const B3_HI = [[55,35,48,33,27,54,51,79,31,57,60,64,70,89,134,130,124,176],[110,78,86,74,66,90,110,149,55,110,131,137,153,221,261,282,265,346],[166,148,157,147,108,141,167,221,106,168,199,204,215,299,406,461,432,496],[224,187,213,196,715,202,204,312,171,208,256,291,233,335,602,572,605,725],[268,242,213,257,192,263,268,397,207,288,335,368,293,426,846,761,789,867],[268,296,213,306,239,317,344,467,260,355,395,447,354,546,1032,976,986,1113],[268,373,213,343,288,356,405,537,305,411,452,511,399,710,1217,1148,1291,1268],[268,417,213,389,339,392,474,622,388,463,547,579,460,870,1467,1336,1471,1410],[268,480,213,437,393,433,526,647,438,528,623,660,515,1020,1609,1522,1676,1759],[268,536,213,477,442,491,596,712,512,606,695,734,587,1200,1769,1699,1906,2024],[268,589,213,524,488,558,686,748,575,666,782,734,656,1506,2018,1898,2143,2259],[268,653,213,574,523,558,751,748,575,729,836,734,754,1713,2199,2147,2384,2512]];
+const B3_NI = [[288,233,121,97,102,157,149,191,136,125,159,146,168,211,174,209,225,232],[535,487,269,175,215,275,304,342,279,257,331,352,365,445,377,408,396,481],[763,663,445,318,342,461,478,591,441,458,510,517,511,634,653,653,605,712],[1053,932,639,461,451,672,622,847,594,617,680,742,524,712,897,831,812,1007],[1329,1080,639,630,561,854,899,1067,763,834,896,926,651,893,1211,1086,1036,1230],[1329,1245,639,770,700,1049,1169,1343,910,1028,1100,1132,813,1136,1498,1361,1277,1509],[1329,1416,639,907,848,1240,1366,1550,1085,1225,1280,1330,939,1397,1761,1597,1589,1782],[1329,1585,639,1032,1046,1429,1585,1779,1306,1412,1506,1491,1080,1636,2085,1822,1893,1982],[1329,1750,639,1145,1220,1595,1790,1892,1485,1586,1692,1671,1220,1875,2335,2036,2160,2357],[1329,1872,639,1286,1376,1772,2041,2023,1665,1802,1899,1877,1388,2110,2574,2309,2465,2699],[1329,1975,639,1421,1528,1950,2211,2181,1859,2008,2129,1877,1559,2503,2934,2551,2767,3024],[1329,2165,639,1587,1678,1950,2461,2181,1859,2185,2329,1877,1763,2796,3227,2876,3087,3409]];
+const B3_KL = [[40,47,19,29,18,27,31,24,18,44,34,40,45,47,83,58,39,82],[64,82,61,53,48,60,48,42,51,84,104,77,196,120,135,139,138,206],[101,134,112,76,77,91,84,71,100,146,132,139,234,155,226,198,224,278],[142,167,129,108,99,111,101,112,137,172,165,174,234,189,270,251,283,359],[174,225,129,137,126,145,130,136,169,225,228,236,249,232,347,313,380,434],[174,266,129,166,146,179,158,177,222,265,264,306,277,259,406,396,465,510],[174,294,129,191,173,206,192,204,267,296,316,358,312,319,466,450,542,591],[174,324,129,228,206,244,209,225,319,330,363,410,353,369,532,548,616,670],[174,349,129,271,232,283,244,255,378,365,402,462,392,423,590,615,681,763],[174,394,129,296,256,309,260,287,401,402,441,504,439,491,675,673,759,852],[174,423,129,319,279,334,277,301,423,438,465,504,479,541,741,732,817,900],[174,447,129,337,306,334,298,301,423,471,488,504,506,577,778,772,866,953]];
+const B3_VK = [[45,145,75,46,31,34,43,35,48,61,86,59,58,72,37,32,39,35],[138,248,125,99,58,71,95,67,98,106,145,96,100,135,74,69,66,84],[138,310,187,150,86,120,142,114,155,183,284,185,143,196,141,109,109,150],[192,381,260,179,111,171,182,186,194,237,372,246,143,212,208,146,151,202],[237,456,260,211,141,206,251,217,238,316,449,305,158,229,270,210,200,248],[237,529,260,237,178,278,343,270,300,426,544,370,197,294,320,257,254,329],[237,584,260,287,209,315,399,324,350,525,643,415,253,372,359,296,291,403],[237,633,260,322,243,358,436,374,412,622,746,480,331,440,416,342,327,446],[237,680,260,368,277,413,473,427,471,704,804,549,404,509,453,385,377,483],[237,724,260,390,313,482,526,471,554,755,885,633,460,584,507,428,414,512],[237,760,260,419,333,520,554,505,637,837,957,633,506,637,557,468,449,548],[237,781,260,437,344,520,585,505,637,892,1005,633,548,681,586,487,478,588]];
+const B3_GT = [[0,5,2,0,0,2,3,4,3,3,1,3,9,2,1,8,5,2],[2,7,2,0,1,7,10,13,3,5,5,10,14,7,1,9,6,2],[5,7,2,5,2,10,12,15,7,22,7,15,22,10,7,11,7,2],[5,13,2,5,2,11,14,19,8,30,7,19,22,11,8,15,9,2],[8,15,2,7,4,13,21,21,10,31,16,28,22,15,16,16,10,6],[8,19,2,12,5,14,21,26,10,38,18,34,22,16,18,16,10,7],[8,21,2,12,6,18,31,27,22,44,26,43,28,17,21,21,10,8],[8,25,2,14,6,23,38,37,22,46,27,46,39,20,21,23,11,10],[8,26,2,18,8,31,47,44,26,52,30,100,48,28,21,27,18,10],[8,26,2,29,8,31,47,44,29,63,56,104,49,32,21,30,23,12],[8,26,2,29,14,32,50,50,34,64,63,104,57,52,21,30,25,13],[8,32,2,29,16,32,53,50,34,66,63,104,63,53,22,31,29,13]];
+
+const BALIE3_DATA: Record<string, Balie3Rij[]> = (() => {
+  const out: Record<string, Balie3Rij[]> = {};
+  BALIE3_JAREN_ASC.forEach((jaar, j) => {
+    out[jaar] = BALIE_MAANDEN.map((_, i) => ({
+      inzagen:          B3_IZ[i][j],
+      herInzage:        B3_HI[i][j],
+      naInzage:         B3_NI[i][j],
+      kadastraalLegger: B3_KL[i][j],
+      verklaring:       B3_VK[i][j],
+      getuigschrift:    B3_GT[i][j],
+    }));
+  });
+  return out;
+})();
+
+const BALIE3_PRODUCTEN: { key: keyof Balie3Rij; label: string; kleur: string }[] = [
+  { key: "inzagen",          label: "Inzagen",           kleur: "#6366f1" },
+  { key: "herInzage",        label: "Her inzage",        kleur: "#22c55e" },
+  { key: "naInzage",         label: "Na inzage",         kleur: "#f97316" },
+  { key: "kadastraalLegger", label: "Kadastrale legger", kleur: "#f59e0b" },
+  { key: "verklaring",       label: "Verklaring",        kleur: "#ec4899" },
+  { key: "getuigschrift",    label: "Getuigschrift",     kleur: "#14b8a6" },
+];
+
+function BalieM3Tab() {
+  const [maandIdx, setMaandIdx]   = useState(11);
+  const [periodeIdx, setPeriodeIdx] = useState(0);
+
+  const allePeriodes: { label: string; range: [number, number] }[] = [
+    { label: "Alle jaren (2008–2025)", range: [0, 18] },
+    { label: "2008–2015",             range: [0, 8]  },
+    { label: "2016–2025",             range: [8, 18] },
+  ];
+
+  const periode    = allePeriodes[periodeIdx];
+  const jaren      = BALIE3_JAREN_ASC.slice(periode.range[0], periode.range[1]);
+  const maandLabel = BALIE_MAANDEN[maandIdx];
+
+  const data = jaren.map(jaar => {
+    const rij = BALIE3_DATA[jaar]?.[maandIdx];
+    return { jaar, ...(rij ?? { inzagen:0, herInzage:0, naInzage:0, kadastraalLegger:0, verklaring:0, getuigschrift:0 }) };
+  });
+
+  const maxIZ = data.length ? Math.max(...data.map(d => d.inzagen))          : 0;
+  const maxHI = data.length ? Math.max(...data.map(d => d.herInzage))        : 0;
+  const maxNI = data.length ? Math.max(...data.map(d => d.naInzage))         : 0;
+  const maxKL = data.length ? Math.max(...data.map(d => d.kadastraalLegger)) : 0;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
+          <Select value={String(maandIdx)} onValueChange={v => setMaandIdx(Number(v))}>
+            <SelectTrigger className="w-28" data-testid="select-balie3-maand">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BALIE_MAANDEN.map((m, idx) => (
+                <SelectItem key={m} value={String(idx)} data-testid={`option-balie3-maand-${m}`}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
+          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
+            <SelectTrigger className="w-52" data-testid="select-balie3-periode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allePeriodes.map((p, i) => (
+                <SelectItem key={i} value={String(i)} data-testid={`option-balie3-periode-${i}`}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Inzagen",           value: maxIZ, kleur: "#6366f1" },
+          { label: "Her inzage",        value: maxHI, kleur: "#22c55e" },
+          { label: "Na inzage",         value: maxNI, kleur: "#f97316" },
+          { label: "Kadastrale legger", value: maxKL, kleur: "#f59e0b" },
+        ].map(k => (
+          <Card key={k.label}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium mb-1 leading-tight">{k.label}</p>
+              <p className="text-2xl font-bold" style={{ color: k.kleur }}>{k.value.toLocaleString("nl")}</p>
+              <p className="text-xs text-muted-foreground mt-1">hoogste t/m {maandLabel}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Productie per jaar — cumulatief t/m {maandLabel}</CardTitle>
+          <CardDescription className="text-xs">Lijndiagram — alle producttypen per jaar voor het geselecteerde maandpunt</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: jaren.length * 48 + 80 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {BALIE3_PRODUCTEN.map(p => (
+                    <Line key={p.key} type="monotone" dataKey={p.key} name={p.label} stroke={p.kleur} strokeWidth={2} dot={{ r: 3 }} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Staafdiagram — gestapeld per jaar (t/m {maandLabel})</CardTitle>
+          <CardDescription className="text-xs">Totaaloverzicht per producttype — gecumuleerd voor het geselecteerde maandpunt</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: jaren.length * 48 + 80 }}>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {BALIE3_PRODUCTEN.map(p => (
+                    <Bar key={p.key} dataKey={p.key} name={p.label} fill={p.kleur} stackId="a" />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maandLabel} — {periode.label}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jaar</TableHead>
+                  {BALIE3_PRODUCTEN.map(p => (
+                    <TableHead key={p.key} className="text-right" style={{ color: p.kleur }}>{p.label}</TableHead>
+                  ))}
+                  <TableHead className="text-right font-semibold">Totaal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map(rij => {
+                  const totaal = BALIE3_PRODUCTEN.reduce((s, p) => s + rij[p.key], 0);
+                  return (
+                    <TableRow key={rij.jaar} data-testid={`row-balie3-${rij.jaar}-${maandLabel}`}>
+                      <TableCell className="font-semibold">{rij.jaar}</TableCell>
+                      {BALIE3_PRODUCTEN.map(p => (
+                        <TableCell key={p.key} className="text-right">{rij[p.key].toLocaleString("nl")}</TableCell>
+                      ))}
+                      <TableCell className="text-right font-semibold">{totaal.toLocaleString("nl")}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
   const [periodeIdx, setPeriodeIdx] = useState(0);
@@ -1152,6 +1351,9 @@ export default function ProductiePage() {
             <TabsTrigger value="balie" data-testid="tab-balie">
               Balie Medewerker II
             </TabsTrigger>
+            <TabsTrigger value="balie3" data-testid="tab-balie3">
+              Balie Medewerker III
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="ori">
@@ -1206,6 +1408,10 @@ export default function ProductiePage() {
 
           <TabsContent value="balie">
             <BalieMedewerkerTab />
+          </TabsContent>
+
+          <TabsContent value="balie3">
+            <BalieM3Tab />
           </TabsContent>
         </Tabs>
       </div>
