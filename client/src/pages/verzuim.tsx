@@ -1117,7 +1117,7 @@ export default function VerzuimPage() {
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
   const [activeTab, setActiveTab] = useState("meldingen");
-  const [overzichtSort, setOverzichtSort] = useState<{ col: "seq" | "date"; dir: "asc" | "desc" }>({ col: "date", dir: "desc" });
+  const [overzichtSort, setOverzichtSort] = useState<{ col: "seq" | "date"; dir: "asc" | "desc" }>({ col: "seq", dir: "asc" });
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
