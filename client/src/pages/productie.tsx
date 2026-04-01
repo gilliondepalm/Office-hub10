@@ -304,6 +304,270 @@ const LANDMETERS_DATA: Record<string, LandmetersRij[]> = {
   })),
 };
 
+const BALIE_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+type BalieRij = { maand: string; kkp: number; db: number; sa: number; rm: number; re: number; km: number; ik: number };
+
+const BALIE_DATA: Record<string, BalieRij[]> = {
+  "2025": BALIE_MAANDEN.map((maand, i) => ({
+    maand,
+    kkp: [2,6,12,18,22,26,33,38,45,50,53,53][i],
+    db:  [2,4,4,5,5,7,9,11,2,13,13,13][i],
+    sa:  [420,831,1248,1711,2129,2580,3057,3459,3897,4348,4763,5103][i],
+    rm:  [176,324,496,671,873,1080,1277,1462,1708,1882,2027,2149][i],
+    re:  [69,185,235,281,333,388,444,492,552,608,649,690][i],
+    km:  [16,25,50,62,82,96,113,120,136,294,312,336][i],
+    ik:  [2,2,2,3,3,3,4,4,4,4,4,4][i],
+  })),
+  "2024": BALIE_MAANDEN.map((maand, i) => ({
+    maand,
+    kkp: [4,11,16,18,20,26,32,35,39,43,47,50][i],
+    db:  [0,4,7,11,12,14,15,15,0,19,20,21][i],
+    sa:  [323,667,1054,1441,1793,2190,2539,2957,3394,3759,4122,4397][i],
+    rm:  [120,204,375,525,697,822,963,1103,1298,1436,1616,1770][i],
+    re:  [33,114,183,237,308,361,421,476,522,576,623,652][i],
+    km:  [8,22,37,50,60,71,82,91,114,136,144,156][i],
+    ik:  [0,0,0,0,0,0,0,0,0,1,1,1][i],
+  })),
+};
+
+const BALIE_PRODUCTEN: { key: keyof Omit<BalieRij,"maand">; label: string; kleur: string }[] = [
+  { key: "sa",  label: "Situatieschets A4/A3",     kleur: "#6366f1" },
+  { key: "rm",  label: "Regulier Meetbrief",        kleur: "#22c55e" },
+  { key: "re",  label: "Regulier Extractplan",      kleur: "#f97316" },
+  { key: "km",  label: "Kadastrale Meetgegevens",   kleur: "#f59e0b" },
+  { key: "kkp", label: "Kadastrale Kaart Producten",kleur: "#8b5cf6" },
+  { key: "db",  label: "Digitale bestanden",        kleur: "#06b6d4" },
+  { key: "ik",  label: "Inzage KAD",               kleur: "#ec4899" },
+];
+
+function maandelijkseGroei(data: BalieRij[]): BalieRij[] {
+  return data.map((rij, i) => {
+    if (i === 0) return { ...rij };
+    const prev = data[i - 1];
+    return {
+      maand: rij.maand,
+      kkp: rij.kkp - prev.kkp,
+      db:  Math.max(0, rij.db  - prev.db),
+      sa:  rij.sa  - prev.sa,
+      rm:  rij.rm  - prev.rm,
+      re:  rij.re  - prev.re,
+      km:  rij.km  - prev.km,
+      ik:  rij.ik  - prev.ik,
+    };
+  });
+}
+
+function BalieMedewerkerTab() {
+  const [jaar, setJaar] = useState("2025");
+  const [weergave, setWeergave] = useState<"cumulatief" | "maandelijks">("cumulatief");
+  const [vergelijk, setVergelijk] = useState(false);
+
+  const data2025 = BALIE_DATA["2025"];
+  const data2024 = BALIE_DATA["2024"];
+  const basisData = BALIE_DATA[jaar] || [];
+  const chartData = weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData);
+
+  const totalen = BALIE_PRODUCTEN.map(p => ({
+    ...p,
+    totaal2025: data2025[data2025.length - 1][p.key] as number,
+    totaal2024: data2024[data2024.length - 1][p.key] as number,
+  }));
+
+  const vergelijkData = BALIE_MAANDEN.map((maand, i) => {
+    const r25 = (weergave === "cumulatief" ? data2025 : maandelijkseGroei(data2025))[i];
+    const r24 = (weergave === "cumulatief" ? data2024 : maandelijkseGroei(data2024))[i];
+    const obj: Record<string, string | number> = { maand };
+    BALIE_PRODUCTEN.forEach(p => {
+      obj[`${p.key}_2025`] = r25[p.key] as number;
+      obj[`${p.key}_2024`] = r24[p.key] as number;
+    });
+    return obj;
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Jaar:</span>
+          {["2024","2025"].map(j => (
+            <button
+              key={j}
+              onClick={() => { setJaar(j); setVergelijk(false); }}
+              data-testid={`btn-balie-jaar-${j}`}
+              className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                jaar === j && !vergelijk
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border hover:bg-muted"
+              }`}
+            >{j}</button>
+          ))}
+          <button
+            onClick={() => setVergelijk(v => !v)}
+            data-testid="btn-balie-vergelijk"
+            className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+              vergelijk ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
+            }`}
+          >Vergelijk 2024 vs 2025</button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Weergave:</span>
+          {(["cumulatief","maandelijks"] as const).map(w => (
+            <button
+              key={w}
+              onClick={() => setWeergave(w)}
+              data-testid={`btn-balie-weergave-${w}`}
+              className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
+                weergave === w ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
+              }`}
+            >{w === "cumulatief" ? "Cumulatief (t/m)" : "Per maand"}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {totalen.slice(0,4).map(p => (
+          <Card key={p.key}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium mb-1 leading-tight">{p.label}</p>
+              <p className="text-2xl font-bold" style={{ color: p.kleur }}>
+                {(BALIE_DATA[jaar]?.[BALIE_DATA[jaar].length - 1]?.[p.key] as number ?? 0).toLocaleString("nl")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">t/m Dec {jaar}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {vergelijk ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">2024 vs 2025 — {weergave === "cumulatief" ? "Cumulatief" : "Per maand"}</CardTitle>
+            <CardDescription className="text-xs">Selecteer een product hieronder om te vergelijken</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {BALIE_PRODUCTEN.map(p => (
+                <span key={p.key} className="text-xs px-2 py-0.5 rounded-full border" style={{ borderColor: p.kleur, color: p.kleur }}>{p.label}</span>
+              ))}
+            </div>
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: 700 }}>
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={vergelijkData} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => v.toLocaleString("nl")} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    {BALIE_PRODUCTEN.slice(0,3).map(p => ([
+                      <Line key={`${p.key}_2025`} type="monotone" dataKey={`${p.key}_2025`} name={`${p.label} 2025`} stroke={p.kleur} strokeWidth={2} dot={{ r: 2 }} />,
+                      <Line key={`${p.key}_2024`} type="monotone" dataKey={`${p.key}_2024`} name={`${p.label} 2024`} stroke={p.kleur} strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />,
+                    ]))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                {weergave === "cumulatief" ? `Cumulatief t/m — ${jaar}` : `Productie per maand — ${jaar}`}
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Lijndiagram — alle producttypen — {weergave === "cumulatief" ? "oplopend door het jaar" : "maandelijkse aantallen"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <div style={{ minWidth: 600 }}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={chartData} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      {BALIE_PRODUCTEN.map(p => (
+                        <Line key={p.key} type="monotone" dataKey={p.key} name={p.label} stroke={p.kleur} strokeWidth={2} dot={{ r: 3 }} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">
+                Staafdiagram — {weergave === "cumulatief" ? `Cumulatief t/m — ${jaar}` : `Per maand — ${jaar}`}
+              </CardTitle>
+              <CardDescription className="text-xs">Gestapelde weergave per producttype</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <div style={{ minWidth: 600 }}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={chartData} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      {BALIE_PRODUCTEN.map(p => (
+                        <Bar key={p.key} dataKey={p.key} name={p.label} fill={p.kleur} stackId="a" />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Detailtabel — {vergelijk ? "2024 vs 2025" : jaar} ({weergave === "cumulatief" ? "cumulatief" : "per maand"})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Maand</TableHead>
+                  {BALIE_PRODUCTEN.map(p => (
+                    <TableHead key={p.key} className="text-right" style={{ color: p.kleur }}>{p.label.split(" ")[0]}{p.label.split(" ").length > 2 ? "…" : ""}</TableHead>
+                  ))}
+                  <TableHead className="text-right font-semibold">Totaal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData)).map((rij) => {
+                  const totaal = BALIE_PRODUCTEN.reduce((s, p) => s + (rij[p.key] as number), 0);
+                  return (
+                    <TableRow key={rij.maand} data-testid={`row-balie-${jaar}-${rij.maand}`}>
+                      <TableCell className="font-medium">{rij.maand}</TableCell>
+                      {BALIE_PRODUCTEN.map(p => (
+                        <TableCell key={p.key} className="text-right">{(rij[p.key] as number).toLocaleString("nl")}</TableCell>
+                      ))}
+                      <TableCell className="text-right font-semibold">{totaal.toLocaleString("nl")}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
   const [periodeIdx, setPeriodeIdx] = useState(0);
@@ -926,6 +1190,9 @@ export default function ProductiePage() {
             <TabsTrigger value="landmeters" data-testid="tab-landmeters">
               Landmeters
             </TabsTrigger>
+            <TabsTrigger value="balie" data-testid="tab-balie">
+              Balie Medewerker II
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="ori">
@@ -976,6 +1243,10 @@ export default function ProductiePage() {
 
           <TabsContent value="landmeters">
             <LandmetersTab />
+          </TabsContent>
+
+          <TabsContent value="balie">
+            <BalieMedewerkerTab />
           </TabsContent>
         </Tabs>
       </div>
