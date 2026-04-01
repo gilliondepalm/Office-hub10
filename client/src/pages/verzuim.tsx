@@ -1953,6 +1953,24 @@ export default function VerzuimPage() {
               ...filteredDayCancels.map(c => ({ _kind: "dayCancel" as const, dept: c.userDepartment || "Geen afdeling", row: c })),
             ];
 
+            const userRowsByName = new Map<string, typeof allRows>();
+            for (const item of allRows) {
+              const name = item.row.userName || "?";
+              if (!userRowsByName.has(name)) userRowsByName.set(name, []);
+              userRowsByName.get(name)!.push(item);
+            }
+            const seqMap = new Map<string, number>();
+            for (const [, rows] of userRowsByName) {
+              const sorted = [...rows].sort((a, b) => {
+                const dA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
+                const dB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
+                return dA.localeCompare(dB);
+              });
+              sorted.forEach((item, idx) => {
+                seqMap.set(`${item._kind}-${item.row.id}`, idx + 1);
+              });
+            }
+
             if (allRows.length === 0) {
               return (
                 <Card>
@@ -1973,6 +1991,7 @@ export default function VerzuimPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-10 text-center">#</TableHead>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Periode / Datum</TableHead>
@@ -1992,11 +2011,12 @@ export default function VerzuimPage() {
                           return (
                             <Fragment key={dept}>
                               <TableRow>
-                                <TableCell colSpan={5} className="bg-muted/50 font-bold text-sm py-1.5">
+                                <TableCell colSpan={6} className="bg-muted/50 font-bold text-sm py-1.5">
                                   {dept}
                                 </TableCell>
                               </TableRow>
                               {deptRows.map((item) => {
+                                const seqNum = seqMap.get(`${item._kind}-${item.row.id}`) ?? 0;
                                 if (item._kind === "absence") {
                                   const absence = item.row;
                                   const sc = statusConfig[absence.status] || statusConfig.pending;
@@ -2017,6 +2037,7 @@ export default function VerzuimPage() {
                                       onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
                                       title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
                                     >
+                                      <TableCell className="text-center text-xs font-mono text-muted-foreground w-10">{seqNum}</TableCell>
                                       <TableCell className="font-medium text-sm pl-6">{absence.userName || "Medewerker"}</TableCell>
                                       <TableCell>
                                         <div className="flex flex-col gap-0.5">
@@ -2068,6 +2089,7 @@ export default function VerzuimPage() {
                                       onClick={() => setCancelDetailAbsence({ _isDayCancel: true, ...c })}
                                       title="Klik om details te bekijken"
                                     >
+                                      <TableCell className="text-center text-xs font-mono text-muted-foreground w-10">{seqNum}</TableCell>
                                       <TableCell className="font-medium text-sm pl-6">{c.userName || "Medewerker"}</TableCell>
                                       <TableCell>
                                         <div className="flex items-center gap-1.5">
