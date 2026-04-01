@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -1117,7 +1117,6 @@ export default function VerzuimPage() {
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
   const [activeTab, setActiveTab] = useState("meldingen");
-  const [overzichtSort, setOverzichtSort] = useState<{ col: "seq" | "date"; dir: "asc" | "desc" }>({ col: "seq", dir: "asc" });
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -1954,24 +1953,6 @@ export default function VerzuimPage() {
               ...filteredDayCancels.map(c => ({ _kind: "dayCancel" as const, dept: c.userDepartment || "Geen afdeling", row: c })),
             ];
 
-            const userRowsByName = new Map<string, typeof allRows>();
-            for (const item of allRows) {
-              const name = item.row.userName || "?";
-              if (!userRowsByName.has(name)) userRowsByName.set(name, []);
-              userRowsByName.get(name)!.push(item);
-            }
-            const seqMap = new Map<string, number>();
-            for (const [, rows] of userRowsByName) {
-              const sorted = [...rows].sort((a, b) => {
-                const tA = a.row.createdAt ? new Date(a.row.createdAt).getTime() : 0;
-                const tB = b.row.createdAt ? new Date(b.row.createdAt).getTime() : 0;
-                return tA - tB;
-              });
-              sorted.forEach((item, idx) => {
-                seqMap.set(`${item._kind}-${item.row.id}`, idx + 1);
-              });
-            }
-
             if (allRows.length === 0) {
               return (
                 <Card>
@@ -1992,28 +1973,9 @@ export default function VerzuimPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-10 text-center">
-                            <button
-                              className={`flex items-center gap-0.5 mx-auto font-semibold hover:text-foreground transition-colors ${overzichtSort.col === "seq" ? "text-foreground" : "text-muted-foreground"}`}
-                              onClick={() => setOverzichtSort(s => s.col === "seq" ? { col: "seq", dir: s.dir === "asc" ? "desc" : "asc" } : { col: "seq", dir: "asc" })}
-                              data-testid="sort-by-seq"
-                            >
-                              #
-                              {overzichtSort.col === "seq" ? (overzichtSort.dir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
-                            </button>
-                          </TableHead>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
-                          <TableHead>
-                            <button
-                              className={`flex items-center gap-0.5 font-semibold hover:text-foreground transition-colors ${overzichtSort.col === "date" ? "text-foreground" : "text-muted-foreground"}`}
-                              onClick={() => setOverzichtSort(s => s.col === "date" ? { col: "date", dir: s.dir === "asc" ? "desc" : "asc" } : { col: "date", dir: "desc" })}
-                              data-testid="sort-by-date"
-                            >
-                              Periode / Datum
-                              {overzichtSort.col === "date" ? (overzichtSort.dir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
-                            </button>
-                          </TableHead>
+                          <TableHead>Periode / Datum</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -2023,25 +1985,18 @@ export default function VerzuimPage() {
                           const deptRows = allRows
                             .filter(r => r.dept === dept)
                             .sort((a, b) => {
-                              const mult = overzichtSort.dir === "asc" ? 1 : -1;
-                              if (overzichtSort.col === "seq") {
-                                const sA = seqMap.get(`${a._kind}-${a.row.id}`) ?? 0;
-                                const sB = seqMap.get(`${b._kind}-${b.row.id}`) ?? 0;
-                                return (sA - sB) * mult;
-                              }
                               const dateA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
                               const dateB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
-                              return dateA.localeCompare(dateB) * mult;
+                              return dateB.localeCompare(dateA);
                             });
                           return (
                             <Fragment key={dept}>
                               <TableRow>
-                                <TableCell colSpan={6} className="bg-muted/50 font-bold text-sm py-1.5">
+                                <TableCell colSpan={5} className="bg-muted/50 font-bold text-sm py-1.5">
                                   {dept}
                                 </TableCell>
                               </TableRow>
                               {deptRows.map((item) => {
-                                const seqNum = seqMap.get(`${item._kind}-${item.row.id}`) ?? 0;
                                 if (item._kind === "absence") {
                                   const absence = item.row;
                                   const sc = statusConfig[absence.status] || statusConfig.pending;
@@ -2062,7 +2017,6 @@ export default function VerzuimPage() {
                                       onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
                                       title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
                                     >
-                                      <TableCell className="text-center text-xs font-mono text-muted-foreground w-10">{seqNum}</TableCell>
                                       <TableCell className="font-medium text-sm pl-6">{absence.userName || "Medewerker"}</TableCell>
                                       <TableCell>
                                         <div className="flex flex-col gap-0.5">
@@ -2114,7 +2068,6 @@ export default function VerzuimPage() {
                                       onClick={() => setCancelDetailAbsence({ _isDayCancel: true, ...c })}
                                       title="Klik om details te bekijken"
                                     >
-                                      <TableCell className="text-center text-xs font-mono text-muted-foreground w-10">{seqNum}</TableCell>
                                       <TableCell className="font-medium text-sm pl-6">{c.userName || "Medewerker"}</TableCell>
                                       <TableCell>
                                         <div className="flex items-center gap-1.5">
