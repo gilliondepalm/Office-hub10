@@ -309,26 +309,24 @@ const BALIE_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Ok
 type BalieRij = { maand: string; kkp: number; db: number; sa: number; rm: number; re: number; km: number; ik: number };
 
 const BALIE_DATA: Record<string, BalieRij[]> = {
-  "2025": BALIE_MAANDEN.map((maand, i) => ({
-    maand,
-    kkp: [2,6,12,18,22,26,33,38,45,50,53,53][i],
-    db:  [2,4,4,5,5,7,9,11,2,13,13,13][i],
-    sa:  [420,831,1248,1711,2129,2580,3057,3459,3897,4348,4763,5103][i],
-    rm:  [176,324,496,671,873,1080,1277,1462,1708,1882,2027,2149][i],
-    re:  [69,185,235,281,333,388,444,492,552,608,649,690][i],
-    km:  [16,25,50,62,82,96,113,120,136,294,312,336][i],
-    ik:  [2,2,2,3,3,3,4,4,4,4,4,4][i],
-  })),
-  "2024": BALIE_MAANDEN.map((maand, i) => ({
-    maand,
-    kkp: [4,11,16,18,20,26,32,35,39,43,47,50][i],
-    db:  [0,4,7,11,12,14,15,15,0,19,20,21][i],
-    sa:  [323,667,1054,1441,1793,2190,2539,2957,3394,3759,4122,4397][i],
-    rm:  [120,204,375,525,697,822,963,1103,1298,1436,1616,1770][i],
-    re:  [33,114,183,237,308,361,421,476,522,576,623,652][i],
-    km:  [8,22,37,50,60,71,82,91,114,136,144,156][i],
-    ik:  [0,0,0,0,0,0,0,0,0,1,1,1][i],
-  })),
+  "2025": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[2,6,12,18,22,26,33,38,45,50,53,53][i], db:[2,4,4,5,5,7,9,11,2,13,13,13][i], sa:[420,831,1248,1711,2129,2580,3057,3459,3897,4348,4763,5103][i], rm:[176,324,496,671,873,1080,1277,1462,1708,1882,2027,2149][i], re:[69,185,235,281,333,388,444,492,552,608,649,690][i], km:[16,25,50,62,82,96,113,120,136,294,312,336][i], ik:[2,2,2,3,3,3,4,4,4,4,4,4][i] })),
+  "2024": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[4,11,16,18,20,26,32,35,39,43,47,50][i], db:[0,4,7,11,12,14,15,15,0,19,20,21][i], sa:[323,667,1054,1441,1793,2190,2539,2957,3394,3759,4122,4397][i], rm:[120,204,375,525,697,822,963,1103,1298,1436,1616,1770][i], re:[33,114,183,237,308,361,421,476,522,576,623,652][i], km:[8,22,37,50,60,71,82,91,114,136,144,156][i], ik:[0,0,0,0,0,0,0,0,0,1,1,1][i] })),
+  "2023": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[4,6,9,13,20,24,26,34,39,47,59,66][i], db:[1,2,3,5,11,15,17,18,1,23,24,24][i], sa:[292,551,908,1154,1493,1843,2134,2491,2833,3250,3612,3826][i], rm:[92,193,322,457,573,687,847,997,1118,1258,1384,1500][i], re:[47,125,173,214,254,318,363,443,488,545,586,613][i], km:[3,9,17,24,30,33,35,46,55,64,73,79][i], ik:[0,0,0,2,3,3,3,4,4,5,5,6][i] })),
+  "2022": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[1,3,9,10,19,24,32,38,45,49,52,53][i], db:[6,7,11,13,15,17,19,20,6,24,24,25][i], sa:[246,551,936,1187,1481,1768,2089,2438,2756,3053,3298,3479][i], rm:[140,254,426,517,690,810,964,1094,1232,1355,1498,1595][i], re:[79,118,195,236,311,362,406,457,509,571,619,648][i], km:[2,6,20,22,33,39,48,53,56,57,64,67][i], ik:[0,0,0,0,1,3,3,3,3,3,3,3][i] })),
+  "2021": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,3,6,7,9,17,21,22,29,35,43,45][i], db:[1,2,2,2,3,5,5,5,1,10,12,17][i], sa:[223,461,657,739,893,1172,1512,1808,2110,2425,2680,2923][i], rm:[73,154,254,304,398,513,623,727,832,948,1069,1169][i], re:[46,104,124,150,185,211,266,305,351,394,445,475][i], km:[0,4,4,5,6,6,9,15,17,61,83,96][i], ik:[1,64,118,118,118,118,118,118,118,118,119,120][i] })),
+  "2020": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[5,8,11,11,12,14,21,34,37,43,45,47][i], db:[1,1,1,1,2,6,8,9,1,15,19,19][i], sa:[243,499,675,678,753,901,1051,1279,1466,1668,1855,1997][i], rm:[98,169,272,273,317,372,423,493,554,626,700,766][i], re:[40,194,225,225,235,258,291,331,366,402,433,460][i], km:[2,15,18,18,23,32,59,61,62,63,65,67][i], ik:[24,54,71,71,71,196,196,230,232,235,235,235][i] })),
+  "2019": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,8,13,19,27,32,36,36,39,47,49,49][i], db:[0,1,4,6,8,9,9,14,0,16,17,18][i], sa:[307,571,864,1175,1453,1686,1956,2221,2455,2708,2953,3210][i], rm:[94,168,271,356,438,545,630,706,792,908,1005,1074][i], re:[42,79,131,166,223,289,330,377,422,462,490,510][i], km:[5,6,12,12,13,13,19,21,23,27,30,32][i], ik:[35,67,98,142,181,209,224,282,321,359,386,421][i] })),
+  "2018": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[7,7,11,13,13,13,17,21,25,32,35,35][i], db:[1,1,5,6,6,6,8,9,1,11,13,16][i], sa:[257,503,843,1066,1366,1677,1916,2213,2435,2687,2917,3089][i], rm:[86,168,275,351,449,541,617,715,803,906,997,1053][i], re:[34,76,101,131,189,220,261,308,344,383,406,429][i], km:[4,5,7,11,17,18,21,27,28,29,30,32][i], ik:[44,73,95,122,156,185,210,243,261,296,330,358][i] })),
+  "2017": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,11,19,21,22,22,27,31,40,45,53,60][i], db:[2,5,7,7,8,8,9,10,2,13,15,16][i], sa:[202,385,599,728,933,1204,1459,1718,1981,2230,2511,2702][i], rm:[59,115,189,224,322,418,490,563,639,698,769,817][i], re:[45,80,140,166,217,257,288,320,355,392,426,454][i], km:[8,8,10,10,13,14,17,29,30,34,36,38][i], ik:[23,42,86,114,164,203,240,268,308,347,376,406][i] })),
+  "2016": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[1,2,9,11,15,17,23,23,35,38,39,39][i], db:[4,6,9,9,9,11,12,13,4,19,20,20][i], sa:[161,327,530,722,913,1121,1331,1587,1804,2008,2204,2204][i], rm:[60,150,232,312,379,462,525,597,668,717,777,777][i], re:[16,52,102,148,183,235,280,326,372,395,416,416][i], km:[5,8,14,20,20,21,26,33,33,35,40,40][i], ik:[26,78,107,215,245,301,349,397,425,458,484,484][i] })),
+  "2015": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[4,13,18,25,29,37,39,52,56,64,68,68][i], db:[0,0,3,4,4,4,5,6,0,8,9,9][i], sa:[166,292,485,621,752,963,1159,1362,1501,1630,1788,1788][i], rm:[60,130,198,255,288,347,404,477,555,622,718,718][i], re:[23,41,67,110,134,169,193,216,245,281,307,307][i], km:[3,8,13,13,13,15,23,23,26,26,26,26][i], ik:[73,135,160,198,248,290,302,331,390,430,495,495][i] })),
+  "2014": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[8,12,17,20,23,27,32,35,40,40,42,43][i], db:[4,4,4,4,7,13,15,16,4,20,21,21][i], sa:[175,351,497,651,824,984,1144,1302,1450,1611,1790,1890][i], rm:[58,129,180,223,269,321,396,434,491,555,632,688][i], re:[27,46,81,100,131,159,196,213,264,287,307,328][i], km:[5,10,11,19,23,23,24,29,32,33,43,45][i], ik:[6,13,24,34,44,57,94,123,157,185,213,230][i] })),
+  "2013": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[2,6,6,6,9,9,9,13,15,23,26,26][i], db:[0,0,0,0,0,0,0,5,7,10,26,26][i], sa:[168,290,457,622,786,937,1095,1266,1412,1594,1746,1746][i], rm:[52,96,176,268,355,414,463,519,585,636,689,689][i], re:[28,61,95,120,154,182,206,242,285,324,349,349][i], km:[4,6,13,14,18,20,22,23,27,28,31,31][i], ik:[24,40,57,74,79,95,115,122,135,149,157,157][i] })),
+  "2012": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,5,7,7,8,8,8,11,14,15,15,15][i], db:[3,12,15,16,16,16,18,20,22,22,22,22][i], sa:[182,333,524,664,852,1007,1144,1310,1454,1586,1711,1802][i], rm:[56,120,199,243,316,387,445,516,567,606,656,679][i], re:[22,51,81,103,127,146,166,195,221,241,265,289][i], km:[3,5,8,8,9,12,12,13,15,17,20,22][i], ik:[19,40,63,76,101,121,141,154,172,184,201,223][i] })),
+  "2011": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[5,10,12,14,17,18,18,18,21,22,22,24][i], db:[2,5,5,11,12,14,15,15,18,20,29,30][i], sa:[223,438,645,831,1036,1270,1470,1674,1873,2063,2226,2347][i], rm:[59,113,179,236,294,363,417,464,532,588,640,682][i], re:[27,50,72,106,164,192,223,258,304,333,355,377][i], km:[1,3,5,6,7,13,15,16,18,20,22,26][i], ik:[39,61,100,127,160,178,205,236,268,287,304,317][i] })),
+  "2010": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,7,12,13,17,19,20,22,24,27,29,31][i], db:[2,3,7,9,15,25,36,48,56,58,61,64][i], sa:[194,371,615,806,1019,1244,1443,2234,2529,2749,2930,3071][i], rm:[47,105,168,223,275,332,383,431,493,537,537,623][i], re:[19,61,116,133,193,237,266,293,315,361,390,411][i], km:[3,7,8,9,13,15,20,25,31,32,38,43][i], ik:[36,85,118,157,195,238,257,268,294,317,343,85][i] })),
+  "2009": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,5,6,10,10,10,10,10,10,10,10,10][i], db:[4,6,8,10,11,11,11,11,11,11,11,11][i], sa:[204,391,995,1176,1357,1357,1357,1357,1357,1357,1357,1357][i], rm:[66,114,278,339,400,400,400,400,400,400,400,400][i], re:[45,80,190,220,250,250,250,250,250,250,250,250][i], km:[2,5,9,12,12,12,12,12,12,12,12,12][i], ik:[33,61,153,185,217,217,217,217,217,217,217,217][i] })),
+  "2008": BALIE_MAANDEN.map((maand, i) => ({ maand, kkp:[3,4,10,16,19,19,19,19,19,19,19,19][i], db:[0,0,3,6,8,8,8,8,8,8,8,8][i], sa:[205,403,600,825,1035,1035,1035,1035,1035,1035,1035,1035][i], rm:[61,106,162,238,295,295,295,295,295,295,295,295][i], re:[40,63,100,139,178,178,178,178,178,178,178,178][i], km:[4,8,9,14,17,17,17,17,17,17,17,17][i], ik:[38,90,149,192,236,236,236,236,236,236,236,236][i] })),
 };
 
 const BALIE_PRODUCTEN: { key: keyof Omit<BalieRij,"maand">; label: string; kleur: string }[] = [
@@ -358,29 +356,25 @@ function maandelijkseGroei(data: BalieRij[]): BalieRij[] {
   });
 }
 
+const BALIE_JAREN = Object.keys(BALIE_DATA).sort((a, b) => Number(b) - Number(a));
+
 function BalieMedewerkerTab() {
   const [jaar, setJaar] = useState("2025");
+  const [vergelijkJaar, setVergelijkJaar] = useState("2024");
   const [weergave, setWeergave] = useState<"cumulatief" | "maandelijks">("cumulatief");
   const [vergelijk, setVergelijk] = useState(false);
 
-  const data2025 = BALIE_DATA["2025"];
-  const data2024 = BALIE_DATA["2024"];
   const basisData = BALIE_DATA[jaar] || [];
+  const vergelijkData2 = BALIE_DATA[vergelijkJaar] || [];
   const chartData = weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData);
 
-  const totalen = BALIE_PRODUCTEN.map(p => ({
-    ...p,
-    totaal2025: data2025[data2025.length - 1][p.key] as number,
-    totaal2024: data2024[data2024.length - 1][p.key] as number,
-  }));
-
-  const vergelijkData = BALIE_MAANDEN.map((maand, i) => {
-    const r25 = (weergave === "cumulatief" ? data2025 : maandelijkseGroei(data2025))[i];
-    const r24 = (weergave === "cumulatief" ? data2024 : maandelijkseGroei(data2024))[i];
+  const vergelijkChartData = BALIE_MAANDEN.map((maand, i) => {
+    const rA = (weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData))[i];
+    const rB = (weergave === "cumulatief" ? vergelijkData2 : maandelijkseGroei(vergelijkData2))[i];
     const obj: Record<string, string | number> = { maand };
     BALIE_PRODUCTEN.forEach(p => {
-      obj[`${p.key}_2025`] = r25[p.key] as number;
-      obj[`${p.key}_2024`] = r24[p.key] as number;
+      obj[`${p.key}_A`] = rA?.[p.key] as number ?? 0;
+      obj[`${p.key}_B`] = rB?.[p.key] as number ?? 0;
     });
     return obj;
   });
@@ -390,25 +384,40 @@ function BalieMedewerkerTab() {
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaar:</span>
-          {["2024","2025"].map(j => (
-            <button
-              key={j}
-              onClick={() => { setJaar(j); setVergelijk(false); }}
-              data-testid={`btn-balie-jaar-${j}`}
-              className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
-                jaar === j && !vergelijk
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border hover:bg-muted"
-              }`}
-            >{j}</button>
-          ))}
+          <Select value={jaar} onValueChange={v => { setJaar(v); setVergelijk(false); }}>
+            <SelectTrigger className="w-24" data-testid="select-balie-jaar">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BALIE_JAREN.map(j => (
+                <SelectItem key={j} value={j} data-testid={`option-balie-jaar-${j}`}>{j}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setVergelijk(v => !v)}
             data-testid="btn-balie-vergelijk"
             className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
               vergelijk ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
             }`}
-          >Vergelijk 2024 vs 2025</button>
+          >Vergelijken</button>
+          {vergelijk && (
+            <>
+              <span className="text-sm text-muted-foreground">vs</span>
+              <Select value={vergelijkJaar} onValueChange={setVergelijkJaar}>
+                <SelectTrigger className="w-24" data-testid="select-balie-vergelijkjaar">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BALIE_JAREN.filter(j => j !== jaar).map(j => (
+                    <SelectItem key={j} value={j} data-testid={`option-balie-vergelijkjaar-${j}`}>{j}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Weergave:</span>
@@ -426,12 +435,12 @@ function BalieMedewerkerTab() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {totalen.slice(0,4).map(p => (
+        {BALIE_PRODUCTEN.slice(0,4).map(p => (
           <Card key={p.key}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground font-medium mb-1 leading-tight">{p.label}</p>
               <p className="text-2xl font-bold" style={{ color: p.kleur }}>
-                {(BALIE_DATA[jaar]?.[BALIE_DATA[jaar].length - 1]?.[p.key] as number ?? 0).toLocaleString("nl")}
+                {(basisData[basisData.length - 1]?.[p.key] as number ?? 0).toLocaleString("nl")}
               </p>
               <p className="text-xs text-muted-foreground mt-1">t/m Dec {jaar}</p>
             </CardContent>
@@ -442,27 +451,22 @@ function BalieMedewerkerTab() {
       {vergelijk ? (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">2024 vs 2025 — {weergave === "cumulatief" ? "Cumulatief" : "Per maand"}</CardTitle>
-            <CardDescription className="text-xs">Selecteer een product hieronder om te vergelijken</CardDescription>
+            <CardTitle className="text-sm font-medium">{jaar} vs {vergelijkJaar} — {weergave === "cumulatief" ? "Cumulatief" : "Per maand"}</CardTitle>
+            <CardDescription className="text-xs">Doorgetrokken lijn = {jaar} · Gestippeld = {vergelijkJaar} · Top 3 producttypen getoond</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {BALIE_PRODUCTEN.map(p => (
-                <span key={p.key} className="text-xs px-2 py-0.5 rounded-full border" style={{ borderColor: p.kleur, color: p.kleur }}>{p.label}</span>
-              ))}
-            </div>
             <div className="overflow-x-auto">
               <div style={{ minWidth: 700 }}>
                 <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={vergelijkData} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
+                  <LineChart data={vergelijkChartData} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => v.toLocaleString("nl")} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     {BALIE_PRODUCTEN.slice(0,3).map(p => ([
-                      <Line key={`${p.key}_2025`} type="monotone" dataKey={`${p.key}_2025`} name={`${p.label} 2025`} stroke={p.kleur} strokeWidth={2} dot={{ r: 2 }} />,
-                      <Line key={`${p.key}_2024`} type="monotone" dataKey={`${p.key}_2024`} name={`${p.label} 2024`} stroke={p.kleur} strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />,
+                      <Line key={`${p.key}_A`} type="monotone" dataKey={`${p.key}_A`} name={`${p.label} ${jaar}`} stroke={p.kleur} strokeWidth={2} dot={{ r: 2 }} />,
+                      <Line key={`${p.key}_B`} type="monotone" dataKey={`${p.key}_B`} name={`${p.label} ${vergelijkJaar}`} stroke={p.kleur} strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />,
                     ]))}
                   </LineChart>
                 </ResponsiveContainer>
