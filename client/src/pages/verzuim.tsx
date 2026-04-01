@@ -1273,6 +1273,9 @@ export default function VerzuimPage() {
     cancelled: { label: "Gecanceld", variant: "secondary", icon: Ban, className: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
   };
 
+  const formatDays = (n: number) =>
+    Number.isInteger(n) ? String(n) : n.toLocaleString("nl-NL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
   const isAdmin = isAdminRole(user?.role);
   const isAdminOrManager = isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az";
   const canVacation = canManageVacation(user?.role);
@@ -2361,55 +2364,55 @@ export default function VerzuimPage() {
                           {sorted.filter(b => b.department === dept).map(b => (
                             <TableRow key={b.userId} data-testid={`row-balance-${b.userId}`}>
                               <TableCell className="font-medium text-sm pl-6">{b.userName}</TableCell>
-                              <TableCell className="text-right text-sm">{b.recht}</TableCell>
+                              <TableCell className="text-right text-sm">{formatDays(b.recht)}</TableCell>
                               <TableCell className="text-right text-sm">
                                 {b.saldoOud > 0 ? (
-                                  <span>{b.saldoOud}</span>
+                                  <span>{formatDays(b.saldoOud)}</span>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right text-sm font-medium">{b.totalDays}</TableCell>
+                              <TableCell className="text-right text-sm font-medium">{formatDays(b.totalDays)}</TableCell>
                               <TableCell className="text-right text-sm">
                                 {b.geplandDays > 0 ? (
-                                  <Badge variant="outline" className="text-xs">{b.geplandDays}</Badge>
+                                  <Badge variant="outline" className="text-xs">{formatDays(b.geplandDays)}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right text-sm">{b.toegekendDays}</TableCell>
-                              <TableCell className="text-right text-sm">{b.opgenomenDays}</TableCell>
+                              <TableCell className="text-right text-sm">{formatDays(b.toegekendDays)}</TableCell>
+                              <TableCell className="text-right text-sm">{formatDays(b.opgenomenDays)}</TableCell>
                               <TableCell className="text-right text-sm">
                                 {b.sickDays > 0 ? (
-                                  <Badge variant="destructive" className="text-xs">{b.sickDays}</Badge>
+                                  <Badge variant="destructive" className="text-xs">{formatDays(b.sickDays)}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right text-sm">
                                 {(b.snipperdagen || 0) > 0 ? (
-                                  <Badge variant="secondary" className="text-xs">{b.snipperdagen}</Badge>
+                                  <Badge variant="secondary" className="text-xs">{formatDays(b.snipperdagen || 0)}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right text-sm">
                                 {(b.cancelDays || 0) > 0 ? (
-                                  <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">{b.cancelDays}</Badge>
+                                  <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">{formatDays(b.cancelDays || 0)}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right text-sm">
                                 {((b as any).persoonlijkGeoorloofdDays || 0) > 0 ? (
-                                  <Badge variant="outline" className="text-xs text-sky-600 border-sky-300">{(b as any).persoonlijkGeoorloofdDays}</Badge>
+                                  <Badge variant="outline" className="text-xs text-sky-600 border-sky-300">{formatDays((b as any).persoonlijkGeoorloofdDays)}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right">
                                 <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-xs">
-                                  {b.remainingDays}
+                                  {formatDays(b.remainingDays)}
                                 </Badge>
                               </TableCell>
                             </TableRow>
