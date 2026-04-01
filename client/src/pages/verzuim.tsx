@@ -2007,10 +2007,10 @@ export default function VerzuimPage() {
                         <TableRow>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
-                          <TableHead>Periode</TableHead>
+                          <TableHead>Periode gepland</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Saldo</TableHead>
+                          <TableHead className="text-right">Saldo na planning</TableHead>
                           {isAdminOrManager && (
                             <TableHead>
                               <div className="flex items-center gap-2">
