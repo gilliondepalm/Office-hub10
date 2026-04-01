@@ -1963,9 +1963,9 @@ export default function VerzuimPage() {
             const seqMap = new Map<string, number>();
             for (const [, rows] of userRowsByName) {
               const sorted = [...rows].sort((a, b) => {
-                const dA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
-                const dB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
-                return dA.localeCompare(dB);
+                const tA = a.row.createdAt ? new Date(a.row.createdAt).getTime() : 0;
+                const tB = b.row.createdAt ? new Date(b.row.createdAt).getTime() : 0;
+                return tA - tB;
               });
               sorted.forEach((item, idx) => {
                 seqMap.set(`${item._kind}-${item.row.id}`, idx + 1);
