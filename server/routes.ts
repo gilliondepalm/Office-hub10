@@ -1024,6 +1024,15 @@ export async function registerRoutes(
 
       const allCancellations = await storage.getAllAbsenceCancellations();
 
+      const [holidaysPrev, holidaysCurr, holidaysNext] = await Promise.all([
+        storage.getOfficialHolidays(currentYear - 1),
+        storage.getOfficialHolidays(currentYear),
+        storage.getOfficialHolidays(currentYear + 1),
+      ]);
+      const publicHolidaySet = new Set<string>(
+        [...holidaysPrev, ...holidaysCurr, ...holidaysNext].map(h => h.date)
+      );
+
       const absenceById = new Map(allAbsences.map(a => [a.id, a]));
       const todayStr = new Date().toISOString().split("T")[0];
 
@@ -1035,6 +1044,7 @@ export async function registerRoutes(
         if (!absence) continue;
         const cancelYear = new Date(c.cancelledDate).getFullYear();
         if (cancelYear !== currentYear) continue;
+        if (publicHolidaySet.has(c.cancelledDate)) continue;
         const days = (absence.halfDay === "am" || absence.halfDay === "pm") ? 0.5 : 1;
         if ((c as any).affectsBalance) {
           perDayCancelByUser[absence.userId] = (perDayCancelByUser[absence.userId] || 0) + days;
@@ -1054,7 +1064,8 @@ export async function registerRoutes(
         const current = new Date(start);
         while (current <= end) {
           const day = current.getDay();
-          if (day !== 0 && day !== 6) count++;
+          const dateStr = current.toISOString().split("T")[0];
+          if (day !== 0 && day !== 6 && !publicHolidaySet.has(dateStr)) count++;
           current.setDate(current.getDate() + 1);
         }
         return count;
@@ -1278,6 +1289,16 @@ export async function registerRoutes(
       const absence = await storage.getAbsenceById(req.params.id);
       if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
 
+      const absenceYear = new Date(absence.startDate).getFullYear();
+      const [holidaysPrev, holidaysCurr, holidaysNext] = await Promise.all([
+        storage.getOfficialHolidays(absenceYear - 1),
+        storage.getOfficialHolidays(absenceYear),
+        storage.getOfficialHolidays(absenceYear + 1),
+      ]);
+      const publicHolidaySet = new Set<string>(
+        [...holidaysPrev, ...holidaysCurr, ...holidaysNext].map(h => h.date)
+      );
+
       const countWeekdays = (startStr: string, endStr: string): number => {
         const start = new Date(startStr + "T00:00:00");
         const end = new Date(endStr + "T00:00:00");
@@ -1285,7 +1306,8 @@ export async function registerRoutes(
         const cur = new Date(start);
         while (cur <= end) {
           const d = cur.getDay();
-          if (d !== 0 && d !== 6) count++;
+          const dateStr = cur.toISOString().split("T")[0];
+          if (d !== 0 && d !== 6 && !publicHolidaySet.has(dateStr)) count++;
           cur.setDate(cur.getDate() + 1);
         }
         return count;
