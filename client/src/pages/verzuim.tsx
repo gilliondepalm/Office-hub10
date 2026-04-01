@@ -722,6 +722,23 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
     enabled: !!selectedUserId,
   });
 
+  const { data: officialHolidays } = useQuery<{ id: string; name: string; date: string; year: number }[]>({
+    queryKey: ["/api/official-holidays", year],
+    queryFn: async () => {
+      const res = await fetch(`/api/official-holidays?year=${year}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch holidays");
+      return res.json();
+    },
+  });
+
+  const publicHolidayMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const h of officialHolidays || []) {
+      map.set(h.date, h.name);
+    }
+    return map;
+  }, [officialHolidays]);
+
   const cancelledDates = useMemo(() => {
     const map = new Map<string, Set<string>>(); // date → Set of absenceIds
     for (const c of dayCancellations || []) {
@@ -830,6 +847,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             const absence = dateToAbsence[dateStr];
             const isCancelledDay = !!absence && (cancelledDates.get(dateStr)?.has(absence.id) ?? false);
             const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
+            const holidayName = publicHolidayMap.get(dateStr);
+            const isHoliday = !!holidayName;
 
             let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none relative";
 
@@ -837,6 +856,8 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
               cellClass += " " + getTypeCellColor(absence, true);
             } else if (absence) {
               cellClass += " " + getTypeCellColor(absence, false);
+            } else if (isHoliday && !isWeekend) {
+              cellClass += " bg-orange-200 text-orange-800 dark:bg-orange-800/50 dark:text-orange-200 font-semibold cursor-default";
             } else if (isWeekend) {
               cellClass += " text-muted-foreground/40";
             } else {
@@ -846,7 +867,9 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             const typeLabel = absence ? (typeLabelsCancel[absence.type] || absence.type) : "";
             const titleText = absence && !isCancelledDay
               ? `${typeLabel} — klik om deze dag te cancelen`
-              : isCancelledDay ? `${typeLabel} — al gecanceld` : undefined;
+              : isCancelledDay ? `${typeLabel} — al gecanceld`
+              : isHoliday ? `Feestdag: ${holidayName}`
+              : undefined;
 
             return (
               <div
@@ -854,7 +877,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                 className={cellClass}
                 title={titleText}
                 onClick={absence && !isCancelledDay ? () => setConfirmDay({ dateStr, absence }) : undefined}
-                data-testid={absence ? `day-cancel-${dateStr}` : undefined}
+                data-testid={absence ? `day-cancel-${dateStr}` : isHoliday ? `day-holiday-${dateStr}` : undefined}
               >
                 {date.getDate()}
                 {isHalfDay && !isCancelledDay && (
@@ -910,6 +933,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-purple-200 border border-purple-400" />BVVD</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-400" />Gepland/pending</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-orange-200 border border-orange-400" />Feestdag</div>
           <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>
         </div>
       )}
