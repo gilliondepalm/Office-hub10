@@ -956,7 +956,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-green-200 border border-green-400" />Vakantie</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-red-200 border border-red-400" />Ziekte</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-purple-200 border border-purple-400" />BVVD</div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-amber-200 border border-amber-400" />Gepland/pending</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-amber-400 border border-amber-600" />Gepland/pending</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-white border border-gray-300" />Geoorloofd</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300" />Ongeoorloofd</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
