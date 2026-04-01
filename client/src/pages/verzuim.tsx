@@ -816,13 +816,13 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
         : "bg-purple-200 text-purple-900 dark:bg-purple-800/50 dark:text-purple-200 cursor-pointer hover:bg-purple-300 font-semibold";
     }
     if (type === "vacation" || type === "personal" || type === "other") {
-      if (status === "pending") return "bg-yellow-200 text-yellow-900 dark:bg-yellow-800/50 dark:text-yellow-200 cursor-pointer hover:bg-yellow-300 font-semibold";
+      if (status === "pending") return "bg-amber-200 text-amber-900 dark:bg-amber-700/50 dark:text-amber-100 cursor-pointer hover:bg-amber-300 font-semibold";
       return "bg-green-200 text-green-900 dark:bg-green-800/50 dark:text-green-200 cursor-pointer hover:bg-green-300 font-semibold";
     }
     if (type === "persoonlijk") {
       const besluit = (abs as any).persoonlijkBesluit;
       if (besluit === "ongeoorloofd") {
-        return "bg-amber-100 text-amber-900 dark:bg-amber-200/70 dark:text-amber-950 cursor-pointer hover:bg-amber-200 font-semibold";
+        return "bg-yellow-100 text-yellow-900 dark:bg-yellow-300/50 dark:text-yellow-950 cursor-pointer hover:bg-yellow-200 font-semibold";
       }
       return "bg-white text-gray-700 border border-gray-300 dark:bg-white dark:text-gray-800 cursor-pointer hover:bg-gray-50 font-semibold";
     }
@@ -956,9 +956,9 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-green-200 border border-green-400" />Vakantie</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-red-200 border border-red-400" />Ziekte</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-purple-200 border border-purple-400" />BVVD</div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-200 border border-yellow-400" />Gepland/pending</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-amber-200 border border-amber-400" />Gepland/pending</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-white border border-gray-300" />Geoorloofd</div>
-          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />Ongeoorloofd</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300" />Ongeoorloofd</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-sky-200 border border-sky-400" />Feestdag</div>
           <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>
