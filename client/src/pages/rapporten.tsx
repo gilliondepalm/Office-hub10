@@ -328,13 +328,17 @@ function JubileaTab({ users }: { users: UserExt[] }) {
   );
 }
 
-type StatusSortField = "naam" | "startDate" | "endDate" | "birthDate";
+type StatusSortField = "naam" | "afdeling" | "startDate" | "endDate" | "birthDate";
 
 function sortUsers(list: UserExt[], field: StatusSortField): UserExt[] {
   return [...list].sort((a, b) => {
     switch (field) {
       case "naam":
         return (a.fullName || "").localeCompare(b.fullName || "", "nl");
+      case "afdeling": {
+        const deptCmp = (a.department || "").localeCompare(b.department || "", "nl");
+        return deptCmp !== 0 ? deptCmp : (a.fullName || "").localeCompare(b.fullName || "", "nl");
+      }
       case "startDate":
         return (a.startDate || "").localeCompare(b.startDate || "");
       case "endDate":
@@ -381,14 +385,14 @@ function StatusRapport({
               <TableHead>Afdeling</TableHead>
               <TableHead>Functie</TableHead>
               <TableHead>Datum in Dienst</TableHead>
-              <TableHead>Datum uit Dienst</TableHead>
+              {filterKey === "inactief" && <TableHead>Datum uit Dienst</TableHead>}
               <TableHead>Geboortedatum</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={filterKey === "inactief" ? 6 : 5} className="text-center text-muted-foreground py-8">
                   Geen medewerkers gevonden
                 </TableCell>
               </TableRow>
@@ -399,7 +403,9 @@ function StatusRapport({
                   <TableCell className="text-sm">{u.department || "—"}</TableCell>
                   <TableCell className="text-sm">{u.functie || "—"}</TableCell>
                   <TableCell className="text-sm">{formatDateDutch(u.startDate)}</TableCell>
-                  <TableCell className="text-sm">{u.endDate ? formatDateDutch(u.endDate) : "—"}</TableCell>
+                  {filterKey === "inactief" && (
+                    <TableCell className="text-sm">{u.endDate ? formatDateDutch(u.endDate) : "—"}</TableCell>
+                  )}
                   <TableCell className="text-sm">{u.birthDate ? formatDateDutch(u.birthDate) : "—"}</TableCell>
                 </TableRow>
               ))
@@ -427,7 +433,8 @@ function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
               <SelectValue placeholder="Sorteren op…" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="naam">Naam</SelectItem>
+              <SelectItem value="afdeling">Afdeling</SelectItem>
+              <SelectItem value="naam">Persoon</SelectItem>
               <SelectItem value="startDate">Datum in dienst</SelectItem>
               <SelectItem value="endDate">Datum uit dienst</SelectItem>
               <SelectItem value="birthDate">Geboortedatum</SelectItem>
