@@ -366,7 +366,7 @@ function StatusRapport({
 }) {
   const filtered = users.filter(u => {
     const matchStatus = filterKey === "actief" ? u.active : !u.active;
-    const matchPerson = !selectedUserId || u.id === selectedUserId;
+    const matchPerson = selectedUserId === "all" || u.id === selectedUserId;
     return matchStatus && matchPerson;
   });
   const sorted = sortUsers(filtered, sortField);
@@ -425,7 +425,7 @@ function StatusRapport({
 
 function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
   const [sortField, setSortField] = useState<StatusSortField>("naam");
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   const allSorted = [...users].sort((a, b) =>
     (a.fullName || "").localeCompare(b.fullName || "", "nl")
@@ -444,7 +444,7 @@ function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
               <SelectValue placeholder="Alle medewerkers" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Alle medewerkers</SelectItem>
+              <SelectItem value="all">Alle medewerkers</SelectItem>
               {allSorted.map(u => (
                 <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
               ))}
