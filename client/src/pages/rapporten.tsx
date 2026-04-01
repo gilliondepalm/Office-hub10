@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Printer, Users, Cake, Award, ActivitySquare, ArrowUpDown } from "lucide-react";
+import { Printer, Users, Cake, Award, ActivitySquare, ArrowUpDown, UserSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -356,13 +356,19 @@ function StatusRapport({
   users,
   sortField,
   filterKey,
+  selectedUserId,
 }: {
   title: string;
   users: UserExt[];
   sortField: StatusSortField;
   filterKey: "actief" | "inactief";
+  selectedUserId: string;
 }) {
-  const filtered = users.filter(u => filterKey === "actief" ? u.active : !u.active);
+  const filtered = users.filter(u => {
+    const matchStatus = filterKey === "actief" ? u.active : !u.active;
+    const matchPerson = !selectedUserId || u.id === selectedUserId;
+    return matchStatus && matchPerson;
+  });
   const sorted = sortUsers(filtered, sortField);
 
   return (
@@ -419,17 +425,34 @@ function StatusRapport({
 
 function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
   const [sortField, setSortField] = useState<StatusSortField>("naam");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+
+  const allSorted = [...users].sort((a, b) =>
+    (a.fullName || "").localeCompare(b.fullName || "", "nl")
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
         <p className="text-sm text-muted-foreground">
-          Twee afzonderlijke rapporten: actief en niet-actief personeel. Kies de sorteervolgorde.
+          Twee afzonderlijke rapporten: actief en niet-actief personeel. Kies de sorteervolgorde of selecteer een persoon.
         </p>
-        <div className="flex items-center gap-2">
-          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <UserSearch className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="w-52" data-testid="select-status-person">
+              <SelectValue placeholder="Alle medewerkers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Alle medewerkers</SelectItem>
+              {allSorted.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground ml-1" />
           <Select value={sortField} onValueChange={(v) => setSortField(v as StatusSortField)}>
-            <SelectTrigger className="w-52" data-testid="select-status-sort">
+            <SelectTrigger className="w-48" data-testid="select-status-sort">
               <SelectValue placeholder="Sorteren op…" />
             </SelectTrigger>
             <SelectContent>
@@ -448,6 +471,7 @@ function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
         users={users}
         sortField={sortField}
         filterKey="actief"
+        selectedUserId={selectedUserId}
       />
 
       <div className="border-t pt-6">
@@ -456,6 +480,7 @@ function MedewerkerStatusTab({ users }: { users: UserExt[] }) {
           users={users}
           sortField={sortField}
           filterKey="inactief"
+          selectedUserId={selectedUserId}
         />
       </div>
     </div>
