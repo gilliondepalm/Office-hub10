@@ -403,6 +403,7 @@ export class DatabaseStorage implements IStorage {
         affectsBalance: absenceCancellations.affectsBalance,
         createdAt: absenceCancellations.createdAt,
         absenceType: absences.type,
+        userId: absences.userId,
         userName: users.fullName,
         userDepartment: users.department,
         userRole: users.role,
