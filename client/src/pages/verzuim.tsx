@@ -1967,11 +1967,18 @@ export default function VerzuimPage() {
             const getRowTs = (item: typeof allRows[number]) =>
               new Date((item.row as any).createdAt || 0).getTime();
 
-            const globalSorted = [...allRows].sort((a, b) => getRowTs(a) - getRowTs(b));
+            const getRowUserId = (item: typeof allRows[number]) =>
+              (item.row as any).userId || "";
+
             const seqMap = new Map<string, number>();
-            globalSorted.forEach((item, idx) => {
+            const perUserCounters = new Map<string, number>();
+            const sortedForSeq = [...allRows].sort((a, b) => getRowTs(a) - getRowTs(b));
+            sortedForSeq.forEach((item) => {
+              const uid = getRowUserId(item);
+              const next = (perUserCounters.get(uid) || 0) + 1;
+              perUserCounters.set(uid, next);
               const key = item._kind === "absence" ? `abs-${item.row.id}` : `dc-${item.row.id}`;
-              seqMap.set(key, idx + 1);
+              seqMap.set(key, next);
             });
 
             const depts = Array.from(new Set(allRows.map(r => r.dept))).sort((a, b) => a.localeCompare(b, "nl"));
