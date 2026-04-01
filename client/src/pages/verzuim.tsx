@@ -1117,7 +1117,8 @@ export default function VerzuimPage() {
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
   const [activeTab, setActiveTab] = useState("meldingen");
-  const [overzichtNrSort, setOverzichtNrSort] = useState<"asc" | "desc">("asc");
+  const [overzichtSortCol, setOverzichtSortCol] = useState<"nr" | "date">("nr");
+  const [overzichtSortDir, setOverzichtSortDir] = useState<"asc" | "desc">("asc");
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -1993,19 +1994,44 @@ export default function VerzuimPage() {
                         <TableRow>
                           <TableHead className="w-12 text-center">
                             <button
-                              className="flex items-center gap-1 mx-auto text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => setOverzichtNrSort(s => s === "asc" ? "desc" : "asc")}
+                              className={`flex items-center gap-1 mx-auto transition-colors ${overzichtSortCol === "nr" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+                              onClick={() => {
+                                if (overzichtSortCol === "nr") {
+                                  setOverzichtSortDir(d => d === "asc" ? "desc" : "asc");
+                                } else {
+                                  setOverzichtSortCol("nr");
+                                  setOverzichtSortDir("asc");
+                                }
+                              }}
                               data-testid="button-sort-nr"
                             >
                               Nr.
-                              {overzichtNrSort === "asc"
-                                ? <ChevronUp className="h-3 w-3" />
-                                : <ChevronDown className="h-3 w-3" />}
+                              {overzichtSortCol === "nr"
+                                ? (overzichtSortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
+                                : <ChevronUp className="h-3 w-3 opacity-30" />}
                             </button>
                           </TableHead>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
-                          <TableHead>Periode / Datum</TableHead>
+                          <TableHead>
+                            <button
+                              className={`flex items-center gap-1 transition-colors ${overzichtSortCol === "date" ? "text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+                              onClick={() => {
+                                if (overzichtSortCol === "date") {
+                                  setOverzichtSortDir(d => d === "asc" ? "desc" : "asc");
+                                } else {
+                                  setOverzichtSortCol("date");
+                                  setOverzichtSortDir("asc");
+                                }
+                              }}
+                              data-testid="button-sort-date"
+                            >
+                              Periode / Datum
+                              {overzichtSortCol === "date"
+                                ? (overzichtSortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
+                                : <ChevronUp className="h-3 w-3 opacity-30" />}
+                            </button>
+                          </TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -2015,11 +2041,17 @@ export default function VerzuimPage() {
                           const deptRows = allRows
                             .filter(r => r.dept === dept)
                             .sort((a, b) => {
+                              const dir = overzichtSortDir === "asc" ? 1 : -1;
+                              if (overzichtSortCol === "date") {
+                                const dA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
+                                const dB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
+                                return dA.localeCompare(dB) * dir;
+                              }
                               const keyA = a._kind === "absence" ? `abs-${a.row.id}` : `dc-${a.row.id}`;
                               const keyB = b._kind === "absence" ? `abs-${b.row.id}` : `dc-${b.row.id}`;
                               const nA = seqMap.get(keyA) ?? 0;
                               const nB = seqMap.get(keyB) ?? 0;
-                              return overzichtNrSort === "asc" ? nA - nB : nB - nA;
+                              return (nA - nB) * dir;
                             });
                           return (
                             <Fragment key={dept}>
