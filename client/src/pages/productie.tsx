@@ -106,8 +106,10 @@ const KM_DATA: Record<string, { maand: string; ingediend: number; verwerkt: numb
 };
 
 const JAREN = Array.from({ length: 30 }, (_, i) => String(1996 + i));
+const LANDMETERS_JAREN = Array.from({ length: 31 }, (_, i) => String(1995 + i));
 
 type KartografieRij = { jaar: string; binnengekomen: number; afgehandeld: number; gemiddeld: number; kartografen: number };
+type LandmetersRij = { jaar: string; binnengekomen: number; afgehandeld: number; uitbesteding: number; gemiddeld: number; landmeters: number };
 
 const KARTOGRAFIE_DATA: Record<string, KartografieRij[]> = {
   "Jan": JAREN.map((jaar, i) => ({
@@ -202,6 +204,222 @@ const PERIODES: { label: string; range: [number, number] }[] = [
   { label: "2006–2015", range: [10, 20] },
   { label: "2016–2025", range: [20, 30] },
 ];
+
+const LANDMETERS_DATA: Record<string, LandmetersRij[]> = {
+  "Jan": LANDMETERS_JAREN.map((jaar, i) => ({
+    jaar,
+    binnengekomen: [302,60,66,88,43,60,96,124,32,82,63,102,102,89,90,45,53,73,45,114,92,91,82,71,114,99,54,258,164,191,248][i],
+    afgehandeld:   [102,102,48,150,64,88,52,102,72,53,54,35,101,98,73,118,57,82,74,82,71,60,56,86,79,89,79,127,88,94,129][i],
+    uitbesteding:  [28,53,6,113,18,22,5,4,0,4,0,0,3,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0][i],
+    gemiddeld:     [113.3,102.0,53.3,187.5,80.0,146.7,86.7,170.0,144.0,132.5,180.0,87.5,168.3,163.3,121.7,196.7,95.0,164.0,148.0,136.7,118.3,100.0,93.3,143.3,131.7,148.3,131.7,211.7,146.7,134.3,184.3][i],
+    landmeters:    [9,10,9,8,8,6,6,6,5,4,3,4,6,6,6,6,6,5,5,6,6,6,6,6,6,6,6,6,6,7,7][i],
+  })),
+  "Feb": LANDMETERS_JAREN.map((jaar, i) => ({
+    jaar,
+    binnengekomen: [388,233,151,391,83,117,168,193,84,195,127,181,289,291,194,182,131,149,146,239,162,167,181,218,192,241,142,366,501,281,326][i],
+    afgehandeld:   [230,337,154,243,116,149,130,192,142,112,120,154,206,216,178,322,122,196,148,183,161,139,141,167,195,198,96,216,199,241,305][i],
+    uitbesteding:  [79,179,46,168,19,23,12,9,0,7,1,3,5,7,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0][i],
+    gemiddeld:     [127.8,168.5,96.3,151.9,72.5,124.2,108.3,160.0,142.0,160.0,200.0,171.1,171.7,180.0,148.3,268.3,110.9,196.0,148.0,152.5,134.2,115.8,117.5,139.2,162.5,165.0,80.0,180.0,165.8,172.1,217.9][i],
+    landmeters:    [18,20,16,16,16,12,12,12,10,7,6,9,12,12,12,12,11,10,10,12,12,12,12,12,12,12,12,12,12,14,14][i],
+  })),
+};
+
+function LandmetersTab() {
+  const [maand, setMaand] = useState("Feb");
+  const [periodeIdx, setPeriodeIdx] = useState(0);
+
+  const allePeriodes: { label: string; range: [number, number] }[] = [
+    { label: "Alle jaren (1995–2025)", range: [0, 31] },
+    { label: "1995–2004", range: [0, 10] },
+    { label: "2005–2014", range: [10, 20] },
+    { label: "2015–2025", range: [20, 31] },
+  ];
+
+  const periode = allePeriodes[periodeIdx];
+  const volledigeData = LANDMETERS_DATA[maand] || [];
+  const data = volledigeData.slice(periode.range[0], periode.range[1]);
+
+  const totBinnengekomen = data.reduce((s, d) => s + d.binnengekomen, 0);
+  const totAfgehandeld   = data.reduce((s, d) => s + d.afgehandeld, 0);
+  const totUitbesteding  = data.reduce((s, d) => s + d.uitbesteding, 0);
+  const gemLandmeters    = data.length ? (data.reduce((s, d) => s + d.landmeters, 0) / data.length) : 0;
+  const maxGemiddeld     = data.length ? Math.max(...data.map(d => d.gemiddeld)) : 0;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
+          <Select value={maand} onValueChange={setMaand}>
+            <SelectTrigger className="w-28" data-testid="select-maand-landmeters">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.keys(LANDMETERS_DATA).map(m => (
+                <SelectItem key={m} value={m} data-testid={`option-lm-maand-${m}`}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
+          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
+            <SelectTrigger className="w-52" data-testid="select-periode-landmeters">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allePeriodes.map((p, i) => (
+                <SelectItem key={i} value={String(i)} data-testid={`option-lm-periode-${i}`}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Totaal binnengekomen</p>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{totBinnengekomen.toLocaleString("nl")}</p>
+            <p className="text-xs text-muted-foreground mt-1">t/m {maand} in geselecteerde periode</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Totaal afgehandeld</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{totAfgehandeld.toLocaleString("nl")}</p>
+            <p className="text-xs text-muted-foreground mt-1">t/m {maand} in geselecteerde periode</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Exercitie uitbesteding</p>
+            <p className="text-2xl font-bold text-orange-500 dark:text-orange-400">{totUitbesteding.toLocaleString("nl")}</p>
+            <p className="text-xs text-muted-foreground mt-1">t/m {maand} in geselecteerde periode</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Hoogste gem./landmeter</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{maxGemiddeld > 0 ? maxGemiddeld.toFixed(1) : "—"}</p>
+            <p className="text-xs text-muted-foreground mt-1">tienvoud, in periode</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Binnengekomen, Afgehandeld & Uitbesteding per jaar (t/m {maand})</CardTitle>
+          <CardDescription className="text-xs">Staafdiagram — gecombineerd met gem. productie per landmeter (tienvoud, rechteras)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: data.length * 44 + 80 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={data} margin={{ top: 8, right: 60, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={v => v.toFixed(0)} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                    formatter={(val: number, name: string) => [
+                      name === "Gem./landmeter (×10)" ? val.toFixed(1) : val.toLocaleString("nl"),
+                      name,
+                    ]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar yAxisId="left" dataKey="binnengekomen" name="Binnengekomen"      fill="#6366f1" radius={[3,3,0,0]} />
+                  <Bar yAxisId="left" dataKey="afgehandeld"   name="Afgehandeld"        fill="#22c55e" radius={[3,3,0,0]} />
+                  <Bar yAxisId="left" dataKey="uitbesteding"  name="Exercitie uitbest." fill="#f97316" radius={[3,3,0,0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="gemiddeld" name="Gem./landmeter (×10)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Aantal landmeters per jaar</CardTitle>
+          <CardDescription className="text-xs">Gem. over geselecteerde periode: {gemLandmeters.toFixed(1)}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: data.length * 44 + 80 }}>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} domain={[0, "auto"]} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(val: number) => [val, "Landmeters"]} />
+                  <Bar dataKey="landmeters" name="Landmeters" fill="#8b5cf6" radius={[3,3,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maand} — {periode.label}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Jaar</TableHead>
+                <TableHead className="text-right">Binnengekomen</TableHead>
+                <TableHead className="text-right">Afgehandeld</TableHead>
+                <TableHead className="text-right">Uitbesteding</TableHead>
+                <TableHead className="text-right">Verschil</TableHead>
+                <TableHead className="text-right">Gem./landmeter (×10)</TableHead>
+                <TableHead className="text-right">Landmeters</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => {
+                const verschil = row.afgehandeld - row.binnengekomen;
+                return (
+                  <TableRow key={row.jaar} data-testid={`row-landmeters-${maand}-${row.jaar}`}>
+                    <TableCell className="font-semibold">{row.jaar}</TableCell>
+                    <TableCell className="text-right text-indigo-600 dark:text-indigo-400">{row.binnengekomen}</TableCell>
+                    <TableCell className="text-right text-green-600 dark:text-green-400">{row.afgehandeld}</TableCell>
+                    <TableCell className="text-right text-orange-500 dark:text-orange-400">{row.uitbesteding}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={verschil > 0 ? "text-green-600 dark:text-green-400" : verschil < 0 ? "text-red-500" : "text-muted-foreground"}>
+                        {verschil > 0 ? "+" : ""}{verschil}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-amber-600 dark:text-amber-400">{row.gemiddeld.toFixed(1)}</TableCell>
+                    <TableCell className="text-right">{row.landmeters}</TableCell>
+                  </TableRow>
+                );
+              })}
+              <TableRow className="bg-muted/40 font-semibold">
+                <TableCell>Totaal/Gem.</TableCell>
+                <TableCell className="text-right text-indigo-600 dark:text-indigo-400">{totBinnengekomen}</TableCell>
+                <TableCell className="text-right text-green-600 dark:text-green-400">{totAfgehandeld}</TableCell>
+                <TableCell className="text-right text-orange-500 dark:text-orange-400">{totUitbesteding}</TableCell>
+                <TableCell className="text-right">
+                  <span className={totAfgehandeld - totBinnengekomen >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500"}>
+                    {totAfgehandeld - totBinnengekomen >= 0 ? "+" : ""}{totAfgehandeld - totBinnengekomen}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right text-amber-600 dark:text-amber-400">
+                  {data.length ? (data.reduce((s, d) => s + d.gemiddeld, 0) / data.length).toFixed(1) : "—"}
+                </TableCell>
+                <TableCell className="text-right">{gemLandmeters.toFixed(1)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function KartografieTab() {
   const [maand, setMaand] = useState("Feb");
@@ -625,6 +843,9 @@ export default function ProductiePage() {
             <TabsTrigger value="kartografie" data-testid="tab-kartografie">
               Kartografie
             </TabsTrigger>
+            <TabsTrigger value="landmeters" data-testid="tab-landmeters">
+              Landmeters
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="ori">
@@ -671,6 +892,10 @@ export default function ProductiePage() {
 
           <TabsContent value="kartografie">
             <KartografieTab />
+          </TabsContent>
+
+          <TabsContent value="landmeters">
+            <LandmetersTab />
           </TabsContent>
         </Tabs>
       </div>
