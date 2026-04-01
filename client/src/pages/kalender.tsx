@@ -246,7 +246,7 @@ const typeConfig: Record<string, { icon: typeof Cake; color: string; label: stri
   },
   feestdag: {
     icon: Flag,
-    color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+    color: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
     label: "Feestdag",
   },
   snipperdag: {
@@ -899,7 +899,7 @@ export default function KalenderPage() {
     { type: "event", label: "Evenement", color: "bg-primary" },
     { type: "verjaardag", label: "Verjaardag", color: "bg-pink-500" },
     { type: "jubileum", label: "Jubileum", color: "bg-amber-500" },
-    { type: "feestdag", label: "Feestdag", color: "bg-orange-500" },
+    { type: "feestdag", label: "Feestdag", color: "bg-sky-400" },
     { type: "snipperdag", label: "Snipperdag", color: "bg-red-500" },
   ];
 
@@ -1034,7 +1034,7 @@ export default function KalenderPage() {
                         {hasEvents && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
                         {hasBirthday && <div className="h-1.5 w-1.5 rounded-full bg-pink-500" />}
                         {hasAnniversary && <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
-                        {hasHoliday && <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />}
+                        {hasHoliday && <div className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
                         {hasSnipperdag && <div className="h-1.5 w-1.5 rounded-full bg-red-500" />}
                       </div>
                     )}
@@ -1044,7 +1044,7 @@ export default function KalenderPage() {
                       const colorMap: Record<string, string> = {
                         verjaardag: "bg-pink-200 dark:bg-pink-900/40 text-pink-800 dark:text-pink-300",
                         jubileum: "bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300",
-                        feestdag: "bg-orange-200 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300",
+                        feestdag: "bg-sky-200 dark:bg-sky-900/40 text-sky-800 dark:text-sky-300",
                         snipperdag: "bg-red-200 dark:bg-red-900/40 text-red-800 dark:text-red-300",
                         event: entry.category && categoryColors[entry.category]
                           ? categoryColors[entry.category]
