@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, date, timestamp, pgEnum, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, date, timestamp, pgEnum, real, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -418,3 +418,17 @@ export function isAdminRole(role?: string | null): boolean {
 export function canManageVacation(role?: string | null): boolean {
   return role === "admin" || role === "directeur" || role === "manager_az";
 }
+
+export const kartografieProductie = pgTable("kartografie_productie", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: text("maand").notNull(),
+  binnengekomen: integer("binnengekomen").notNull(),
+  afgehandeld: integer("afgehandeld").notNull(),
+  gemiddeld: real("gemiddeld").notNull(),
+  kartografen: integer("kartografen").notNull(),
+});
+
+export const insertKartografieProductieSchema = createInsertSchema(kartografieProductie).omit({ id: true });
+export type InsertKartografieProductie = z.infer<typeof insertKartografieProductieSchema>;
+export type KartografieProductie = typeof kartografieProductie.$inferSelect;

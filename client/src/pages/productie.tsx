@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, ComposedChart,
@@ -9,6 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { isAdminRole } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { Upload, Download, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import type { KartografieProductie } from "@shared/schema";
 
 const JAREN = Array.from({ length: 30 }, (_, i) => String(1996 + i));
 const LANDMETERS_JAREN = Array.from({ length: 31 }, (_, i) => String(1995 + i));
@@ -922,18 +931,105 @@ function LandmetersTab() {
   );
 }
 
+const KARTOGRAFIE_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+function parseKartografieCSV(csv: string): { rows: { jaar: number; maand: string; binnengekomen: number; afgehandeld: number; gemiddeld: number; kartografen: number }[]; errors: string[] } {
+  const rows: { jaar: number; maand: string; binnengekomen: number; afgehandeld: number; gemiddeld: number; kartografen: number }[] = [];
+  const errors: string[] = [];
+  const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
+  const header = lines[0]?.toLowerCase().replace(/\s/g, "");
+  if (!header?.includes("jaar") || !header?.includes("maand")) {
+    errors.push("Eerste rij moet de koptekst bevatten: jaar,maand,binnengekomen,afgehandeld,gemiddeld,kartografen");
+    return { rows, errors };
+  }
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(/[,;]/).map(c => c.trim());
+    if (cols.length < 6) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length})`); continue; }
+    const jaar = parseInt(cols[0]);
+    const maand = cols[1];
+    const binnengekomen = parseInt(cols[2]);
+    const afgehandeld = parseInt(cols[3]);
+    const gemiddeld = parseFloat(cols[4].replace(",", "."));
+    const kartografen = parseInt(cols[5]);
+    if (isNaN(jaar) || jaar < 2020 || jaar > 2100) { errors.push(`Rij ${i + 1}: ongeldig jaar "${cols[0]}"`); continue; }
+    if (!KARTOGRAFIE_MAANDEN.includes(maand)) { errors.push(`Rij ${i + 1}: ongeldige maand "${maand}" (gebruik Jan, Feb, Mrt, Apr, Mei, Jun, Jul, Aug, Sep, Okt, Nov, Dec)`); continue; }
+    if (isNaN(binnengekomen) || isNaN(afgehandeld) || isNaN(gemiddeld) || isNaN(kartografen)) { errors.push(`Rij ${i + 1}: ongeldige getal waarden`); continue; }
+    rows.push({ jaar, maand, binnengekomen, afgehandeld, gemiddeld, kartografen });
+  }
+  return { rows, errors };
+}
+
+const CSV_VOORBEELD = `jaar,maand,binnengekomen,afgehandeld,gemiddeld,kartografen
+2026,Jan,162,158,810.0,2
+2026,Feb,295,287,780.5,4
+2026,Mrt,470,461,765.0,6`;
+
 function KartografieTab() {
+  const { user } = useAuth();
+  const isAdmin = isAdminRole(user?.role);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [maand, setMaand] = useState("Feb");
   const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [preview, setPreview] = useState<{ rows: ReturnType<typeof parseKartografieCSV>["rows"]; errors: string[] } | null>(null);
 
-  const periode = PERIODES[periodeIdx];
-  const volledigeData = KARTOGRAFIE_DATA[maand] || [];
+  const { data: apiData = [] } = useQuery<KartografieProductie[]>({
+    queryKey: ["/api/kartografie-productie"],
+  });
+
+  type ImportRij = { jaar: number; maand: string; binnengekomen: number; afgehandeld: number; gemiddeld: number; kartografen: number };
+  const importMutatie = useMutation({
+    mutationFn: (rows: ImportRij[]) =>
+      apiRequest("POST", "/api/kartografie-productie/import", { rows }),
+    onSuccess: (_, rows) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/kartografie-productie"] });
+      toast({ title: "Import geslaagd", description: `${rows.length} rijen geïmporteerd.` });
+      setImportOpen(false);
+      setCsvText("");
+      setPreview(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Import mislukt", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const verwijderJaarMutatie = useMutation({
+    mutationFn: (jaar: number) => apiRequest("DELETE", `/api/kartografie-productie/${jaar}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/kartografie-productie"] });
+      toast({ title: "Jaar verwijderd" });
+    },
+  });
+
+  const apiJaren = [...new Set(apiData.map(r => String(r.jaar)))].sort();
+  const alleJaren = [...new Set([...JAREN, ...apiJaren])].sort((a, b) => Number(a) - Number(b));
+
+  const volledigeDataBase = KARTOGRAFIE_DATA[maand] || [];
+  const volledigeData: KartografieRij[] = alleJaren.map(jaar => {
+    const apiRij = apiData.find(r => String(r.jaar) === jaar && r.maand === maand);
+    if (apiRij) return { jaar, binnengekomen: apiRij.binnengekomen, afgehandeld: apiRij.afgehandeld, gemiddeld: apiRij.gemiddeld, kartografen: apiRij.kartografen };
+    return volledigeDataBase.find(r => r.jaar === jaar) ?? { jaar, binnengekomen: 0, afgehandeld: 0, gemiddeld: 0, kartografen: 0 };
+  });
+
+  const extendedPeriodes = [
+    { label: `Alle jaren (1996–${alleJaren[alleJaren.length - 1] ?? 2025})`, range: [0, alleJaren.length] as [number, number] },
+    { label: "1996–2005", range: [0, 10] as [number, number] },
+    { label: "2006–2015", range: [10, 20] as [number, number] },
+    { label: "2016–2025", range: [20, 30] as [number, number] },
+    ...apiJaren.length > 0 ? [{ label: `Nieuw (${apiJaren[0]}–${apiJaren[apiJaren.length - 1]})`, range: [30, alleJaren.length] as [number, number] }] : [],
+  ];
+
+  const periode = extendedPeriodes[Math.min(periodeIdx, extendedPeriodes.length - 1)];
   const data = volledigeData.slice(periode.range[0], periode.range[1]);
 
   const totBinnengekomen = data.reduce((s, d) => s + d.binnengekomen, 0);
   const totAfgehandeld   = data.reduce((s, d) => s + d.afgehandeld, 0);
   const gemKartografen   = data.length ? (data.reduce((s, d) => s + d.kartografen, 0) / data.length) : 0;
-  const maxGemiddeld     = Math.max(...data.map(d => d.gemiddeld));
+  const maxGemiddeld     = data.length ? Math.max(...data.map(d => d.gemiddeld)) : 0;
 
   return (
     <div className="space-y-5">
@@ -954,17 +1050,149 @@ function KartografieTab() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
           <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-52" data-testid="select-periode-kartografie">
+            <SelectTrigger className="w-56" data-testid="select-periode-kartografie">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PERIODES.map((p, i) => (
+              {extendedPeriodes.map((p, i) => (
                 <SelectItem key={i} value={String(i)} data-testid={`option-periode-${i}`}>{p.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+        {isAdmin && (
+          <Button size="sm" variant="outline" className="ml-auto gap-1.5" onClick={() => setImportOpen(true)} data-testid="button-import-kartografie">
+            <Upload className="h-3.5 w-3.5" />
+            CSV importeren
+          </Button>
+        )}
       </div>
+
+      {isAdmin && apiJaren.length > 0 && (
+        <Card className="border-indigo-200 dark:border-indigo-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Geïmporteerde jaren</CardTitle>
+            <CardDescription className="text-xs">Jaren toegevoegd via CSV-import. Klik op een jaar om het te verwijderen.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {apiJaren.map(jaar => (
+                <div key={jaar} className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800 rounded px-2 py-1 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                  {jaar}
+                  <button
+                    onClick={() => verwijderJaarMutatie.mutate(Number(jaar))}
+                    className="ml-1 hover:text-red-500 transition-colors"
+                    data-testid={`button-delete-kartografie-jaar-${jaar}`}
+                    title={`Verwijder jaar ${jaar}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={importOpen} onOpenChange={open => { setImportOpen(open); if (!open) { setCsvText(""); setPreview(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>CSV importeren — Kartografen</DialogTitle>
+            <DialogDescription>
+              Voeg maandelijkse productiedata toe voor nieuwe jaren. Bestaande rijen (zelfde jaar + maand) worden overschreven.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted p-3 text-xs font-mono whitespace-pre leading-relaxed border">
+              <p className="text-muted-foreground font-sans font-medium mb-1 not-italic">Verwacht formaat (komma of puntkomma als scheidingsteken):</p>
+              {CSV_VOORBEELD}
+            </div>
+
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileInputRef.current?.click()} data-testid="button-upload-csv-file">
+                <Upload className="h-3.5 w-3.5" /> Bestand kiezen
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setCsvText(CSV_VOORBEELD); setPreview(null); }} data-testid="button-load-example">
+                <Download className="h-3.5 w-3.5" /> Voorbeeld laden
+              </Button>
+              <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => { setCsvText(ev.target?.result as string ?? ""); setPreview(null); };
+                reader.readAsText(file);
+                e.target.value = "";
+              }} />
+            </div>
+
+            <Textarea
+              placeholder="Plak hier de CSV-inhoud of kies een bestand..."
+              className="font-mono text-xs min-h-[180px]"
+              value={csvText}
+              onChange={e => { setCsvText(e.target.value); setPreview(null); }}
+              data-testid="textarea-csv-kartografie"
+            />
+
+            {preview && (
+              <div className="space-y-2">
+                {preview.errors.length > 0 && (
+                  <div className="rounded-md bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-red-700 dark:text-red-300 text-xs font-medium">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {preview.errors.length} fout{preview.errors.length !== 1 ? "en" : ""} gevonden
+                    </div>
+                    {preview.errors.map((e, i) => <p key={i} className="text-xs text-red-600 dark:text-red-400 pl-5">{e}</p>)}
+                  </div>
+                )}
+                {preview.rows.length > 0 && (
+                  <div className="rounded-md bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 p-3">
+                    <div className="flex items-center gap-1.5 text-green-700 dark:text-green-300 text-xs font-medium mb-2">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {preview.rows.length} geldige rijen ({[...new Set(preview.rows.map(r => r.jaar))].join(", ")})
+                    </div>
+                    <div className="overflow-x-auto max-h-40">
+                      <table className="text-xs w-full">
+                        <thead><tr className="text-muted-foreground">{["Jaar","Maand","Binnengekomen","Afgehandeld","Gemiddeld","Kartografen"].map(h => <th key={h} className="text-left pr-4 pb-1">{h}</th>)}</tr></thead>
+                        <tbody>
+                          {preview.rows.slice(0, 24).map((r, i) => (
+                            <tr key={i} className="border-t border-green-200 dark:border-green-800">
+                              <td className="pr-4 py-0.5">{r.jaar}</td>
+                              <td className="pr-4 py-0.5">{r.maand}</td>
+                              <td className="pr-4 py-0.5">{r.binnengekomen}</td>
+                              <td className="pr-4 py-0.5">{r.afgehandeld}</td>
+                              <td className="pr-4 py-0.5">{r.gemiddeld.toFixed(1)}</td>
+                              <td className="py-0.5">{r.kartografen}</td>
+                            </tr>
+                          ))}
+                          {preview.rows.length > 24 && <tr><td colSpan={6} className="text-muted-foreground pt-1">... en {preview.rows.length - 24} meer</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setImportOpen(false); setCsvText(""); setPreview(null); }}>Annuleren</Button>
+            {!preview ? (
+              <Button onClick={() => setPreview(parseKartografieCSV(csvText))} disabled={!csvText.trim()} data-testid="button-preview-csv">
+                Controleren
+              </Button>
+            ) : (
+              <Button
+                onClick={() => preview.rows.length > 0 && importMutatie.mutate(preview.rows)}
+                disabled={preview.rows.length === 0 || importMutatie.isPending}
+                data-testid="button-confirm-import"
+              >
+                {importMutatie.isPending ? "Bezig..." : `${preview.rows.length} rijen importeren`}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>

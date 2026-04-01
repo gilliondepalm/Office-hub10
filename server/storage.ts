@@ -30,7 +30,8 @@ import {
   type Snipperdag, type InsertSnipperdag,
   type YearlyAward, type InsertYearlyAward,
   type JobFunction, type InsertJobFunction,
-  helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions,
+  type KartografieProductie, type InsertKartografieProductie,
+  helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -182,6 +183,10 @@ export interface IStorage {
   createJobFunction(data: InsertJobFunction): Promise<JobFunction>;
   updateJobFunction(id: string, data: Partial<InsertJobFunction>): Promise<JobFunction>;
   deleteJobFunction(id: string): Promise<void>;
+
+  getKartografieProductie(): Promise<KartografieProductie[]>;
+  bulkUpsertKartografieProductie(rows: InsertKartografieProductie[]): Promise<KartografieProductie[]>;
+  deleteKartografieProductieByJaar(jaar: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1095,6 +1100,33 @@ export class DatabaseStorage implements IStorage {
 
   async deleteJobFunction(id: string): Promise<void> {
     await db.delete(jobFunctions).where(eq(jobFunctions.id, id));
+  }
+
+  async getKartografieProductie(): Promise<KartografieProductie[]> {
+    return await db.select().from(kartografieProductie).orderBy(kartografieProductie.jaar, kartografieProductie.maand);
+  }
+
+  async bulkUpsertKartografieProductie(rows: InsertKartografieProductie[]): Promise<KartografieProductie[]> {
+    const results: KartografieProductie[] = [];
+    for (const row of rows) {
+      const existing = await db.select().from(kartografieProductie)
+        .where(and(eq(kartografieProductie.jaar, row.jaar), eq(kartografieProductie.maand, row.maand)));
+      if (existing.length > 0) {
+        const [updated] = await db.update(kartografieProductie)
+          .set({ binnengekomen: row.binnengekomen, afgehandeld: row.afgehandeld, gemiddeld: row.gemiddeld, kartografen: row.kartografen })
+          .where(eq(kartografieProductie.id, existing[0].id))
+          .returning();
+        results.push(updated);
+      } else {
+        const [created] = await db.insert(kartografieProductie).values(row).returning();
+        results.push(created);
+      }
+    }
+    return results;
+  }
+
+  async deleteKartografieProductieByJaar(jaar: number): Promise<void> {
+    await db.delete(kartografieProductie).where(eq(kartografieProductie.jaar, jaar));
   }
 }
 

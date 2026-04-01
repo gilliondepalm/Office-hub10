@@ -21,6 +21,7 @@ import {
   insertJaarplanItemSchema,
   insertHelpContentSchema,
   insertYearlyAwardSchema,
+  insertKartografieProductieSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -2231,6 +2232,46 @@ export async function registerRoutes(
       res.json(updated);
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Fout bij opslaan" });
+    }
+  });
+
+  app.get("/api/kartografie-productie", async (req, res) => {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const rows = await storage.getKartografieProductie();
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
+  app.post("/api/kartografie-productie/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminRole(user.role)) return res.status(403).json({ message: "Alleen beheerders" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ message: "Geen geldige rijen" });
+      }
+      const parsed = rows.map((r: unknown) => insertKartografieProductieSchema.parse(r));
+      const result = await storage.bulkUpsertKartografieProductie(parsed);
+      res.json({ imported: result.length, rows: result });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Fout bij importeren" });
+    }
+  });
+
+  app.delete("/api/kartografie-productie/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminRole(user.role)) return res.status(403).json({ message: "Alleen beheerders" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try {
+      await storage.deleteKartografieProductieByJaar(jaar);
+      res.json({ message: "Verwijderd" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij verwijderen" });
     }
   });
 
