@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -1117,6 +1117,7 @@ export default function VerzuimPage() {
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
   const [activeTab, setActiveTab] = useState("meldingen");
+  const [overzichtNrSort, setOverzichtNrSort] = useState<"asc" | "desc">("asc");
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -1990,7 +1991,18 @@ export default function VerzuimPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-12 text-center text-muted-foreground">Nr.</TableHead>
+                          <TableHead className="w-12 text-center">
+                            <button
+                              className="flex items-center gap-1 mx-auto text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setOverzichtNrSort(s => s === "asc" ? "desc" : "asc")}
+                              data-testid="button-sort-nr"
+                            >
+                              Nr.
+                              {overzichtNrSort === "asc"
+                                ? <ChevronUp className="h-3 w-3" />
+                                : <ChevronDown className="h-3 w-3" />}
+                            </button>
+                          </TableHead>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Periode / Datum</TableHead>
@@ -2002,7 +2014,13 @@ export default function VerzuimPage() {
                         {depts.map(dept => {
                           const deptRows = allRows
                             .filter(r => r.dept === dept)
-                            .sort((a, b) => getRowTs(a) - getRowTs(b));
+                            .sort((a, b) => {
+                              const keyA = a._kind === "absence" ? `abs-${a.row.id}` : `dc-${a.row.id}`;
+                              const keyB = b._kind === "absence" ? `abs-${b.row.id}` : `dc-${b.row.id}`;
+                              const nA = seqMap.get(keyA) ?? 0;
+                              const nB = seqMap.get(keyB) ?? 0;
+                              return overzichtNrSort === "asc" ? nA - nB : nB - nA;
+                            });
                           return (
                             <Fragment key={dept}>
                               <TableRow>
