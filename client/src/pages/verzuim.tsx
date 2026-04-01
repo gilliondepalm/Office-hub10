@@ -2009,6 +2009,7 @@ export default function VerzuimPage() {
                           <TableHead>Periode</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Saldo</TableHead>
                           {isAdminOrManager && (
                             <TableHead>
                               <div className="flex items-center gap-2">
@@ -2029,7 +2030,7 @@ export default function VerzuimPage() {
                       <TableBody>
                         {(() => {
                           const sorted = [...filtered].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl"));
-                          const colCount = isAdminOrManager ? 6 : 5;
+                          const colCount = isAdminOrManager ? 7 : 6;
                           const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
                           return depts.map(dept => (
                             <>{isAdminOrManager && (
@@ -2097,6 +2098,22 @@ export default function VerzuimPage() {
                                       <StatusIcon className="h-3 w-3" />
                                       {sc.label}
                                     </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {(() => {
+                                      const bal = vacationBalances?.find(b => b.userId === absence.userId);
+                                      if (!bal) return <span className="text-muted-foreground text-xs">-</span>;
+                                      const remaining = bal.remainingDays;
+                                      return (
+                                        <Badge
+                                          variant={remaining <= 3 ? "destructive" : remaining <= 10 ? "outline" : "default"}
+                                          className="text-xs"
+                                          data-testid={`badge-saldo-${absence.id}`}
+                                        >
+                                          {formatDays(remaining)}
+                                        </Badge>
+                                      );
+                                    })()}
                                   </TableCell>
                                   {isAdminOrManager && (
                                     <TableCell>
