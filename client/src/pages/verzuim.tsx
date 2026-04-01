@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -1117,6 +1117,7 @@ export default function VerzuimPage() {
   const watchStartDate = form.watch("startDate");
   const watchEndDate = form.watch("endDate");
   const [activeTab, setActiveTab] = useState("meldingen");
+  const [overzichtSort, setOverzichtSort] = useState<{ col: "seq" | "date"; dir: "asc" | "desc" }>({ col: "date", dir: "desc" });
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -1991,10 +1992,28 @@ export default function VerzuimPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-10 text-center">#</TableHead>
+                          <TableHead className="w-10 text-center">
+                            <button
+                              className={`flex items-center gap-0.5 mx-auto font-semibold hover:text-foreground transition-colors ${overzichtSort.col === "seq" ? "text-foreground" : "text-muted-foreground"}`}
+                              onClick={() => setOverzichtSort(s => s.col === "seq" ? { col: "seq", dir: s.dir === "asc" ? "desc" : "asc" } : { col: "seq", dir: "asc" })}
+                              data-testid="sort-by-seq"
+                            >
+                              #
+                              {overzichtSort.col === "seq" ? (overzichtSort.dir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
+                            </button>
+                          </TableHead>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
-                          <TableHead>Periode / Datum</TableHead>
+                          <TableHead>
+                            <button
+                              className={`flex items-center gap-0.5 font-semibold hover:text-foreground transition-colors ${overzichtSort.col === "date" ? "text-foreground" : "text-muted-foreground"}`}
+                              onClick={() => setOverzichtSort(s => s.col === "date" ? { col: "date", dir: s.dir === "asc" ? "desc" : "asc" } : { col: "date", dir: "desc" })}
+                              data-testid="sort-by-date"
+                            >
+                              Periode / Datum
+                              {overzichtSort.col === "date" ? (overzichtSort.dir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
+                            </button>
+                          </TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -2004,9 +2023,15 @@ export default function VerzuimPage() {
                           const deptRows = allRows
                             .filter(r => r.dept === dept)
                             .sort((a, b) => {
+                              const mult = overzichtSort.dir === "asc" ? 1 : -1;
+                              if (overzichtSort.col === "seq") {
+                                const sA = seqMap.get(`${a._kind}-${a.row.id}`) ?? 0;
+                                const sB = seqMap.get(`${b._kind}-${b.row.id}`) ?? 0;
+                                return (sA - sB) * mult;
+                              }
                               const dateA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
                               const dateB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
-                              return dateB.localeCompare(dateA);
+                              return dateA.localeCompare(dateB) * mult;
                             });
                           return (
                             <Fragment key={dept}>
