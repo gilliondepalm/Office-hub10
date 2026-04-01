@@ -1964,6 +1964,16 @@ export default function VerzuimPage() {
               );
             }
 
+            const getRowTs = (item: typeof allRows[number]) =>
+              new Date((item.row as any).createdAt || 0).getTime();
+
+            const globalSorted = [...allRows].sort((a, b) => getRowTs(a) - getRowTs(b));
+            const seqMap = new Map<string, number>();
+            globalSorted.forEach((item, idx) => {
+              const key = item._kind === "absence" ? `abs-${item.row.id}` : `dc-${item.row.id}`;
+              seqMap.set(key, idx + 1);
+            });
+
             const depts = Array.from(new Set(allRows.map(r => r.dept))).sort((a, b) => a.localeCompare(b, "nl"));
 
             return (
@@ -1973,6 +1983,7 @@ export default function VerzuimPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-12 text-center text-muted-foreground">Nr.</TableHead>
                           <TableHead>Medewerker</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Periode / Datum</TableHead>
@@ -1984,15 +1995,11 @@ export default function VerzuimPage() {
                         {depts.map(dept => {
                           const deptRows = allRows
                             .filter(r => r.dept === dept)
-                            .sort((a, b) => {
-                              const dateA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
-                              const dateB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
-                              return dateB.localeCompare(dateA);
-                            });
+                            .sort((a, b) => getRowTs(a) - getRowTs(b));
                           return (
                             <Fragment key={dept}>
                               <TableRow>
-                                <TableCell colSpan={5} className="bg-muted/50 font-bold text-sm py-1.5">
+                                <TableCell colSpan={6} className="bg-muted/50 font-bold text-sm py-1.5">
                                   {dept}
                                 </TableCell>
                               </TableRow>
@@ -2017,6 +2024,9 @@ export default function VerzuimPage() {
                                       onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
                                       title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
                                     >
+                                      <TableCell className="text-center text-xs text-muted-foreground font-mono tabular-nums w-12">
+                                        {seqMap.get(`abs-${absence.id}`)}
+                                      </TableCell>
                                       <TableCell className="font-medium text-sm pl-6">{absence.userName || "Medewerker"}</TableCell>
                                       <TableCell>
                                         <div className="flex flex-col gap-0.5">
@@ -2068,6 +2078,9 @@ export default function VerzuimPage() {
                                       onClick={() => setCancelDetailAbsence({ _isDayCancel: true, ...c })}
                                       title="Klik om details te bekijken"
                                     >
+                                      <TableCell className="text-center text-xs text-muted-foreground font-mono tabular-nums w-12">
+                                        {seqMap.get(`dc-${c.id}`)}
+                                      </TableCell>
                                       <TableCell className="font-medium text-sm pl-6">{c.userName || "Medewerker"}</TableCell>
                                       <TableCell>
                                         <div className="flex items-center gap-1.5">
