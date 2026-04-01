@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -2441,10 +2441,10 @@ export default function VerzuimPage() {
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>Persoonlijk verzuim classificeren</DialogTitle>
+              <DialogDescription>
+                Geef aan of dit persoonlijk verzuim van <strong>{(persoonlijkApprovalAbsence as any).userName}</strong> geoorloofd of ongeoorloofd is.
+              </DialogDescription>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Geef aan of dit persoonlijk verzuim van <strong>{(persoonlijkApprovalAbsence as any).userName}</strong> geoorloofd of ongeoorloofd is.
-            </p>
             <p className="text-xs text-muted-foreground">
               Periode: {formatDateShort((persoonlijkApprovalAbsence as any).startDate)} – {formatDate((persoonlijkApprovalAbsence as any).endDate)}
             </p>
