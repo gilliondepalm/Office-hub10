@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -1140,6 +1140,14 @@ export default function VerzuimPage() {
   const [overzichtSortCol, setOverzichtSortCol] = useState<"nr" | "date">("nr");
   const [overzichtSortDir, setOverzichtSortDir] = useState<"asc" | "desc">("asc");
   const [overzichtRedenAbsence, setOverzichtRedenAbsence] = useState<any | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [regTargetUserId, setRegTargetUserId] = useState("");
+  const [regBesluit, setRegBesluit] = useState<"geoorloofd" | "ongeoorloofd">("geoorloofd");
+  const [regStartDate, setRegStartDate] = useState("");
+  const [regEndDate, setRegEndDate] = useState("");
+  const [regHalfDay, setRegHalfDay] = useState("full");
+  const [regReason, setRegReason] = useState("");
+  const [regError, setRegError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -1163,6 +1171,41 @@ export default function VerzuimPage() {
     },
     onError: () => {
       toast({ title: "Fout bij indienen", variant: "destructive" });
+    },
+  });
+
+  const registerVerzuimMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/absences", {
+        userId: regTargetUserId,
+        type: "persoonlijk",
+        startDate: regStartDate,
+        endDate: regEndDate,
+        halfDay: (regHalfDay && regHalfDay !== "full") ? regHalfDay : null,
+        reason: regReason || null,
+        status: "approved",
+        persoonlijkBesluit: regBesluit,
+        approvedBy: user?.id,
+        bvvdReason: null,
+        deductVacation: false,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/absences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ title: "Verzuim geregistreerd" });
+      setRegisterOpen(false);
+      setRegTargetUserId("");
+      setRegBesluit("geoorloofd");
+      setRegStartDate("");
+      setRegEndDate("");
+      setRegHalfDay("full");
+      setRegReason("");
+      setRegError(null);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Fout bij registreren", variant: "destructive" });
     },
   });
 
@@ -1481,6 +1524,140 @@ export default function VerzuimPage() {
                       </TableBody>
                     </Table>
                   )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          {isAdminOrManager && (
+            <Dialog open={registerOpen} onOpenChange={(v) => { setRegisterOpen(v); if (!v) { setRegError(null); } }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="button-register-verzuim">
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  Registreer Verzuim
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Verzuim registreren</DialogTitle>
+                  <DialogDescription>Registreer geoorloofd of ongeoorloofd verzuim voor een medewerker.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Medewerker</label>
+                    <Select value={regTargetUserId} onValueChange={setRegTargetUserId} data-testid="select-reg-user">
+                      <SelectTrigger data-testid="select-reg-user-trigger">
+                        <SelectValue placeholder="Kies medewerker…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(allUsers || [])
+                          .filter(u => u.active && u.id !== user?.id && (isAdmin ? true : u.department === myDept))
+                          .sort((a, b) => a.fullName.localeCompare(b.fullName, "nl"))
+                          .map(u => (
+                            <SelectItem key={u.id} value={u.id}>{u.fullName}{isAdmin && u.department ? ` — ${u.department}` : ""}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Type verzuim</label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={regBesluit === "geoorloofd" ? "default" : "outline"}
+                        className="flex-1"
+                        onClick={() => setRegBesluit("geoorloofd")}
+                        data-testid="button-reg-geoorloofd"
+                      >
+                        Geoorloofd
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={regBesluit === "ongeoorloofd" ? "default" : "outline"}
+                        className="flex-1"
+                        onClick={() => setRegBesluit("ongeoorloofd")}
+                        data-testid="button-reg-ongeoorloofd"
+                      >
+                        Ongeoorloofd
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Startdatum</label>
+                      <Input
+                        type="date"
+                        value={regStartDate}
+                        onChange={e => setRegStartDate(e.target.value)}
+                        onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }}
+                        className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        data-testid="input-reg-startdate"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium">Einddatum</label>
+                      <Input
+                        type="date"
+                        value={regEndDate}
+                        onChange={e => setRegEndDate(e.target.value)}
+                        onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }}
+                        className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        data-testid="input-reg-enddate"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Dagdeel</label>
+                    <Select value={regHalfDay} onValueChange={setRegHalfDay}>
+                      <SelectTrigger data-testid="select-reg-halfday"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full">Hele dag</SelectItem>
+                        <SelectItem value="am">Ochtend (AM)</SelectItem>
+                        <SelectItem value="pm">Middag (PM)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Toelichting</label>
+                    <Textarea
+                      value={regReason}
+                      onChange={e => setRegReason(e.target.value)}
+                      placeholder="Optionele toelichting…"
+                      data-testid="input-reg-reason"
+                    />
+                  </div>
+                  {regError && (
+                    <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span>{regError}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setRegisterOpen(false)}
+                      data-testid="button-reg-cancel"
+                    >
+                      Annuleren
+                    </Button>
+                    <Button
+                      type="button"
+                      className="flex-1"
+                      disabled={registerVerzuimMutation.isPending}
+                      onClick={() => {
+                        if (!regTargetUserId) { setRegError("Selecteer een medewerker"); return; }
+                        if (!regStartDate) { setRegError("Vul een startdatum in"); return; }
+                        if (!regEndDate) { setRegError("Vul een einddatum in"); return; }
+                        if (regEndDate < regStartDate) { setRegError("Einddatum moet na startdatum liggen"); return; }
+                        setRegError(null);
+                        registerVerzuimMutation.mutate();
+                      }}
+                      data-testid="button-reg-submit"
+                    >
+                      Registreren
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
