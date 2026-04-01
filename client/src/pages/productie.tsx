@@ -542,22 +542,69 @@ function BalieM3Tab() {
         ))}
       </div>
 
+      {/* ── Inzagen — aparte grafiek ── */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Productie per jaar — cumulatief t/m {maandLabel}</CardTitle>
-          <CardDescription className="text-xs">Lijndiagram — alle producttypen per jaar voor het geselecteerde maandpunt</CardDescription>
+          <CardTitle className="text-sm font-medium">Inzagen per jaar — cumulatief t/m {maandLabel}</CardTitle>
+          <CardDescription className="text-xs">Lijndiagram — Inzagen afzonderlijk weergegeven</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <div style={{ minWidth: jaren.length * 48 + 80 }}>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={data} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {BALIE3_PRODUCTEN.map(p => (
+                  <Line type="monotone" dataKey="inzagen" name="Inzagen" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Inzagen — staafdiagram per jaar (t/m {maandLabel})</CardTitle>
+          <CardDescription className="text-xs">Gecumuleerde waarde per jaar</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: jaren.length * 48 + 80 }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => [v.toLocaleString("nl"), "Inzagen"]} />
+                  <Bar dataKey="inzagen" name="Inzagen" fill="#6366f1" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Overige producttypen ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Overige producttypen per jaar — cumulatief t/m {maandLabel}</CardTitle>
+          <CardDescription className="text-xs">Lijndiagram — Her inzage, Na inzage, Kadastrale legger, Verklaring, Getuigschrift</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: jaren.length * 48 + 80 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={data} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {BALIE3_PRODUCTEN.filter(p => p.key !== "inzagen").map(p => (
                     <Line key={p.key} type="monotone" dataKey={p.key} name={p.label} stroke={p.kleur} strokeWidth={2} dot={{ r: 3 }} />
                   ))}
                 </LineChart>
@@ -569,20 +616,20 @@ function BalieM3Tab() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Staafdiagram — gestapeld per jaar (t/m {maandLabel})</CardTitle>
-          <CardDescription className="text-xs">Totaaloverzicht per producttype — gecumuleerd voor het geselecteerde maandpunt</CardDescription>
+          <CardTitle className="text-sm font-medium">Overige producttypen — gestapeld per jaar (t/m {maandLabel})</CardTitle>
+          <CardDescription className="text-xs">Totaaloverzicht excl. Inzagen — gecumuleerd voor het geselecteerde maandpunt</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <div style={{ minWidth: jaren.length * 48 + 80 }}>
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {BALIE3_PRODUCTEN.map(p => (
+                  {BALIE3_PRODUCTEN.filter(p => p.key !== "inzagen").map(p => (
                     <Bar key={p.key} dataKey={p.key} name={p.label} fill={p.kleur} stackId="a" />
                   ))}
                 </BarChart>
