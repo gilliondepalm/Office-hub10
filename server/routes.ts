@@ -914,6 +914,30 @@ export async function registerRoutes(
     res.json(holidays);
   });
 
+  app.post("/api/official-holidays/single", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    if (!isAdminRole(user?.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    try {
+      const { name, date, year } = req.body;
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ message: "Naam is verplicht" });
+      }
+      if (!date || !dateRegex.test(date)) {
+        return res.status(400).json({ message: "Ongeldige datum (verwacht JJJJ-MM-DD)" });
+      }
+      if (typeof year !== "number") {
+        return res.status(400).json({ message: "Jaar is verplicht" });
+      }
+      const holiday = await storage.createOfficialHoliday({ name: name.trim(), date, year, createdBy: user.id });
+      res.json(holiday);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Toevoegen mislukt" });
+    }
+  });
+
   app.post("/api/official-holidays", requireAuth, async (req, res) => {
     const user = req.user as any;
     if (!isAdminRole(user?.role)) {

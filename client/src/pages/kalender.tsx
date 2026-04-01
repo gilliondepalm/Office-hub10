@@ -540,6 +540,25 @@ function HolidayUploadDialog({
     },
   });
 
+  const addSingleMutation = useMutation({
+    mutationFn: async ({ name, date }: { name: string; date: string }) => {
+      await apiRequest("POST", "/api/official-holidays/single", {
+        year: parseInt(selectedYear),
+        name,
+        date,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/official-holidays"] });
+      setNewName("");
+      setNewDate("");
+      toast({ title: "Vakantiedag toegevoegd" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Fout", description: err.message, variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/official-holidays/${id}`);
@@ -552,9 +571,7 @@ function HolidayUploadDialog({
 
   const addRow = () => {
     if (!newName.trim() || !newDate) return;
-    setHolidays(prev => [...prev, { name: newName.trim(), date: newDate }]);
-    setNewName("");
-    setNewDate("");
+    addSingleMutation.mutate({ name: newName.trim(), date: newDate });
   };
 
   const removeRow = (idx: number) => {
@@ -724,9 +741,9 @@ function HolidayUploadDialog({
               data-testid="input-holiday-date"
             />
           </div>
-          <Button variant="outline" onClick={addRow} disabled={!newName.trim() || !newDate} data-testid="button-add-holiday-row">
+          <Button variant="outline" onClick={addRow} disabled={!newName.trim() || !newDate || addSingleMutation.isPending} data-testid="button-add-holiday-row">
             <Plus className="h-4 w-4 mr-1" />
-            Toevoegen
+            {addSingleMutation.isPending ? "Opslaan..." : "Toevoegen"}
           </Button>
         </div>
 
