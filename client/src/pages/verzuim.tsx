@@ -856,6 +856,7 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
               cellClass += " " + getTypeCellColor(absence, true);
             } else if (absence) {
               cellClass += " " + getTypeCellColor(absence, false);
+              if (isHoliday) cellClass += " ring-2 ring-orange-400 dark:ring-orange-500";
             } else if (isHoliday && !isWeekend) {
               cellClass += " bg-orange-200 text-orange-800 dark:bg-orange-800/50 dark:text-orange-200 font-semibold cursor-default";
             } else if (isWeekend) {
@@ -865,10 +866,11 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
             }
 
             const typeLabel = absence ? (typeLabelsCancel[absence.type] || absence.type) : "";
+            const holidaySuffix = isHoliday && !isWeekend ? ` · Feestdag: ${holidayName}` : "";
             const titleText = absence && !isCancelledDay
-              ? `${typeLabel} — klik om deze dag te cancelen`
-              : isCancelledDay ? `${typeLabel} — al gecanceld`
-              : isHoliday ? `Feestdag: ${holidayName}`
+              ? `${typeLabel} — klik om deze dag te cancelen${holidaySuffix}`
+              : isCancelledDay ? `${typeLabel} — al gecanceld${holidaySuffix}`
+              : isHoliday && !isWeekend ? `Feestdag: ${holidayName}`
               : undefined;
 
             return (
@@ -885,6 +887,9 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
                 )}
                 {isCancelledDay && (
                   <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold text-slate-500">✕</span>
+                )}
+                {isHoliday && !isWeekend && !isCancelledDay && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-orange-500 dark:bg-orange-400" />
                 )}
               </div>
             );
