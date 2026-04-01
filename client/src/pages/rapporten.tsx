@@ -74,10 +74,16 @@ type InfoSortField = "afdeling" | "naam" | "voornamen" | "kadasterId";
 
 function MedewerkerInfoTab({ users }: { users: UserExt[] }) {
   const [sortField, setSortField] = useState<InfoSortField>("naam");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   const active = users.filter(u => u.active);
+  const allSorted = [...active].sort((a, b) =>
+    (a.fullName || "").localeCompare(b.fullName || "", "nl")
+  );
 
-  const sorted = [...active].sort((a, b) => {
+  const filtered = selectedUserId === "all" ? active : active.filter(u => u.id === selectedUserId);
+
+  const sorted = [...filtered].sort((a, b) => {
     switch (sortField) {
       case "afdeling": {
         const deptCmp = (a.department || "").localeCompare(b.department || "", "nl");
@@ -100,8 +106,20 @@ function MedewerkerInfoTab({ users }: { users: UserExt[] }) {
         <p className="text-sm text-muted-foreground">
           Overzicht van medewerkergegevens — {active.length} actieve medewerkers
         </p>
-        <div className="flex items-center gap-2">
-          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <UserSearch className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="w-52" data-testid="select-info-person">
+              <SelectValue placeholder="Alle medewerkers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle medewerkers</SelectItem>
+              {allSorted.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground ml-1" />
           <Select value={sortField} onValueChange={(v) => setSortField(v as InfoSortField)}>
             <SelectTrigger className="w-44" data-testid="select-info-sort">
               <SelectValue placeholder="Sorteren op…" />
@@ -182,14 +200,20 @@ function SortHeader({
 function VerjaardagenTab({ users }: { users: UserExt[] }) {
   const [sortField, setSortField] = useState<SortField>("geboortedatum");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   const today = new Date();
   const todayMonth = today.getMonth() + 1;
   const todayDay = today.getDate();
 
   const withBirthday = users.filter(u => u.active && u.birthDate);
+  const allSorted = [...users.filter(u => u.active)].sort((a, b) =>
+    (a.fullName || "").localeCompare(b.fullName || "", "nl")
+  );
 
-  const sorted = [...withBirthday].sort((a, b) => {
+  const filtered = selectedUserId === "all" ? withBirthday : withBirthday.filter(u => u.id === selectedUserId);
+
+  const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
     if (sortField === "naam") {
       cmp = (a.fullName || "").localeCompare(b.fullName || "", "nl");
@@ -212,11 +236,25 @@ function VerjaardagenTab({ users }: { users: UserExt[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
         <p className="text-sm text-muted-foreground">
           Verjaardagen van actieve medewerkers — klik op kolomhoofd om te sorteren
         </p>
-        <PrintButton label="Afdrukken" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <UserSearch className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="w-52" data-testid="select-verjaardagen-person">
+              <SelectValue placeholder="Alle medewerkers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle medewerkers</SelectItem>
+              {allSorted.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <PrintButton label="Afdrukken" />
+        </div>
       </div>
       <div className="overflow-x-auto rounded-lg border">
         <Table>
@@ -261,8 +299,16 @@ function VerjaardagenTab({ users }: { users: UserExt[] }) {
 }
 
 function JubileaTab({ users }: { users: UserExt[] }) {
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
+
   const withStart = users.filter(u => u.active && u.startDate);
-  const sorted = withStart.sort((a, b) => {
+  const allSorted = [...users.filter(u => u.active)].sort((a, b) =>
+    (a.fullName || "").localeCompare(b.fullName || "", "nl")
+  );
+
+  const filtered = selectedUserId === "all" ? withStart : withStart.filter(u => u.id === selectedUserId);
+
+  const sorted = [...filtered].sort((a, b) => {
     const yA = yearsOfService(a.startDate) ?? 0;
     const yB = yearsOfService(b.startDate) ?? 0;
     return yB - yA;
@@ -272,11 +318,25 @@ function JubileaTab({ users }: { users: UserExt[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
         <p className="text-sm text-muted-foreground">
           Dienstjaren van actieve medewerkers — gesorteerd op hoogste aantal jaren
         </p>
-        <PrintButton label="Afdrukken" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <UserSearch className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="w-52" data-testid="select-jubilea-person">
+              <SelectValue placeholder="Alle medewerkers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle medewerkers</SelectItem>
+              {allSorted.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <PrintButton label="Afdrukken" />
+        </div>
       </div>
       <div className="overflow-x-auto rounded-lg border">
         <Table>
