@@ -120,6 +120,8 @@ type VacationBalance = {
   sickDays: number;
   snipperdagen?: number;
   cancelDays?: number;
+  persoonlijkGeoorloofdDays?: number;
+  ongeoorloofdDays?: number;
 };
 
 function IrregularCalendarDialog({
@@ -2537,7 +2539,8 @@ export default function VerzuimPage() {
                       <TableHead className="text-right">Ziek</TableHead>
                       <TableHead className="text-right">Snipper</TableHead>
                       <TableHead className="text-right">Cancel</TableHead>
-                      <TableHead className="text-right">Persoonlijk</TableHead>
+                      <TableHead className="text-right">Geoorloofd</TableHead>
+                      <TableHead className="text-right">Ongeoorloofd</TableHead>
                       <TableHead className="text-right">Saldo Nieuw</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -2551,7 +2554,7 @@ export default function VerzuimPage() {
                       return departments.map(dept => (
                         <>
                           <TableRow key={`dept-${dept}`}>
-                            <TableCell colSpan={12} className="bg-muted/50 font-bold text-sm py-1.5">
+                            <TableCell colSpan={13} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
                             </TableCell>
                           </TableRow>
@@ -2598,8 +2601,15 @@ export default function VerzuimPage() {
                                 )}
                               </TableCell>
                               <TableCell className="text-right text-sm">
-                                {((b as any).persoonlijkGeoorloofdDays || 0) > 0 ? (
-                                  <Badge variant="outline" className="text-xs text-sky-600 border-sky-300">{formatDays((b as any).persoonlijkGeoorloofdDays)}</Badge>
+                                {(b.persoonlijkGeoorloofdDays || 0) > 0 ? (
+                                  <Badge variant="outline" className="text-xs text-sky-600 border-sky-300">{formatDays(b.persoonlijkGeoorloofdDays || 0)}</Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {(b.ongeoorloofdDays || 0) > 0 ? (
+                                  <Badge variant="outline" className="text-xs text-amber-700 border-amber-400 bg-amber-50">{formatDays(b.ongeoorloofdDays || 0)}</Badge>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
                                 )}

@@ -1141,15 +1141,31 @@ export async function registerRoutes(
             a.status === "approved" &&
             new Date(a.startDate).getFullYear() === currentYear
         );
+        // Rejected persoonlijk absences for past periods count as ongeoorloofd → deducted from vacation balance
+        const userRejectedPastPersoonlijk = allAbsences.filter(
+          a => a.userId === u.id &&
+            a.type === "persoonlijk" &&
+            a.status === "rejected" &&
+            a.endDate < todayStr &&
+            new Date(a.startDate).getFullYear() === currentYear
+        );
+        const rejectedPastDays = countDays(userRejectedPastPersoonlijk);
         const approved = userVacAbsences.filter(a => a.status === "approved");
         const pending = userVacAbsences.filter(a => a.status === "pending");
         const cancelDays = perDayCancelByUser[u.id] || 0;
         const pastCancelDays = perDayCancelOpgenomenByUser[u.id] || 0;
-        const toegekendDays = Math.max(0, countDays(approved) - cancelDays);
+        const toegekendDays = Math.max(0, countDays(approved) + rejectedPastDays - cancelDays);
         const geplandDays = countDays(pending);
-        const opgenomenDays = Math.max(0, countDaysUpTo(approved, todayStr) - pastCancelDays);
+        const opgenomenDays = Math.max(0, countDaysUpTo(approved, todayStr) + rejectedPastDays - pastCancelDays);
         const sickDays = Math.max(0, countDays(userSickAbsences) - (perDaySickCancelByUser[u.id] || 0));
         const persoonlijkGeoorloofdDays = countDays(userPersoonlijkGeoorloofd);
+        // Ongeoorloofd = approved persoonlijk with besluit=ongeoorloofd + rejected past persoonlijk
+        const ongeoorloofdApproved = userVacAbsences.filter(
+          a => a.status === "approved" &&
+            a.type === "persoonlijk" &&
+            (a as any).persoonlijkBesluit === "ongeoorloofd"
+        );
+        const ongeoorloofdDays = countDays(ongeoorloofdApproved) + rejectedPastDays;
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
         const totaal = recht + saldoOud;
@@ -1167,6 +1183,7 @@ export async function registerRoutes(
           snipperdagen: snipperdagenCount,
           cancelDays,
           persoonlijkGeoorloofdDays,
+          ongeoorloofdDays,
           remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount,
         };
       });
