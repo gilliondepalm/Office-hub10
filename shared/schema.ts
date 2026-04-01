@@ -4,7 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const roleEnum = pgEnum("role", ["directeur", "admin", "manager", "manager_az", "employee"]);
-export const absenceTypeEnum = pgEnum("absence_type", ["sick", "vacation", "personal", "other", "bvvd"]);
+export const absenceTypeEnum = pgEnum("absence_type", ["sick", "vacation", "personal", "other", "bvvd", "persoonlijk"]);
 export const absenceStatusEnum = pgEnum("absence_status", ["pending", "approved", "rejected", "cancelled"]);
 
 export const users = pgTable("users", {
@@ -80,6 +80,7 @@ export const absences = pgTable("absences", {
   approvedBy: varchar("approved_by").references(() => users.id),
   deductVacation: boolean("deduct_vacation").default(false),
   cancelReason: text("cancel_reason"),
+  persoonlijkBesluit: text("persoonlijk_besluit"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

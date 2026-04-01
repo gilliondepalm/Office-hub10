@@ -66,7 +66,7 @@ export interface IStorage {
   getAbsencesByDepartment(department: string): Promise<(Absence & { userName?: string; userDepartment?: string | null; userRole?: string })[]>;
   getAbsenceById(id: string): Promise<Absence | undefined>;
   createAbsence(absence: InsertAbsence): Promise<Absence>;
-  updateAbsenceStatus(id: string, status: string, approvedBy: string | null, cancelReason?: string): Promise<void>;
+  updateAbsenceStatus(id: string, status: string, approvedBy: string | null, cancelReason?: string, persoonlijkBesluit?: string | null): Promise<void>;
   deleteAbsence(id: string): Promise<void>;
 
   getRewards(): Promise<(Reward & { userName?: string })[]>;
@@ -348,9 +348,10 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateAbsenceStatus(id: string, status: string, approvedBy: string | null, cancelReason?: string): Promise<void> {
+  async updateAbsenceStatus(id: string, status: string, approvedBy: string | null, cancelReason?: string, persoonlijkBesluit?: string | null): Promise<void> {
     const fields: any = { status: status as any, approvedBy };
     if (cancelReason !== undefined) fields.cancelReason = cancelReason;
+    if (persoonlijkBesluit !== undefined) fields.persoonlijkBesluit = persoonlijkBesluit;
     await db.update(absences).set(fields).where(eq(absences.id, id));
   }
 

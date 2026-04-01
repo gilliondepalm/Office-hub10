@@ -1124,7 +1124,9 @@ export async function registerRoutes(
       const balances = allUsers.filter(u => u.active).map(u => {
         const userVacAbsences = allAbsences.filter(
           a => a.userId === u.id &&
-            (a.type === "vacation" || ((a.type === "personal" || a.type === "other") && (a as any).deductVacation === true)) &&
+            (a.type === "vacation" ||
+              ((a.type === "personal" || a.type === "other") && (a as any).deductVacation === true) ||
+              (a.type === "persoonlijk" && (a as any).persoonlijkBesluit === "ongeoorloofd")) &&
             new Date(a.startDate).getFullYear() === currentYear
         );
         const userSickAbsences = allAbsences.filter(
@@ -1132,16 +1134,22 @@ export async function registerRoutes(
             new Date(a.startDate).getFullYear() === currentYear &&
             (a.status === "approved" || a.status === "pending")
         );
+        const userPersoonlijkGeoorloofd = allAbsences.filter(
+          a => a.userId === u.id &&
+            a.type === "persoonlijk" &&
+            (a as any).persoonlijkBesluit === "geoorloofd" &&
+            a.status === "approved" &&
+            new Date(a.startDate).getFullYear() === currentYear
+        );
         const approved = userVacAbsences.filter(a => a.status === "approved");
         const pending = userVacAbsences.filter(a => a.status === "pending");
-        const futureApproved = approved.filter(a => a.startDate > todayStr);
         const cancelDays = perDayCancelByUser[u.id] || 0;
         const pastCancelDays = perDayCancelOpgenomenByUser[u.id] || 0;
-        const futureCancelDays = Math.max(0, cancelDays - pastCancelDays);
         const toegekendDays = Math.max(0, countDays(approved) - cancelDays);
         const geplandDays = countDays(pending);
         const opgenomenDays = Math.max(0, countDaysUpTo(approved, todayStr) - pastCancelDays);
         const sickDays = Math.max(0, countDays(userSickAbsences) - (perDaySickCancelByUser[u.id] || 0));
+        const persoonlijkGeoorloofdDays = countDays(userPersoonlijkGeoorloofd);
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
         const totaal = recht + saldoOud;
@@ -1158,6 +1166,7 @@ export async function registerRoutes(
           sickDays,
           snipperdagen: snipperdagenCount,
           cancelDays,
+          persoonlijkGeoorloofdDays,
           remainingDays: totaal - toegekendDays - geplandDays - snipperdagenCount,
         };
       });
@@ -1273,7 +1282,8 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Geen rechten om verzuim goed te keuren" });
       }
 
-      await storage.updateAbsenceStatus(req.params.id, req.body.status, userId);
+      const { status, persoonlijkBesluit } = req.body;
+      await storage.updateAbsenceStatus(req.params.id, status, userId, undefined, persoonlijkBesluit ?? undefined);
       res.json({ message: "Bijgewerkt" });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });
