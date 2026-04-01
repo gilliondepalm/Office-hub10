@@ -356,208 +356,163 @@ function maandelijkseGroei(data: BalieRij[]): BalieRij[] {
   });
 }
 
-const BALIE_JAREN = Object.keys(BALIE_DATA).sort((a, b) => Number(b) - Number(a));
+const BALIE_JAREN_ASC = Object.keys(BALIE_DATA).sort((a, b) => Number(a) - Number(b));
 
 function BalieMedewerkerTab() {
-  const [jaar, setJaar] = useState("2025");
-  const [vergelijkJaar, setVergelijkJaar] = useState("2024");
-  const [weergave, setWeergave] = useState<"cumulatief" | "maandelijks">("cumulatief");
-  const [vergelijk, setVergelijk] = useState(false);
+  const [maandIdx, setMaandIdx] = useState(11);
+  const [periodeIdx, setPeriodeIdx] = useState(0);
 
-  const basisData = BALIE_DATA[jaar] || [];
-  const vergelijkData2 = BALIE_DATA[vergelijkJaar] || [];
-  const chartData = weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData);
+  const allePeriodes: { label: string; range: [number, number] }[] = [
+    { label: "Alle jaren (2008–2025)", range: [0, 18] },
+    { label: "2008–2015",             range: [0, 8]  },
+    { label: "2016–2025",             range: [8, 18] },
+  ];
 
-  const vergelijkChartData = BALIE_MAANDEN.map((maand, i) => {
-    const rA = (weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData))[i];
-    const rB = (weergave === "cumulatief" ? vergelijkData2 : maandelijkseGroei(vergelijkData2))[i];
-    const obj: Record<string, string | number> = { maand };
-    BALIE_PRODUCTEN.forEach(p => {
-      obj[`${p.key}_A`] = rA?.[p.key] as number ?? 0;
-      obj[`${p.key}_B`] = rB?.[p.key] as number ?? 0;
-    });
-    return obj;
+  const periode  = allePeriodes[periodeIdx];
+  const jaren    = BALIE_JAREN_ASC.slice(periode.range[0], periode.range[1]);
+  const maandLabel = BALIE_MAANDEN[maandIdx];
+
+  const data = jaren.map(jaar => {
+    const rij = BALIE_DATA[jaar]?.[maandIdx];
+    return {
+      jaar,
+      kkp: rij?.kkp ?? 0,
+      db:  rij?.db  ?? 0,
+      sa:  rij?.sa  ?? 0,
+      rm:  rij?.rm  ?? 0,
+      re:  rij?.re  ?? 0,
+      km:  rij?.km  ?? 0,
+      ik:  rij?.ik  ?? 0,
+    };
   });
+
+  const maxSA  = data.length ? Math.max(...data.map(d => d.sa))  : 0;
+  const maxRM  = data.length ? Math.max(...data.map(d => d.rm))  : 0;
+  const maxRE  = data.length ? Math.max(...data.map(d => d.re))  : 0;
+  const maxKM  = data.length ? Math.max(...data.map(d => d.km))  : 0;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Jaar:</span>
-          <Select value={jaar} onValueChange={v => { setJaar(v); setVergelijk(false); }}>
-            <SelectTrigger className="w-24" data-testid="select-balie-jaar">
+          <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
+          <Select value={String(maandIdx)} onValueChange={v => setMaandIdx(Number(v))}>
+            <SelectTrigger className="w-28" data-testid="select-balie-maand">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {BALIE_JAREN.map(j => (
-                <SelectItem key={j} value={j} data-testid={`option-balie-jaar-${j}`}>{j}</SelectItem>
+              {BALIE_MAANDEN.map((m, idx) => (
+                <SelectItem key={m} value={String(idx)} data-testid={`option-balie-maand-${m}`}>{m}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVergelijk(v => !v)}
-            data-testid="btn-balie-vergelijk"
-            className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
-              vergelijk ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
-            }`}
-          >Vergelijken</button>
-          {vergelijk && (
-            <>
-              <span className="text-sm text-muted-foreground">vs</span>
-              <Select value={vergelijkJaar} onValueChange={setVergelijkJaar}>
-                <SelectTrigger className="w-24" data-testid="select-balie-vergelijkjaar">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BALIE_JAREN.filter(j => j !== jaar).map(j => (
-                    <SelectItem key={j} value={j} data-testid={`option-balie-vergelijkjaar-${j}`}>{j}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Weergave:</span>
-          {(["cumulatief","maandelijks"] as const).map(w => (
-            <button
-              key={w}
-              onClick={() => setWeergave(w)}
-              data-testid={`btn-balie-weergave-${w}`}
-              className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${
-                weergave === w ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
-              }`}
-            >{w === "cumulatief" ? "Cumulatief (t/m)" : "Per maand"}</button>
-          ))}
+          <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
+          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
+            <SelectTrigger className="w-52" data-testid="select-balie-periode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allePeriodes.map((p, i) => (
+                <SelectItem key={i} value={String(i)} data-testid={`option-balie-periode-${i}`}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {BALIE_PRODUCTEN.slice(0,4).map(p => (
-          <Card key={p.key}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Situatieschets A4/A3",    value: maxSA, sub: "hoogste t/m "+maandLabel, kleur: "#6366f1" },
+          { label: "Regulier Meetbrief",       value: maxRM, sub: "hoogste t/m "+maandLabel, kleur: "#22c55e" },
+          { label: "Regulier Extractplan",     value: maxRE, sub: "hoogste t/m "+maandLabel, kleur: "#f97316" },
+          { label: "Kadastrale Meetgegevens",  value: maxKM, sub: "hoogste t/m "+maandLabel, kleur: "#f59e0b" },
+        ].map(k => (
+          <Card key={k.label}>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground font-medium mb-1 leading-tight">{p.label}</p>
-              <p className="text-2xl font-bold" style={{ color: p.kleur }}>
-                {(basisData[basisData.length - 1]?.[p.key] as number ?? 0).toLocaleString("nl")}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">t/m Dec {jaar}</p>
+              <p className="text-xs text-muted-foreground font-medium mb-1 leading-tight">{k.label}</p>
+              <p className="text-2xl font-bold" style={{ color: k.kleur }}>{k.value.toLocaleString("nl")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{k.sub}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {vergelijk ? (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">{jaar} vs {vergelijkJaar} — {weergave === "cumulatief" ? "Cumulatief" : "Per maand"}</CardTitle>
-            <CardDescription className="text-xs">Doorgetrokken lijn = {jaar} · Gestippeld = {vergelijkJaar} · Top 3 producttypen getoond</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <div style={{ minWidth: 700 }}>
-                <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={vergelijkChartData} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => v.toLocaleString("nl")} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    {BALIE_PRODUCTEN.slice(0,3).map(p => ([
-                      <Line key={`${p.key}_A`} type="monotone" dataKey={`${p.key}_A`} name={`${p.label} ${jaar}`} stroke={p.kleur} strokeWidth={2} dot={{ r: 2 }} />,
-                      <Line key={`${p.key}_B`} type="monotone" dataKey={`${p.key}_B`} name={`${p.label} ${vergelijkJaar}`} stroke={p.kleur} strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />,
-                    ]))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Productie per jaar — cumulatief t/m {maandLabel}</CardTitle>
+          <CardDescription className="text-xs">Lijndiagram — alle producttypen per jaar voor het geselecteerde maandpunt</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: jaren.length * 48 + 80 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {BALIE_PRODUCTEN.map(p => (
+                    <Line key={p.key} type="monotone" dataKey={p.key} name={p.label} stroke={p.kleur} strokeWidth={2} dot={{ r: 3 }} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                {weergave === "cumulatief" ? `Cumulatief t/m — ${jaar}` : `Productie per maand — ${jaar}`}
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Lijndiagram — alle producttypen — {weergave === "cumulatief" ? "oplopend door het jaar" : "maandelijkse aantallen"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <div style={{ minWidth: 600 }}>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={chartData} margin={{ top: 8, right: 20, left: -10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      {BALIE_PRODUCTEN.map(p => (
-                        <Line key={p.key} type="monotone" dataKey={p.key} name={p.label} stroke={p.kleur} strokeWidth={2} dot={{ r: 3 }} />
-                      ))}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                Staafdiagram — {weergave === "cumulatief" ? `Cumulatief t/m — ${jaar}` : `Per maand — ${jaar}`}
-              </CardTitle>
-              <CardDescription className="text-xs">Gestapelde weergave per producttype</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <div style={{ minWidth: 600 }}>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={chartData} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      {BALIE_PRODUCTEN.map(p => (
-                        <Bar key={p.key} dataKey={p.key} name={p.label} fill={p.kleur} stackId="a" />
-                      ))}
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Detailtabel — {vergelijk ? "2024 vs 2025" : jaar} ({weergave === "cumulatief" ? "cumulatief" : "per maand"})</CardTitle>
+          <CardTitle className="text-sm font-medium">Staafdiagram — gestapeld per jaar (t/m {maandLabel})</CardTitle>
+          <CardDescription className="text-xs">Totaaloverzicht per producttype — gecumuleerd voor het geselecteerde maandpunt</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: jaren.length * 48 + 80 }}>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {BALIE_PRODUCTEN.map(p => (
+                    <Bar key={p.key} dataKey={p.key} name={p.label} fill={p.kleur} stackId="a" />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maandLabel} — {periode.label}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Maand</TableHead>
+                  <TableHead>Jaar</TableHead>
                   {BALIE_PRODUCTEN.map(p => (
-                    <TableHead key={p.key} className="text-right" style={{ color: p.kleur }}>{p.label.split(" ")[0]}{p.label.split(" ").length > 2 ? "…" : ""}</TableHead>
+                    <TableHead key={p.key} className="text-right" style={{ color: p.kleur }}>{p.label}</TableHead>
                   ))}
                   <TableHead className="text-right font-semibold">Totaal</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(weergave === "cumulatief" ? basisData : maandelijkseGroei(basisData)).map((rij) => {
-                  const totaal = BALIE_PRODUCTEN.reduce((s, p) => s + (rij[p.key] as number), 0);
+                {data.map(rij => {
+                  const totaal = BALIE_PRODUCTEN.reduce((s, p) => s + (rij[p.key as keyof typeof rij] as number), 0);
                   return (
-                    <TableRow key={rij.maand} data-testid={`row-balie-${jaar}-${rij.maand}`}>
-                      <TableCell className="font-medium">{rij.maand}</TableCell>
+                    <TableRow key={rij.jaar} data-testid={`row-balie-${rij.jaar}-${maandLabel}`}>
+                      <TableCell className="font-semibold">{rij.jaar}</TableCell>
                       {BALIE_PRODUCTEN.map(p => (
-                        <TableCell key={p.key} className="text-right">{(rij[p.key] as number).toLocaleString("nl")}</TableCell>
+                        <TableCell key={p.key} className="text-right">{(rij[p.key as keyof typeof rij] as number).toLocaleString("nl")}</TableCell>
                       ))}
                       <TableCell className="text-right font-semibold">{totaal.toLocaleString("nl")}</TableCell>
                     </TableRow>
