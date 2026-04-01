@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, FileText, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -1122,6 +1122,7 @@ export default function VerzuimPage() {
   const [activeTab, setActiveTab] = useState("meldingen");
   const [overzichtSortCol, setOverzichtSortCol] = useState<"nr" | "date">("nr");
   const [overzichtSortDir, setOverzichtSortDir] = useState<"asc" | "desc">("asc");
+  const [overzichtRedenAbsence, setOverzichtRedenAbsence] = useState<any | null>(null);
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof absenceFormSchema>) => {
@@ -2086,9 +2087,9 @@ export default function VerzuimPage() {
                                     <TableRow
                                       key={`abs-${absence.id}`}
                                       data-testid={`row-overzicht-${absence.id}`}
-                                      className={isDupOvz ? "bg-red-50/40 dark:bg-red-950/20" : isCancelled ? "cursor-pointer hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : ""}
-                                      onClick={isCancelled ? () => setCancelDetailAbsence(absence) : undefined}
-                                      title={isCancelled ? "Klik om annuleringsdetails te bekijken" : undefined}
+                                      className={`cursor-pointer ${isDupOvz ? "bg-red-50/40 dark:bg-red-950/20 hover:bg-red-100/40 dark:hover:bg-red-900/20" : isCancelled ? "hover:bg-orange-50/60 dark:hover:bg-orange-950/20" : "hover:bg-muted/40"}`}
+                                      onClick={() => setOverzichtRedenAbsence({ ...absence, displayReason })}
+                                      title="Klik om reden te bekijken"
                                     >
                                       <TableCell className="text-center text-xs text-muted-foreground font-mono tabular-nums w-12">
                                         {seqMap.get(`abs-${absence.id}`)}
@@ -2131,7 +2132,14 @@ export default function VerzuimPage() {
                                           <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
                                             <StatusIcon className="h-3 w-3" />{sc.label}
                                           </Badge>
-                                          {isCancelled && <span className="text-xs text-orange-500 underline underline-offset-2">details</span>}
+                                          {isCancelled && (
+                                            <span
+                                              className="text-xs text-orange-500 underline underline-offset-2 cursor-pointer"
+                                              onClick={(e) => { e.stopPropagation(); setCancelDetailAbsence(absence); }}
+                                            >
+                                              details
+                                            </span>
+                                          )}
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -2429,6 +2437,38 @@ export default function VerzuimPage() {
         </Card>
       )}
       </div>
+
+      {overzichtRedenAbsence && (
+        <Dialog open={!!overzichtRedenAbsence} onOpenChange={(v) => { if (!v) setOverzichtRedenAbsence(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Reden verzuim
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2 text-sm">
+                <span className="font-medium">{overzichtRedenAbsence.userName || "Medewerker"}</span>
+                <span className="text-muted-foreground">·</span>
+                <Badge variant="secondary" className="text-xs">
+                  {overzichtRedenAbsence.type === "persoonlijk" && overzichtRedenAbsence.persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[overzichtRedenAbsence.type]}
+                </Badge>
+                <span className="text-muted-foreground text-xs self-center">
+                  {formatDateShort(overzichtRedenAbsence.startDate)} – {formatDate(overzichtRedenAbsence.endDate)}
+                </span>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3 min-h-[60px]">
+                {overzichtRedenAbsence.displayReason && overzichtRedenAbsence.displayReason !== "-" ? (
+                  <p className="text-sm whitespace-pre-wrap">{overzichtRedenAbsence.displayReason}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Geen reden opgegeven</p>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {cancelDetailAbsence && (
         <Dialog open={!!cancelDetailAbsence} onOpenChange={(v) => { if (!v) setCancelDetailAbsence(null); }}>
