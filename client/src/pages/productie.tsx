@@ -921,7 +921,7 @@ export default function ProductiePage() {
               Kadastrale Metingen
             </TabsTrigger>
             <TabsTrigger value="kartografie" data-testid="tab-kartografie">
-              Kartografie
+              Kartografen
             </TabsTrigger>
             <TabsTrigger value="landmeters" data-testid="tab-landmeters">
               Landmeters
