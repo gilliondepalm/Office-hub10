@@ -1143,6 +1143,7 @@ export default function VerzuimPage() {
   const [overzichtSortDir, setOverzichtSortDir] = useState<"asc" | "desc">("asc");
   const [overzichtRedenAbsence, setOverzichtRedenAbsence] = useState<any | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [detailAbsence, setDetailAbsence] = useState<any>(null);
   const [regTargetUserId, setRegTargetUserId] = useState("");
   const [regBesluit, setRegBesluit] = useState<"geoorloofd" | "ongeoorloofd">("geoorloofd");
   const [regStartDate, setRegStartDate] = useState("");
@@ -2053,7 +2054,15 @@ export default function VerzuimPage() {
                               const isDuplicate = duplicateAbsenceIds.has(absence.id);
                               const canDeleteThis = isAdminOrManager || absence.userId === user?.id;
                               return (
-                                <TableRow key={absence.id} data-testid={`row-absence-${absence.id}`} className={isDuplicate ? "bg-red-50/40 dark:bg-red-950/20" : ""}>
+                                <TableRow
+                                  key={absence.id}
+                                  data-testid={`row-absence-${absence.id}`}
+                                  className={`cursor-pointer hover:bg-muted/40 transition-colors ${isDuplicate ? "bg-red-50/40 dark:bg-red-950/20" : ""}`}
+                                  onClick={(e) => {
+                                    if ((e.target as HTMLElement).closest("button,input,a,[role='checkbox']")) return;
+                                    setDetailAbsence(absence);
+                                  }}
+                                >
                                   <TableCell className={`font-medium text-sm ${isAdminOrManager ? "pl-6" : ""}`}>
                                     {(absence as any).userName || "Medewerker"}
                                   </TableCell>
@@ -2166,6 +2175,99 @@ export default function VerzuimPage() {
           })()}
         </div>
       )}
+
+      {/* Detail dialog voor Meldingen rij */}
+      <Dialog open={!!detailAbsence} onOpenChange={(open) => !open && setDetailAbsence(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {detailAbsence && (() => {
+                const sc = statusConfig[detailAbsence.status] || statusConfig.pending;
+                const StatusIcon = sc.icon;
+                return (
+                  <>
+                    <StatusIcon className="h-4 w-4" />
+                    {(detailAbsence as any).userName || "Medewerker"} — {typeLabels[detailAbsence.type] || detailAbsence.type}
+                  </>
+                );
+              })()}
+            </DialogTitle>
+            <DialogDescription>
+              {detailAbsence && `${formatDateShort(detailAbsence.startDate)} – ${formatDate(detailAbsence.endDate)}`}
+            </DialogDescription>
+          </DialogHeader>
+          {detailAbsence && (() => {
+            const sc = statusConfig[detailAbsence.status] || statusConfig.pending;
+            const baseReason = detailAbsence.type === "bvvd" && detailAbsence.bvvdReason
+              ? detailAbsence.bvvdReason + (detailAbsence.reason ? ` - ${detailAbsence.reason}` : "")
+              : detailAbsence.reason || "";
+            const cancelReason = detailAbsence.status === "cancelled" && (detailAbsence as any).cancelReason
+              ? (detailAbsence as any).cancelReason
+              : null;
+            const bal = vacationBalances?.find(b => b.userId === detailAbsence.userId);
+            return (
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Medewerker</p>
+                    <p className="font-semibold">{(detailAbsence as any).userName || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Afdeling</p>
+                    <p>{(detailAbsence as any).userDepartment || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Type</p>
+                    <Badge variant="secondary" className="text-xs">
+                      {detailAbsence.type === "persoonlijk" && (detailAbsence as any).persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[detailAbsence.type] || detailAbsence.type}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Status</p>
+                    <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
+                      <sc.icon className="h-3 w-3" />
+                      {sc.label}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Periode</p>
+                    <p>{formatDateShort(detailAbsence.startDate)} – {formatDate(detailAbsence.endDate)}
+                      {detailAbsence.halfDay === "am" && <span className="ml-1 text-muted-foreground">(ochtend)</span>}
+                      {detailAbsence.halfDay === "pm" && <span className="ml-1 text-muted-foreground">(middag)</span>}
+                    </p>
+                  </div>
+                  {bal && (
+                    <div>
+                      <p className="text-muted-foreground font-medium mb-1">Vakantiesaldo</p>
+                      <Badge
+                        variant={bal.remainingDays <= 3 ? "destructive" : bal.remainingDays <= 10 ? "outline" : "default"}
+                        className="text-xs"
+                      >
+                        {formatDays(bal.remainingDays)} dagen resterend
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                {baseReason && (
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Reden</p>
+                    <p className="bg-muted/50 rounded-md p-3 leading-relaxed whitespace-pre-wrap">{baseReason}</p>
+                  </div>
+                )}
+                {cancelReason && (
+                  <div>
+                    <p className="text-muted-foreground font-medium mb-1">Annuleringsreden</p>
+                    <p className="bg-muted/50 rounded-md p-3 leading-relaxed whitespace-pre-wrap text-muted-foreground">{cancelReason}</p>
+                  </div>
+                )}
+                {!baseReason && !cancelReason && (
+                  <p className="text-muted-foreground italic">Geen reden opgegeven.</p>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {activeTab === "overzicht" && isAdminOrManager && (
         <div className="space-y-3">
