@@ -203,6 +203,8 @@ export interface IStorage {
   getMaandProdSamenvatting(jaar: number, maand: number): Promise<MaandProdSamenvatting | undefined>;
   saveMaandProdSamenvatting(data: InsertMaandProdSamenvatting): Promise<MaandProdSamenvatting>;
   getMaandProdKartograafJaar(jaar: number): Promise<MaandProdKartograaf[]>;
+  getAllMaandProdKartograaf(): Promise<MaandProdKartograaf[]>;
+  getAllMaandProdSamenvatting(): Promise<MaandProdSamenvatting[]>;
 
   getTrendKmBuiten(): Promise<TrendKmBuiten[]>;
   bulkUpsertTrendKmBuiten(rows: InsertTrendKmBuiten[]): Promise<void>;
@@ -226,6 +228,7 @@ export interface IStorage {
 
   getTrendKartografenHist(): Promise<TrendKartografenHist[]>;
   bulkUpsertTrendKartografenHist(rows: InsertTrendKartografenHist[]): Promise<void>;
+  upsertTrendKartografenHistRow(row: InsertTrendKartografenHist): Promise<void>;
   deleteTrendKartografenHistByJaar(jaar: number): Promise<void>;
 }
 
@@ -1210,6 +1213,16 @@ export class DatabaseStorage implements IStorage {
       .orderBy(maandProdKartograaf.maand, maandProdKartograaf.kartograaf);
   }
 
+  async getAllMaandProdKartograaf(): Promise<MaandProdKartograaf[]> {
+    return await db.select().from(maandProdKartograaf)
+      .orderBy(maandProdKartograaf.jaar, maandProdKartograaf.maand, maandProdKartograaf.kartograaf);
+  }
+
+  async getAllMaandProdSamenvatting(): Promise<MaandProdSamenvatting[]> {
+    return await db.select().from(maandProdSamenvatting)
+      .orderBy(maandProdSamenvatting.jaar, maandProdSamenvatting.maand);
+  }
+
   // ── Trend helpers (delete-then-insert per jaar) ───────────────────────────
   private async bulkUpsertTrend<T extends { jaar: number; maand: number }>(
     table: any, rows: T[]
@@ -1277,6 +1290,17 @@ export class DatabaseStorage implements IStorage {
   }
   async bulkUpsertTrendKartografenHist(rows: InsertTrendKartografenHist[]): Promise<void> {
     await this.bulkUpsertTrend(trendKartografenHist, rows);
+  }
+  async upsertTrendKartografenHistRow(row: InsertTrendKartografenHist): Promise<void> {
+    const existing = await db.select().from(trendKartografenHist)
+      .where(and(eq(trendKartografenHist.jaar, row.jaar), eq(trendKartografenHist.maand, row.maand)));
+    if (existing.length > 0) {
+      await db.update(trendKartografenHist)
+        .set({ egaleano: row.egaleano, jpieters: row.jpieters, nsambo: row.nsambo, binnengekomen: row.binnengekomen, afgehandeld: row.afgehandeld })
+        .where(eq(trendKartografenHist.id, existing[0].id));
+    } else {
+      await db.insert(trendKartografenHist).values(row);
+    }
   }
   async deleteTrendKartografenHistByJaar(jaar: number): Promise<void> {
     await db.delete(trendKartografenHist).where(eq(trendKartografenHist.jaar, jaar));

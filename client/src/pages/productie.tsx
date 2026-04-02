@@ -1916,7 +1916,14 @@ function TrendKartografenTab() {
   }, [dbKgRows]);
   const activeKgData = dbKgMap ?? KG_MAANDDATA;
 
-  const jaarData = activeKgData[geselecteerdJaar] ?? KG_MAANDDATA[geselecteerdJaar];
+  // Combineer hardcoded jaren met eventuele extra jaren uit DB
+  const alleKgJaren = useMemo(() => {
+    const dbJaren = dbKgRows ? [...new Set(dbKgRows.map(r => String(r.jaar)))] : [];
+    return [...new Set([...KG_JAREN, ...dbJaren])].sort();
+  }, [dbKgRows]);
+
+  const KG_LEEG_JAAR: KgJaarData = { egaleano: Array(12).fill(0), jpieters: Array(12).fill(0), nsambo: Array(12).fill(0), binnengekomen: Array(12).fill(0), afgehandeld: Array(12).fill(0) };
+  const jaarData = activeKgData[geselecteerdJaar] ?? KG_MAANDDATA[geselecteerdJaar] ?? KG_LEEG_JAAR;
 
   // Maandelijkse grafiekdata voor geselecteerd jaar
   const maandChartData = KG_MAANDEN.map((m, i) => ({
@@ -2020,7 +2027,7 @@ function TrendKartografenTab() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {[...KG_JAREN].reverse().map((j) => (
+                {[...alleKgJaren].reverse().map((j) => (
                   <SelectItem key={j} value={j} className="text-xs">{j}</SelectItem>
                 ))}
               </SelectContent>

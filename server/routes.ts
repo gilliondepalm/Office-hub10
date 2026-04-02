@@ -2244,11 +2244,30 @@ export async function registerRoutes(
   });
 
   app.get("/api/kartografie-productie", async (req, res) => {
-    const user = (req as any).user;
-    if (!user) return res.status(401).json({ message: "Niet ingelogd" });
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try {
-      const rows = await storage.getKartografieProductie();
-      res.json(rows);
+      const [kpRows, mpkRows, samRows] = await Promise.all([
+        storage.getKartografieProductie(),
+        storage.getAllMaandProdKartograaf(),
+        storage.getAllMaandProdSamenvatting(),
+      ]);
+      const MAAND_AFB = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+      // Bestaande (jaar, maandNaam) sleutels in kartografie_productie
+      const kpKeys = new Set(kpRows.map(r => `${r.jaar}-${r.maand}`));
+      const prod = (r: { mbr: number; kad_spl: number; gr_uitz: number }) => r.mbr + r.kad_spl + r.gr_uitz;
+      const extraRows: (typeof kpRows[0])[] = samRows
+        .filter(s => {
+          const maandNaam = MAAND_AFB[s.maand - 1];
+          return maandNaam && !kpKeys.has(`${s.jaar}-${maandNaam}`);
+        })
+        .map(s => {
+          const maandNaam = MAAND_AFB[s.maand - 1]!;
+          const kRows = mpkRows.filter(r => r.jaar === s.jaar && r.maand === s.maand && r.kartograaf !== "afgeboekt_stukken");
+          const totAf = kRows.reduce((acc, r) => acc + prod(r), 0);
+          const aantalKart = s.aantal_kartografen || 1;
+          return { id: 0, jaar: s.jaar, maand: maandNaam, binnengekomen: s.binnengekomen, afgehandeld: totAf, gemiddeld: aantalKart > 0 ? +(totAf / aantalKart) : 0, kartografen: s.aantal_kartografen };
+        });
+      res.json([...kpRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : MAAND_AFB.indexOf(a.maand) - MAAND_AFB.indexOf(b.maand)));
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Fout bij ophalen" });
     }
@@ -2324,6 +2343,48 @@ export async function registerRoutes(
       await storage.saveMaandProdKartograaf(parsedRows);
       const parsedSam = insertMaandProdSamenvattingSchema.parse(samenvatting);
       const savedSam = await storage.saveMaandProdSamenvatting(parsedSam);
+
+      // ── Write-through: sync naar trend_kartografen_hist en kartografie_productie ──
+      const MAAND_AFKORTINGEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+      const maandNaam = MAAND_AFKORTINGEN[parsedSam.maand - 1] ?? "Onb";
+
+      // Prod = mbr + kad_spl + gr_uitz (excl. ex_pl, plot_coor, losse_mbr)
+      const prod = (r: { mbr: number; kad_spl: number; gr_uitz: number }) => r.mbr + r.kad_spl + r.gr_uitz;
+
+      // Normaliseer kartograaf-naam naar sleutel (verwijder punten en spaties)
+      // "E. Galeano" → "egaleano", "J. Pieters" → "jpieters", "N. Sambo" → "nsambo"
+      const toKey = (naam: string): string => naam.toLowerCase().replace(/[.\s]+/g, "");
+
+      const actieveRijen = parsedRows.filter(r => r.kartograaf !== "afgeboekt_stukken");
+      const totAfgehandeld = actieveRijen.reduce((s, r) => s + prod(r), 0);
+
+      const getProd = (key: string) => {
+        const match = actieveRijen.find(r => toKey(r.kartograaf) === key || r.kartograaf.toLowerCase().includes(key.replace(/j|e|n/, "")));
+        return match ? prod(match) : 0;
+      };
+
+      // Upsert trend_kartografen_hist (per maand, niet bulk-delete)
+      await storage.upsertTrendKartografenHistRow(insertTrendKartografenHistSchema.parse({
+        jaar: parsedSam.jaar,
+        maand: parsedSam.maand,
+        egaleano: getProd("egaleano"),
+        jpieters: getProd("jpieters"),
+        nsambo: getProd("nsambo"),
+        binnengekomen: parsedSam.binnengekomen,
+        afgehandeld: totAfgehandeld,
+      }));
+
+      // Upsert kartografie_productie
+      const aantalKart = parsedSam.aantal_kartografen || 1;
+      await storage.bulkUpsertKartografieProductie([insertKartografieProductieSchema.parse({
+        jaar: parsedSam.jaar,
+        maand: maandNaam,
+        binnengekomen: parsedSam.binnengekomen,
+        afgehandeld: totAfgehandeld,
+        gemiddeld: aantalKart > 0 ? +(totAfgehandeld / aantalKart).toFixed(1) : 0,
+        kartografen: parsedSam.aantal_kartografen,
+      })]);
+
       res.json({ success: true, samenvatting: savedSam });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Fout bij opslaan" });
@@ -2458,7 +2519,32 @@ export async function registerRoutes(
   // ── Trend Kartografen historisch ──────────────────────────────────────────────
   app.get("/api/trend-kartografen-hist", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
-    try { res.json(await storage.getTrendKartografenHist()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+    try {
+      const [trendRows, mpkRows, samRows] = await Promise.all([
+        storage.getTrendKartografenHist(),
+        storage.getAllMaandProdKartograaf(),
+        storage.getAllMaandProdSamenvatting(),
+      ]);
+      // Maak set van bestaande (jaar, maand) sleutels in trend_hist
+      const trendKeys = new Set(trendRows.map(r => `${r.jaar}-${r.maand}`));
+      // Naam-normalisatie: verwijder punten en spaties
+      const toKey = (naam: string) => naam.toLowerCase().replace(/[.\s]+/g, "");
+      // Prod = mbr + kad_spl + gr_uitz
+      const prod = (r: { mbr: number; kad_spl: number; gr_uitz: number }) => r.mbr + r.kad_spl + r.gr_uitz;
+      // Bereken afgeleidde trend-rijen vanuit maand_prod voor ontbrekende (jaar, maand)
+      const extraRows = samRows
+        .filter(s => !trendKeys.has(`${s.jaar}-${s.maand}`))
+        .map(s => {
+          const kRows = mpkRows.filter(r => r.jaar === s.jaar && r.maand === s.maand && r.kartograaf !== "afgeboekt_stukken");
+          const totAf = kRows.reduce((acc, r) => acc + prod(r), 0);
+          const getProd = (key: string) => {
+            const match = kRows.find(r => toKey(r.kartograaf) === key || r.kartograaf.toLowerCase().includes(key.slice(1)));
+            return match ? prod(match) : 0;
+          };
+          return { id: 0, jaar: s.jaar, maand: s.maand, egaleano: getProd("egaleano"), jpieters: getProd("jpieters"), nsambo: getProd("nsambo"), binnengekomen: s.binnengekomen, afgehandeld: totAf };
+        });
+      res.json([...trendRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : a.maand - b.maand));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
   app.post("/api/trend-kartografen-hist/import", async (req, res) => {
     const user = (req as any).user;
