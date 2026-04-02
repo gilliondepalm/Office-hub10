@@ -1353,6 +1353,295 @@ function TrendOrNotarisTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Maandelijkse Productie Kartografen
+const MAAND_NAMEN = ["Januari","Februari","Maart","April","Mei","Juni","Juli","Augustus","September","Oktober","November","December"];
+const HUIDIG_JAAR = new Date().getFullYear();
+
+type MpkRij = {
+  kartograaf: string;
+  mbr: number; kad_spl: number; gr_uitz: number;
+  ex_pl: number; plot_coor: number; losse_mbr: number;
+};
+
+const LEGE_RIJ = (naam: string): MpkRij => ({
+  kartograaf: naam, mbr: 0, kad_spl: 0, gr_uitz: 0, ex_pl: 0, plot_coor: 0, losse_mbr: 0,
+});
+
+const STANDAARD_KARTOGRAFEN = ["E. Galeano", "J. Pieters"];
+
+function MaandelijkseProdKartografenTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [maand, setMaand] = useState(new Date().getMonth() + 1);
+  const [rijen, setRijen] = useState<MpkRij[]>([
+    ...STANDAARD_KARTOGRAFEN.map(LEGE_RIJ),
+    LEGE_RIJ("afgeboekt_stukken"),
+  ]);
+  const [binnengekomen, setBinnengekomen] = useState(0);
+  const [aantalKartografen, setAantalKartografen] = useState(2);
+  const [nieuweNaam, setNieuweNaam] = useState("");
+  const [toonToevoegen, setToonToevoegen] = useState(false);
+  const [opgeslagen, setOpgeslagen] = useState(false);
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-kartograaf", HUIDIG_JAAR, maand],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-kartograaf?jaar=${HUIDIG_JAAR}&maand=${maand}`);
+      const data = await res.json();
+      if (data.kartografen && data.kartografen.length > 0) {
+        setRijen(data.kartografen.map((r: any): MpkRij => ({
+          kartograaf: r.kartograaf,
+          mbr: r.mbr, kad_spl: r.kad_spl, gr_uitz: r.gr_uitz,
+          ex_pl: r.ex_pl, plot_coor: r.plot_coor, losse_mbr: r.losse_mbr,
+        })));
+      } else {
+        setRijen([...STANDAARD_KARTOGRAFEN.map(LEGE_RIJ), LEGE_RIJ("afgeboekt_stukken")]);
+      }
+      if (data.samenvatting) {
+        setBinnengekomen(data.samenvatting.binnengekomen ?? 0);
+        setAantalKartografen(data.samenvatting.aantal_kartografen ?? 2);
+      } else {
+        setBinnengekomen(0);
+        setAantalKartografen(2);
+      }
+      setOpgeslagen(false);
+      return data;
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/maand-prod-kartograaf", {
+        jaar: HUIDIG_JAAR, maand,
+        kartografen: rijen.map(r => ({ ...r, jaar: HUIDIG_JAAR, maand })),
+        samenvatting: { jaar: HUIDIG_JAAR, maand, binnengekomen, aantal_kartografen: aantalKartografen },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-kartograaf"] });
+      setOpgeslagen(true);
+      toast({ title: "Opgeslagen", description: `Productie ${MAAND_NAMEN[maand - 1]} ${HUIDIG_JAAR} opgeslagen.` });
+    },
+    onError: () => toast({ title: "Fout", description: "Opslaan mislukt.", variant: "destructive" }),
+  });
+
+  const updateRij = (idx: number, veld: keyof MpkRij, val: number | string) => {
+    setRijen(prev => prev.map((r, i) => i === idx ? { ...r, [veld]: val } : r));
+    setOpgeslagen(false);
+  };
+
+  const verwijderRij = (idx: number) => {
+    setRijen(prev => prev.filter((_, i) => i !== idx));
+    setOpgeslagen(false);
+  };
+
+  const voegToe = () => {
+    const naam = nieuweNaam.trim();
+    if (!naam) return;
+    setRijen(prev => [...prev, LEGE_RIJ(naam)]);
+    setNieuweNaam("");
+    setToonToevoegen(false);
+    setOpgeslagen(false);
+  };
+
+  const prod = (r: MpkRij) => r.mbr + r.kad_spl + r.gr_uitz;
+
+  // Totalen (exclusief afgeboekt_stukken)
+  const prodRijen = rijen.filter(r => r.kartograaf !== "afgeboekt_stukken");
+  const totProd     = prodRijen.reduce((s, r) => s + prod(r), 0);
+  const totMbr      = prodRijen.reduce((s, r) => s + r.mbr, 0);
+  const totKadSpl   = prodRijen.reduce((s, r) => s + r.kad_spl, 0);
+  const totGrUitz   = prodRijen.reduce((s, r) => s + r.gr_uitz, 0);
+  const totExPl     = prodRijen.reduce((s, r) => s + r.ex_pl, 0);
+  const totPlotCoor = prodRijen.reduce((s, r) => s + r.plot_coor, 0);
+  const totLosseMbr = prodRijen.reduce((s, r) => s + r.losse_mbr, 0);
+  const gemiddeld   = aantalKartografen > 0 ? +(totProd / aantalKartografen).toFixed(1) : 0;
+
+  const numInput = (val: number, onChange: (n: number) => void, testId?: string) => (
+    <input
+      type="number"
+      min={0}
+      value={val === 0 ? "" : val}
+      placeholder="0"
+      onChange={e => onChange(parseInt(e.target.value) || 0)}
+      data-testid={testId}
+      className="w-full text-right bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+    />
+  );
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Productie Kartografen {HUIDIG_JAAR}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse productie per kartograaf in</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={String(maand)} onValueChange={v => setMaand(parseInt(v))}>
+                <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-maand-mpk">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAAND_NAMEN.map((m, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)} className="text-xs">{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                data-testid="button-opslaan-mpk"
+                className="h-8 text-xs"
+              >
+                {saveMutation.isPending ? "Opslaan..." : opgeslagen ? "✓ Opgeslagen" : "Opslaan"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Laden…</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2 text-left font-semibold min-w-[130px]">{MAAND_NAMEN[maand - 1]}</th>
+                    <th className="px-2 py-2 text-right font-semibold w-14">Prod.</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">Mbr.</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">Kad. Spl.</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">Gr. Uitz.</th>
+                    <th className="px-2 py-2 text-right font-semibold w-20">Ex.pl/proj/leg</th>
+                    <th className="px-2 py-2 text-right font-semibold w-18">Plot/Coor</th>
+                    <th className="px-2 py-2 text-right font-semibold w-18">Losse mbr.</th>
+                    <th className="px-1 py-2 w-6"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rijen.map((rij, idx) => (
+                    <tr key={idx} className={`border-b hover:bg-muted/20 ${rij.kartograaf === "afgeboekt_stukken" ? "text-muted-foreground italic" : ""}`}>
+                      <td className="px-3 py-1.5 font-medium">
+                        {rij.kartograaf === "afgeboekt_stukken" ? "afgeboekt stukken" : rij.kartograaf}
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-semibold text-primary">
+                        {prod(rij) > 0 ? prod(rij) : ""}
+                      </td>
+                      <td className="px-1 py-1">{numInput(rij.mbr,     v => updateRij(idx, "mbr",      v), `input-mbr-${idx}`)}</td>
+                      <td className="px-1 py-1">{numInput(rij.kad_spl, v => updateRij(idx, "kad_spl",  v), `input-kad-${idx}`)}</td>
+                      <td className="px-1 py-1">{numInput(rij.gr_uitz, v => updateRij(idx, "gr_uitz",  v), `input-gr-${idx}`)}</td>
+                      <td className="px-1 py-1">{numInput(rij.ex_pl,   v => updateRij(idx, "ex_pl",    v), `input-expl-${idx}`)}</td>
+                      <td className="px-1 py-1">{numInput(rij.plot_coor,v => updateRij(idx, "plot_coor",v), `input-plot-${idx}`)}</td>
+                      <td className="px-1 py-1">{numInput(rij.losse_mbr,v=> updateRij(idx, "losse_mbr",v), `input-losse-${idx}`)}</td>
+                      <td className="px-1 py-1 text-center">
+                        {!STANDAARD_KARTOGRAFEN.includes(rij.kartograaf) && rij.kartograaf !== "afgeboekt_stukken" && (
+                          <button onClick={() => verwijderRij(idx)} className="text-muted-foreground hover:text-destructive text-xs">✕</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {/* Rij toevoegen */}
+                  {toonToevoegen ? (
+                    <tr className="border-b bg-muted/10">
+                      <td colSpan={9} className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={nieuweNaam}
+                            onChange={e => setNieuweNaam(e.target.value)}
+                            placeholder="Naam kartograaf"
+                            className="border rounded px-2 py-1 text-xs w-40 bg-background"
+                            onKeyDown={e => e.key === "Enter" && voegToe()}
+                            data-testid="input-nieuwe-kartograaf"
+                            autoFocus
+                          />
+                          <button onClick={voegToe} className="text-xs text-primary hover:underline">Toevoegen</button>
+                          <button onClick={() => setToonToevoegen(false)} className="text-xs text-muted-foreground hover:underline">Annuleren</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <td colSpan={9} className="px-3 py-1">
+                        <button
+                          onClick={() => setToonToevoegen(true)}
+                          className="text-xs text-muted-foreground hover:text-primary"
+                          data-testid="button-voeg-kartograaf-toe"
+                        >
+                          + Kartograaf toevoegen
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* Scheidingslijn */}
+                  <tr><td colSpan={9} className="py-1"></td></tr>
+
+                  {/* Productie totaal */}
+                  <tr className="border-t bg-muted/30 font-semibold">
+                    <td className="px-3 py-1.5">Productie totaal</td>
+                    <td className="px-2 py-1.5 text-right">{totProd || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totMbr || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totKadSpl || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totGrUitz || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totExPl || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totPlotCoor || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totLosseMbr || ""}</td>
+                    <td></td>
+                  </tr>
+
+                  {/* Binnengekomen — gebruikersinvoer */}
+                  <tr className="border-t hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">Binnengekomen</td>
+                    <td className="px-1 py-1" colSpan={7}>
+                      {numInput(binnengekomen, setBinnengekomen, "input-binnengekomen")}
+                    </td>
+                    <td></td>
+                  </tr>
+
+                  {/* Gemiddeld — berekend */}
+                  <tr className="border-t hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">Gemiddeld/kartograaf</td>
+                    <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={7}>{gemiddeld || ""}</td>
+                    <td></td>
+                  </tr>
+
+                  {/* Aantal kartografen — gebruikersinvoer */}
+                  <tr className="border-t hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">Aantal kartografen</td>
+                    <td className="px-1 py-1" colSpan={7}>
+                      {numInput(aantalKartografen, setAantalKartografen, "input-aantal-kartografen")}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Legenda */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
+            <div><span className="font-medium text-foreground">Prod.</span> = Mbr. + Kad. Spl. + Gr. Uitz.</div>
+            <div><span className="font-medium text-foreground">Mbr.</span> = Minuutbriefjes</div>
+            <div><span className="font-medium text-foreground">Kad. Spl.</span> = Kadastrale Splitsing</div>
+            <div><span className="font-medium text-foreground">Gr. Uitz.</span> = Grens Uitzetting</div>
+            <div><span className="font-medium text-foreground">Ex.pl/proj/leg</span> = Extractplan / Project / Legger</div>
+            <div><span className="font-medium text-foreground">Plot/Coor</span> = Plot / Coördinaten</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Trend Kartografen data
 const KG_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 const KG_JAREN = ["2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
@@ -2387,9 +2676,16 @@ export default function ProductiePage() {
 
           {/* ── Maandelijkse productie ────────────────────────────────── */}
           <TabsContent value="maandelijks">
-            <div className="text-center text-muted-foreground py-20 text-sm">
-              Maandelijkse productie — nog in ontwikkeling.
-            </div>
+            <Tabs defaultValue="prod-kartografen">
+              <TabsList className="mb-5 h-auto gap-1">
+                <TabsTrigger value="prod-kartografen" data-testid="tab-prod-kartografen">
+                  Productie Kartografen
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="prod-kartografen">
+                <MaandelijkseProdKartografenTab />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>

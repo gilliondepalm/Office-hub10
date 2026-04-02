@@ -31,7 +31,10 @@ import {
   type YearlyAward, type InsertYearlyAward,
   type JobFunction, type InsertJobFunction,
   type KartografieProductie, type InsertKartografieProductie,
+  type MaandProdKartograaf, type InsertMaandProdKartograaf,
+  type MaandProdSamenvatting, type InsertMaandProdSamenvatting,
   helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
+  maandProdKartograaf, maandProdSamenvatting,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -187,6 +190,12 @@ export interface IStorage {
   getKartografieProductie(): Promise<KartografieProductie[]>;
   bulkUpsertKartografieProductie(rows: InsertKartografieProductie[]): Promise<KartografieProductie[]>;
   deleteKartografieProductieByJaar(jaar: number): Promise<void>;
+
+  getMaandProdKartograaf(jaar: number, maand: number): Promise<MaandProdKartograaf[]>;
+  saveMaandProdKartograaf(rows: InsertMaandProdKartograaf[]): Promise<void>;
+  getMaandProdSamenvatting(jaar: number, maand: number): Promise<MaandProdSamenvatting | undefined>;
+  saveMaandProdSamenvatting(data: InsertMaandProdSamenvatting): Promise<MaandProdSamenvatting>;
+  getMaandProdKartograafJaar(jaar: number): Promise<MaandProdKartograaf[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1127,6 +1136,47 @@ export class DatabaseStorage implements IStorage {
 
   async deleteKartografieProductieByJaar(jaar: number): Promise<void> {
     await db.delete(kartografieProductie).where(eq(kartografieProductie.jaar, jaar));
+  }
+
+  async getMaandProdKartograaf(jaar: number, maand: number): Promise<MaandProdKartograaf[]> {
+    return await db.select().from(maandProdKartograaf)
+      .where(and(eq(maandProdKartograaf.jaar, jaar), eq(maandProdKartograaf.maand, maand)));
+  }
+
+  async saveMaandProdKartograaf(rows: InsertMaandProdKartograaf[]): Promise<void> {
+    if (rows.length === 0) return;
+    const { jaar, maand } = rows[0];
+    await db.delete(maandProdKartograaf)
+      .where(and(eq(maandProdKartograaf.jaar, jaar), eq(maandProdKartograaf.maand, maand)));
+    if (rows.length > 0) {
+      await db.insert(maandProdKartograaf).values(rows);
+    }
+  }
+
+  async getMaandProdSamenvatting(jaar: number, maand: number): Promise<MaandProdSamenvatting | undefined> {
+    const [row] = await db.select().from(maandProdSamenvatting)
+      .where(and(eq(maandProdSamenvatting.jaar, jaar), eq(maandProdSamenvatting.maand, maand)));
+    return row;
+  }
+
+  async saveMaandProdSamenvatting(data: InsertMaandProdSamenvatting): Promise<MaandProdSamenvatting> {
+    const existing = await db.select().from(maandProdSamenvatting)
+      .where(and(eq(maandProdSamenvatting.jaar, data.jaar), eq(maandProdSamenvatting.maand, data.maand)));
+    if (existing.length > 0) {
+      const [updated] = await db.update(maandProdSamenvatting)
+        .set({ binnengekomen: data.binnengekomen, aantal_kartografen: data.aantal_kartografen })
+        .where(eq(maandProdSamenvatting.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(maandProdSamenvatting).values(data).returning();
+    return created;
+  }
+
+  async getMaandProdKartograafJaar(jaar: number): Promise<MaandProdKartograaf[]> {
+    return await db.select().from(maandProdKartograaf)
+      .where(eq(maandProdKartograaf.jaar, jaar))
+      .orderBy(maandProdKartograaf.maand, maandProdKartograaf.kartograaf);
   }
 }
 

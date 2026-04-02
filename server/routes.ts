@@ -22,6 +22,8 @@ import {
   insertHelpContentSchema,
   insertYearlyAwardSchema,
   insertKartografieProductieSchema,
+  insertMaandProdKartograafSchema,
+  insertMaandProdSamenvattingSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -2272,6 +2274,53 @@ export async function registerRoutes(
       res.json({ message: "Verwijderd" });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Fout bij verwijderen" });
+    }
+  });
+
+  // ── Maandelijkse productie kartografen ──────────────────────────────────
+  app.get("/api/maand-prod-kartograaf", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const jaar = parseInt(req.query.jaar as string) || new Date().getFullYear();
+    const maand = parseInt(req.query.maand as string) || new Date().getMonth() + 1;
+    try {
+      const [kartografen, samenvatting] = await Promise.all([
+        storage.getMaandProdKartograaf(jaar, maand),
+        storage.getMaandProdSamenvatting(jaar, maand),
+      ]);
+      res.json({ kartografen, samenvatting: samenvatting ?? null });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
+  app.get("/api/maand-prod-kartograaf/jaar/:jaar", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try {
+      const rows = await storage.getMaandProdKartograafJaar(jaar);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
+  app.post("/api/maand-prod-kartograaf", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const { jaar, maand, kartografen, samenvatting } = req.body;
+    if (!jaar || !maand || !Array.isArray(kartografen)) {
+      return res.status(400).json({ message: "Ongeldige data" });
+    }
+    try {
+      const parsedRows = kartografen.map((r: unknown) =>
+        insertMaandProdKartograafSchema.parse(r)
+      );
+      await storage.saveMaandProdKartograaf(parsedRows);
+      const parsedSam = insertMaandProdSamenvattingSchema.parse(samenvatting);
+      const savedSam = await storage.saveMaandProdSamenvatting(parsedSam);
+      res.json({ success: true, samenvatting: savedSam });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij opslaan" });
     }
   });
 

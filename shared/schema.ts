@@ -419,6 +419,35 @@ export function canManageVacation(role?: string | null): boolean {
   return role === "admin" || role === "directeur" || role === "manager_az";
 }
 
+// ── Maandelijkse productie kartografen ──────────────────────────────────────
+export const maandProdKartograaf = pgTable("maand_prod_kartograaf", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  kartograaf: text("kartograaf").notNull(),
+  mbr: integer("mbr").notNull().default(0),
+  kad_spl: integer("kad_spl").notNull().default(0),
+  gr_uitz: integer("gr_uitz").notNull().default(0),
+  ex_pl: integer("ex_pl").notNull().default(0),
+  plot_coor: integer("plot_coor").notNull().default(0),
+  losse_mbr: integer("losse_mbr").notNull().default(0),
+});
+export const insertMaandProdKartograafSchema = createInsertSchema(maandProdKartograaf).omit({ id: true });
+export type InsertMaandProdKartograaf = z.infer<typeof insertMaandProdKartograafSchema>;
+export type MaandProdKartograaf = typeof maandProdKartograaf.$inferSelect;
+
+export const maandProdSamenvatting = pgTable("maand_prod_samenvatting", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  binnengekomen: integer("binnengekomen").notNull().default(0),
+  aantal_kartografen: integer("aantal_kartografen").notNull().default(0),
+});
+export const insertMaandProdSamenvattingSchema = createInsertSchema(maandProdSamenvatting).omit({ id: true });
+export type InsertMaandProdSamenvatting = z.infer<typeof insertMaandProdSamenvattingSchema>;
+export type MaandProdSamenvatting = typeof maandProdSamenvatting.$inferSelect;
+
+// ── Kartografie productie (KM Binnen import) ─────────────────────────────────
 export const kartografieProductie = pgTable("kartografie_productie", {
   id: serial("id").primaryKey(),
   jaar: integer("jaar").notNull(),
