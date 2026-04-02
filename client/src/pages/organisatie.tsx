@@ -400,7 +400,7 @@ function OrganogramTab() {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}</div>;
   }
 
-  const activeUsers = users.filter((u) => u.active !== false);
+  const activeUsers = users.filter((u) => u.active !== false && u.role !== "tijdelijk");
   const directeur = activeUsers.find((u) => u.role === "directeur" || (isAdminRole(u.role) && u.username === "directeur"));
   const deptManagerIds = new Set(departments.map((d) => d.managerId).filter(Boolean));
   const stafAdmins = activeUsers.filter((u) => isAdminRole(u.role) && u.role !== "directeur" && u.username !== "directeur" && !deptManagerIds.has(u.id));

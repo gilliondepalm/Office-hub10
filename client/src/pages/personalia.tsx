@@ -220,6 +220,7 @@ function EditDialog({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="employee">Medewerker</SelectItem>
+                      <SelectItem value="tijdelijk">Tijdelijk</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
                       <SelectItem value="manager_az">Beheerder AZ</SelectItem>
                       <SelectItem value="admin">Beheerder</SelectItem>
@@ -1023,7 +1024,7 @@ export default function PersonaliaPage() {
   const [deactivateUser, setDeactivateUser] = useState<User | null>(null);
   const [historyUser, setHistoryUser] = useState<User | null>(null);
   const [devUser, setDevUser] = useState<User | null>(null);
-  const [personelTab, setPersonelTab] = useState<"actief" | "oud">("actief");
+  const [personelTab, setPersonelTab] = useState<"actief" | "tijdelijk" | "oud">("actief");
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const canEditPersonalia = isAdminRole(currentUser?.role) || currentUser?.role === "manager_az";
@@ -1111,6 +1112,7 @@ export default function PersonaliaPage() {
     manager_az: "Beheerder AZ",
     employee: "Medewerker",
     directeur: "Directeur",
+    tijdelijk: "Tijdelijk",
   };
 
   const createWatchedDept = useWatch({ control: createForm.control, name: "department" });
@@ -1138,17 +1140,19 @@ export default function PersonaliaPage() {
       />
       <div className="p-6 space-y-6">
       <div className="flex items-center justify-end gap-4 flex-wrap">
-        {canEditPersonalia && personelTab === "actief" && (
+        {canEditPersonalia && (personelTab === "actief" || personelTab === "tijdelijk") && (
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-add-user">
+              <Button data-testid="button-add-user" onClick={() => {
+                createForm.setValue("role", personelTab === "tijdelijk" ? "tijdelijk" : "employee");
+              }}>
                 <Plus className="h-4 w-4 mr-2" />
-                Nieuwe Medewerker
+                {personelTab === "tijdelijk" ? "Nieuw Tijdelijk Personeelslid" : "Nieuwe Medewerker"}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Nieuwe Medewerker</DialogTitle>
+                <DialogTitle>{personelTab === "tijdelijk" ? "Nieuw Tijdelijk Personeelslid" : "Nieuwe Medewerker"}</DialogTitle>
               </DialogHeader>
               <Form {...createForm}>
                 <form onSubmit={createForm.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
@@ -1208,6 +1212,7 @@ export default function PersonaliaPage() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="employee">Medewerker</SelectItem>
+                            <SelectItem value="tijdelijk">Tijdelijk</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
                             <SelectItem value="manager_az">Beheerder AZ</SelectItem>
                             <SelectItem value="admin">Beheerder</SelectItem>
@@ -1365,7 +1370,8 @@ export default function PersonaliaPage() {
       {canEditPersonalia && (
         <div className="flex gap-1 border-b" data-testid="tabs-personalia">
           {([
-            { key: "actief", label: "Actieve Medewerkers" },
+            { key: "actief", label: "Vaste Medewerkers" },
+            { key: "tijdelijk", label: "Tijdelijk Personeel" },
             { key: "oud", label: "Oud Medewerkers" },
           ] as const).map(({ key, label }) => (
             <button
@@ -1387,13 +1393,22 @@ export default function PersonaliaPage() {
       {(() => {
         const allVisible = canEditPersonalia ? users : users?.filter(u => u.id === currentUser?.id);
         const visibleUsers = canEditPersonalia
-          ? (personelTab === "oud" ? allVisible?.filter(u => !u.active) : allVisible?.filter(u => u.active !== false))
+          ? (personelTab === "oud"
+              ? allVisible?.filter(u => !u.active)
+              : personelTab === "tijdelijk"
+              ? allVisible?.filter(u => u.active !== false && u.role === "tijdelijk")
+              : allVisible?.filter(u => u.active !== false && u.role !== "tijdelijk"))
           : allVisible?.filter(u => u.active !== false);
+        const emptyMsg = personelTab === "oud"
+          ? "Geen voormalige medewerkers"
+          : personelTab === "tijdelijk"
+          ? "Geen tijdelijk personeel gevonden"
+          : "Geen medewerkers gevonden";
         if (!visibleUsers || visibleUsers.length === 0) return (
           <Card>
             <CardContent className="flex flex-col items-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">{personelTab === "oud" ? "Geen voormalige medewerkers" : "Geen medewerkers gevonden"}</p>
+              <p className="text-muted-foreground">{emptyMsg}</p>
             </CardContent>
           </Card>
         );
