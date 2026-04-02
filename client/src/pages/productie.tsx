@@ -1821,6 +1821,9 @@ function MaandelijkseProdLandmetersTab() {
   ]);
   const [binnengekomen, setBinnengekomen] = useState(0);
   const [aantalLandmeters, setAantalLandmeters] = useState(7);
+  const [eilandgebied, setEilandgebied] = useState(0);
+  const [particulier, setParticulier] = useState(0);
+  const [grensuitzetting, setGrensuitzetting] = useState(0);
   const [nieuweNaam, setNieuweNaam] = useState("");
   const [toonToevoegen, setToonToevoegen] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
@@ -1842,9 +1845,15 @@ function MaandelijkseProdLandmetersTab() {
       if (data.samenvatting) {
         setBinnengekomen(data.samenvatting.binnengekomen ?? 0);
         setAantalLandmeters(data.samenvatting.aantal_landmeters ?? 7);
+        setEilandgebied(data.samenvatting.eilandgebied ?? 0);
+        setParticulier(data.samenvatting.particulier ?? 0);
+        setGrensuitzetting(data.samenvatting.grensuitzetting ?? 0);
       } else {
         setBinnengekomen(0);
         setAantalLandmeters(7);
+        setEilandgebied(0);
+        setParticulier(0);
+        setGrensuitzetting(0);
       }
       setOpgeslagen(false);
       return data;
@@ -1856,7 +1865,7 @@ function MaandelijkseProdLandmetersTab() {
       await apiRequest("POST", "/api/maand-prod-landmeter", {
         jaar: HUIDIG_JAAR, maand,
         landmeters: rijen.map(r => ({ ...r, jaar: HUIDIG_JAAR, maand })),
-        samenvatting: { jaar: HUIDIG_JAAR, maand, binnengekomen, aantal_landmeters: aantalLandmeters },
+        samenvatting: { jaar: HUIDIG_JAAR, maand, binnengekomen, aantal_landmeters: aantalLandmeters, eilandgebied, particulier, grensuitzetting },
       });
     },
     onSuccess: () => {
@@ -2068,6 +2077,43 @@ function MaandelijkseProdLandmetersTab() {
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Categorie aanvragen</CardTitle>
+          <p className="text-xs text-muted-foreground">Waaruit bestaan de binnengekomen aanvragen?</p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-3 py-2 text-left font-semibold min-w-[160px]">Categorie</th>
+                  <th className="px-2 py-2 text-right font-semibold w-24">Aantal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b hover:bg-muted/20">
+                  <td className="px-3 py-1.5 font-medium">Eilandgebied</td>
+                  <td className="px-1 py-1">{numInput(eilandgebied, setEilandgebied, "input-eilandgebied-lm")}</td>
+                </tr>
+                <tr className="border-b hover:bg-muted/20">
+                  <td className="px-3 py-1.5 font-medium">Particulier</td>
+                  <td className="px-1 py-1">{numInput(particulier, setParticulier, "input-particulier-lm")}</td>
+                </tr>
+                <tr className="border-b hover:bg-muted/20">
+                  <td className="px-3 py-1.5 font-medium">Grensuitzetting</td>
+                  <td className="px-1 py-1">{numInput(grensuitzetting, setGrensuitzetting, "input-grensuitzetting-lm")}</td>
+                </tr>
+                <tr className="border-t bg-muted/30 font-semibold">
+                  <td className="px-3 py-1.5">Totaal categorieën</td>
+                  <td className="px-2 py-1.5 text-right">{(eilandgebied + particulier + grensuitzetting) || ""}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
 

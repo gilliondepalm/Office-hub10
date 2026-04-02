@@ -469,6 +469,9 @@ export const maandProdSamenvattingLm = pgTable("maand_prod_samenvatting_lm", {
   maand: integer("maand").notNull(),
   binnengekomen: integer("binnengekomen").notNull().default(0),
   aantal_landmeters: integer("aantal_landmeters").notNull().default(0),
+  eilandgebied: integer("eilandgebied").notNull().default(0),
+  particulier: integer("particulier").notNull().default(0),
+  grensuitzetting: integer("grensuitzetting").notNull().default(0),
 });
 export const insertMaandProdSamenvattingLmSchema = createInsertSchema(maandProdSamenvattingLm).omit({ id: true });
 export type InsertMaandProdSamenvattingLm = z.infer<typeof insertMaandProdSamenvattingLmSchema>;
