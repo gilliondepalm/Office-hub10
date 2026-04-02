@@ -1342,7 +1342,7 @@ export class DatabaseStorage implements IStorage {
   async getMaandProdOrNotaris(jaar: number, maand: number): Promise<MaandProdOrNotaris[]> {
     return await db.select().from(maandProdOrNotaris)
       .where(and(eq(maandProdOrNotaris.jaar, jaar), eq(maandProdOrNotaris.maand, maand)))
-      .orderBy(maandProdOrNotaris.notaris_key);
+      .orderBy(maandProdOrNotaris.sort_order);
   }
   async saveMaandProdOrNotaris(rows: InsertMaandProdOrNotaris[]): Promise<void> {
     if (rows.length === 0) return;

@@ -620,6 +620,7 @@ export const maandProdOrNotaris = pgTable("maand_prod_or_notaris", {
   opheffingen: integer("opheffingen").notNull().default(0),
   beslagen: integer("beslagen").notNull().default(0),
   cessies: integer("cessies").notNull().default(0),
+  sort_order: integer("sort_order").notNull().default(0),
 });
 export const insertMaandProdOrNotarisSchema = createInsertSchema(maandProdOrNotaris).omit({ id: true });
 export type InsertMaandProdOrNotaris = z.infer<typeof insertMaandProdOrNotarisSchema>;

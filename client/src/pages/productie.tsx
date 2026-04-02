@@ -2352,7 +2352,7 @@ function MaandelijkseProdOrNotarisTab() {
 
   const { mutate: opslaan, isPending } = useMutation({
     mutationFn: async () => {
-      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar), maand }));
+      const payload = rijen.map((r, idx) => ({ ...r, jaar: parseInt(jaar), maand, sort_order: idx }));
       await apiRequest("POST", "/api/maand-prod-or-notaris", { rows: payload });
     },
     onSuccess: () => {
