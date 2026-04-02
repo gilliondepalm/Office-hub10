@@ -1686,7 +1686,7 @@ function MaandelijkseProdKartografenTab() {
                       <td className="px-1 py-1">{numInput(rij.plot_coor,v => updateRij(idx, "plot_coor",v), `input-plot-${idx}`)}</td>
                       <td className="px-1 py-1">{numInput(rij.losse_mbr,v=> updateRij(idx, "losse_mbr",v), `input-losse-${idx}`)}</td>
                       <td className="px-1 py-1 text-center">
-                        {!STANDAARD_KARTOGRAFEN.includes(rij.kartograaf) && rij.kartograaf !== "afgeboekt_stukken" && (
+                        {rij.kartograaf !== "afgeboekt_stukken" && (
                           <button onClick={() => verwijderRij(idx)} className="text-muted-foreground hover:text-destructive text-xs">✕</button>
                         )}
                       </td>
@@ -1982,7 +1982,7 @@ function MaandelijkseProdLandmetersTab() {
                           </>
                         )}
                         <td className="px-1 py-1 text-center">
-                          {!STANDAARD_LANDMETERS.includes(rij.landmeter) && !isAfgeboekt && (
+                          {!isAfgeboekt && (
                             <button onClick={() => verwijderRij(idx)} className="text-muted-foreground hover:text-destructive text-xs">✕</button>
                           )}
                         </td>
