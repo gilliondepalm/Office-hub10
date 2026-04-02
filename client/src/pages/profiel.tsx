@@ -1,18 +1,45 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { PageHero } from "@/components/page-hero";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User as UserIcon, Mail, Building2, Shield, Clock, Award, CalendarDays, Cake, Briefcase, TrendingUp, GraduationCap, CheckCircle2, Circle } from "lucide-react";
-import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { User as UserIcon, Mail, Building2, Shield, Clock, Award, CalendarDays, Cake, Briefcase, TrendingUp, GraduationCap, CheckCircle2, Circle, KeyRound } from "lucide-react";
 import { nl } from "date-fns/locale";
 import type { Absence, Reward, PositionHistory, PersonalDevelopment } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/dateUtils";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { useState } from "react";
 
 export default function ProfielPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [huidigWw, setHuidigWw] = useState("");
+  const [nieuwWw, setNieuwWw] = useState("");
+  const [bevestigWw, setBevestigWw] = useState("");
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      if (nieuwWw !== bevestigWw) throw new Error("Nieuwe wachtwoorden komen niet overeen");
+      if (nieuwWw.length < 8) throw new Error("Nieuw wachtwoord moet minimaal 8 tekens bevatten");
+      const res = await apiRequest("POST", "/api/auth/change-password", { currentPassword: huidigWw, newPassword: nieuwWw });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Fout bij wijzigen wachtwoord");
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Wachtwoord gewijzigd", description: "Uw wachtwoord is succesvol bijgewerkt." });
+      setHuidigWw(""); setNieuwWw(""); setBevestigWw("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Fout", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: myAbsences, isLoading: loadingAbsences } = useQuery<(Absence & { userName?: string })[]>({
     queryKey: ["/api/absences/mine"],
@@ -108,6 +135,56 @@ export default function ProfielPage() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 pb-3">
+          <KeyRound className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-semibold text-sm">Wachtwoord wijzigen</h3>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-xl">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Huidig wachtwoord</label>
+              <Input
+                type="password"
+                value={huidigWw}
+                onChange={e => setHuidigWw(e.target.value)}
+                placeholder="Huidig wachtwoord"
+                data-testid="input-huidig-wachtwoord"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Nieuw wachtwoord</label>
+              <Input
+                type="password"
+                value={nieuwWw}
+                onChange={e => setNieuwWw(e.target.value)}
+                placeholder="Min. 8 tekens"
+                data-testid="input-nieuw-wachtwoord"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Bevestig nieuw wachtwoord</label>
+              <Input
+                type="password"
+                value={bevestigWw}
+                onChange={e => setBevestigWw(e.target.value)}
+                placeholder="Herhaal nieuw wachtwoord"
+                data-testid="input-bevestig-wachtwoord"
+              />
+            </div>
+          </div>
+          <Button
+            className="mt-4"
+            size="sm"
+            onClick={() => changePasswordMutation.mutate()}
+            disabled={changePasswordMutation.isPending || !huidigWw || !nieuwWw || !bevestigWw}
+            data-testid="button-wijzig-wachtwoord"
+          >
+            {changePasswordMutation.isPending ? "Opslaan..." : "Wachtwoord wijzigen"}
+          </Button>
         </CardContent>
       </Card>
 

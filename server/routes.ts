@@ -699,6 +699,29 @@ export async function registerRoutes(
     res.json(safeUser);
   });
 
+  app.post("/api/auth/change-password", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Huidig en nieuw wachtwoord zijn verplicht" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: "Nieuw wachtwoord moet minimaal 8 tekens bevatten" });
+    }
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "Gebruiker niet gevonden" });
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) return res.status(400).json({ message: "Huidig wachtwoord is onjuist" });
+      const hashed = await bcrypt.hash(newPassword, 12);
+      await storage.updateUser(userId, { password: hashed });
+      res.json({ message: "Wachtwoord succesvol gewijzigd" });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij wijzigen wachtwoord" });
+    }
+  });
+
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy(() => {
       res.json({ message: "Uitgelogd" });
