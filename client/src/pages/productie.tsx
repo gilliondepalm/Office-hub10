@@ -2316,6 +2316,8 @@ type OrNotarisRij = { notaris_key: string; aktes: number; inschrijvingen: number
 const legeOrnRij = (key: string): OrNotarisRij => ({ notaris_key: key, aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0 });
 const ornTotaal = (r: OrNotarisRij) => r.aktes + r.inschrijvingen + r.doorhalingen + r.opheffingen + r.beslagen + r.cessies;
 
+const getNaamVanKey = (key: string) => ORN_NOTARISSEN.find(n => n.key === key)?.naam ?? key;
+
 function MaandelijkseProdOrNotarisTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -2330,16 +2332,20 @@ function MaandelijkseProdOrNotarisTab() {
   const [maand, setMaand] = useState(huidigMaand);
   const [rijen, setRijen] = useState<OrNotarisRij[]>(ORN_ACTIEF.map(n => legeOrnRij(n.key)));
   const [opgeslagen, setOpgeslagen] = useState(false);
+  const [nieuweNaam, setNieuweNaam] = useState("");
+  const [toonToevoegen, setToonToevoegen] = useState(false);
 
   const { isLoading } = useQuery({
     queryKey: ["/api/maand-prod-or-notaris", jaar, maand],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/maand-prod-or-notaris?jaar=${jaar}&maand=${maand}`);
       const data: OrNotarisRij[] = await res.json();
-      setRijen(ORN_ACTIEF.map(n => {
-        const r = data.find(d => d.notaris_key === n.key);
-        return r ? { ...r } : legeOrnRij(n.key);
-      }));
+      if (data.length > 0) {
+        setRijen(data.map(r => ({ ...r })));
+      } else {
+        setRijen(ORN_ACTIEF.map(n => legeOrnRij(n.key)));
+      }
+      setOpgeslagen(false);
       return data;
     },
   });
@@ -2362,6 +2368,33 @@ function MaandelijkseProdOrNotarisTab() {
 
   const setVeld = (idx: number, veld: OrnVeld, val: number) => {
     setRijen(prev => prev.map((r, i) => i === idx ? { ...r, [veld]: val } : r));
+    setOpgeslagen(false);
+  };
+
+  const verwijderRij = (idx: number) => {
+    setRijen(prev => prev.filter((_, i) => i !== idx));
+    setOpgeslagen(false);
+  };
+
+  const verplaatsOmhoog = (idx: number) => {
+    if (idx === 0) return;
+    setRijen(prev => { const a = [...prev]; [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; return a; });
+    setOpgeslagen(false);
+  };
+
+  const verplaatsOmlaag = (idx: number) => {
+    setRijen(prev => { if (idx >= prev.length - 1) return prev; const a = [...prev]; [a[idx], a[idx + 1]] = [a[idx + 1], a[idx]]; return a; });
+    setOpgeslagen(false);
+  };
+
+  const voegToe = () => {
+    const naam = nieuweNaam.trim();
+    if (!naam) return;
+    const bestaandNotaris = ORN_NOTARISSEN.find(n => n.naam.toLowerCase() === naam.toLowerCase());
+    const notarisKey = bestaandNotaris ? bestaandNotaris.key : naam;
+    setRijen(prev => [...prev, legeOrnRij(notarisKey)]);
+    setNieuweNaam("");
+    setToonToevoegen(false);
     setOpgeslagen(false);
   };
 
@@ -2416,40 +2449,105 @@ function MaandelijkseProdOrNotarisTab() {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="border-b bg-muted/50">
+                    {kanBewerken && <th className="w-10 px-1 py-2"></th>}
                     <th className="px-3 py-2 text-left font-semibold min-w-[160px]">Notaris</th>
                     {ORN_KOLOM_LABELS.map(l => (
                       <th key={l} className="px-2 py-2 text-right font-semibold min-w-[90px] border-l border-border/40">{l}</th>
                     ))}
                     <th className="px-2 py-2 text-right font-semibold border-l border-border/40">Totaal</th>
+                    {kanBewerken && <th className="w-6 px-1 py-2"></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {rijen.map((rij, idx) => {
-                    const notaris = ORN_ACTIEF[idx];
-                    return (
-                      <tr key={rij.notaris_key} className="border-b hover:bg-muted/20">
-                        <td className="px-3 py-1.5 font-medium">{notaris?.naam ?? rij.notaris_key}</td>
-                        {ORN_KOLOMMEN.map(veld => (
-                          <td key={veld} className="px-1 py-0.5 border-l border-border/20">
+                  {rijen.map((rij, idx) => (
+                    <tr key={`${rij.notaris_key}-${idx}`} className="border-b hover:bg-muted/20">
+                      {kanBewerken && (
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <button
+                              onClick={() => verplaatsOmhoog(idx)}
+                              disabled={idx === 0}
+                              data-testid={`button-omhoog-orn-${idx}`}
+                              className="text-muted-foreground hover:text-foreground disabled:opacity-20 leading-none text-[10px]"
+                            >▲</button>
+                            <button
+                              onClick={() => verplaatsOmlaag(idx)}
+                              disabled={idx === rijen.length - 1}
+                              data-testid={`button-omlaag-orn-${idx}`}
+                              className="text-muted-foreground hover:text-foreground disabled:opacity-20 leading-none text-[10px]"
+                            >▼</button>
+                          </div>
+                        </td>
+                      )}
+                      <td className="px-3 py-1.5 font-medium">{getNaamVanKey(rij.notaris_key)}</td>
+                      {ORN_KOLOMMEN.map(veld => (
+                        <td key={veld} className="px-1 py-0.5 border-l border-border/20">
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="0"
+                            value={rij[veld] || ""}
+                            onChange={e => setVeld(idx, veld, parseInt(e.target.value) || 0)}
+                            disabled={!kanBewerken || isLoading}
+                            data-testid={`input-orn-${idx}-${veld}`}
+                            className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        </td>
+                      ))}
+                      <td className="px-2 py-1.5 text-right font-semibold text-primary border-l border-border/20">
+                        <span data-testid={`text-orn-totaal-${idx}`}>{ornTotaal(rij) || ""}</span>
+                      </td>
+                      {kanBewerken && (
+                        <td className="px-1 py-1 text-center">
+                          <button
+                            onClick={() => verwijderRij(idx)}
+                            data-testid={`button-verwijder-orn-${idx}`}
+                            className="text-muted-foreground hover:text-destructive text-xs"
+                          >✕</button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+
+                  {/* Rij toevoegen */}
+                  {kanBewerken && (
+                    toonToevoegen ? (
+                      <tr className="border-b bg-muted/10">
+                        <td colSpan={ORN_KOLOMMEN.length + (kanBewerken ? 4 : 2)} className="px-3 py-2">
+                          <div className="flex items-center gap-2">
                             <input
-                              type="number"
-                              min={0}
-                              placeholder="0"
-                              value={rij[veld] || ""}
-                              onChange={e => setVeld(idx, veld, parseInt(e.target.value) || 0)}
-                              disabled={!kanBewerken || isLoading}
-                              data-testid={`input-orn-${idx}-${veld}`}
-                              className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              type="text"
+                              value={nieuweNaam}
+                              onChange={e => setNieuweNaam(e.target.value)}
+                              placeholder="Naam notaris"
+                              className="border rounded px-2 py-1 text-xs w-44 bg-background"
+                              onKeyDown={e => e.key === "Enter" && voegToe()}
+                              data-testid="input-nieuwe-notaris"
+                              autoFocus
                             />
-                          </td>
-                        ))}
-                        <td className="px-2 py-1.5 text-right font-semibold text-primary border-l border-border/20">
-                          <span data-testid={`text-orn-totaal-${idx}`}>{ornTotaal(rij) || ""}</span>
+                            <button onClick={voegToe} className="text-xs text-primary hover:underline" data-testid="button-bevestig-notaris">Toevoegen</button>
+                            <button onClick={() => { setToonToevoegen(false); setNieuweNaam(""); }} className="text-xs text-muted-foreground hover:underline">Annuleren</button>
+                          </div>
                         </td>
                       </tr>
-                    );
-                  })}
+                    ) : (
+                      <tr>
+                        <td colSpan={ORN_KOLOMMEN.length + (kanBewerken ? 4 : 2)} className="px-3 py-1">
+                          <button
+                            onClick={() => setToonToevoegen(true)}
+                            className="text-xs text-muted-foreground hover:text-primary"
+                            data-testid="button-voeg-notaris-toe"
+                          >
+                            + Notaris toevoegen
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  )}
+
+                  {/* Totaal rij */}
                   <tr className="border-t bg-muted/30 font-semibold">
+                    {kanBewerken && <td></td>}
                     <td className="px-3 py-1.5">Aantal</td>
                     {kolomTotalen.map((tot, i) => (
                       <td key={i} className="px-2 py-1.5 text-right border-l border-border/20">
@@ -2459,6 +2557,7 @@ function MaandelijkseProdOrNotarisTab() {
                     <td className="px-2 py-1.5 text-right border-l border-border/20">
                       <span data-testid="text-orn-eindtotaal">{aantalTotaal || ""}</span>
                     </td>
+                    {kanBewerken && <td></td>}
                   </tr>
                 </tbody>
               </table>
