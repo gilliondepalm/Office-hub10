@@ -1353,6 +1353,350 @@ function TrendOrNotarisTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Trend Kartografen data
+const KG_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+const KG_JAREN = ["2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
+
+type KgJaarData = {
+  egaleano: number[]; jpieters: number[]; nsambo: number[];
+  binnengekomen: number[]; afgehandeld: number[];
+};
+const KG_MAANDDATA: Record<string, KgJaarData> = {
+  "2016": {
+    egaleano:     [0,0,0,0,0,0,0,0,0,0,0,0],
+    jpieters:     [30,31,39,0,0,0,0,0,0,0,0,0],
+    nsambo:       [15,39,58,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[51,60,79,0,0,0,0,0,0,0,0,0],
+    afgehandeld:  [45,70,97,0,0,0,0,0,0,0,0,0],
+  },
+  "2017": {
+    egaleano:     [0,0,0,0,0,0,0,0,0,0,0,0],
+    jpieters:     [9,34,42,31,22,42,65,31,41,0,0,0],
+    nsambo:       [15,41,71,98,68,28,47,86,51,0,0,0],
+    binnengekomen:[51,56,85,106,68,79,114,117,100,0,0,0],
+    afgehandeld:  [24,75,113,90,70,129,112,117,92,0,0,0],
+  },
+  "2018": {
+    egaleano:     [0,0,0,0,0,0,0,0,0,0,0,0],
+    jpieters:     [44,22,72,73,30,60,25,81,56,46,30,13],
+    nsambo:       [38,46,52,59,80,78,68,56,51,61,91,46],
+    binnengekomen:[80,86,81,121,125,120,114,105,116,106,126,116],
+    afgehandeld:  [82,68,124,110,138,132,93,137,107,107,121,59],
+  },
+  "2019": {
+    egaleano:     [0,0,0,0,0,0,0,0,0,0,0,0],
+    jpieters:     [37,53,47,36,76,43,57,55,49,63,62,63],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[0,0,0,0,0,0,0,0,0,0,0,0],
+    afgehandeld:  [44,79,116,84,108,78,98,132,65,87,96,77],
+  },
+  "2020": {
+    egaleano:     [45,30,64,136,0,27,77,65,49,116,103,82],
+    jpieters:     [36,33,64,75,0,23,83,53,66,30,117,32],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[65,89,109,0,79,27,242,125,115,114,152,222],
+    afgehandeld:  [81,63,128,0,50,211,160,118,115,146,220,114],
+  },
+  "2021": {
+    egaleano:     [37,19,46,142,77,62,54,62,44,43,57,88],
+    jpieters:     [35,10,9,12,0,0,74,69,61,83,79,8],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[74,79,17,69,65,83,142,116,124,145,106,113],
+    afgehandeld:  [72,29,55,77,62,154,128,131,105,126,136,96],
+  },
+  "2022": {
+    egaleano:     [0,0,0,0,0,0,0,0,0,0,0,0],
+    jpieters:     [0,0,0,0,0,0,0,0,0,0,0,0],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[58,127,89,224,61,122,113,131,93,159,134,148],
+    afgehandeld:  [76,40,245,119,67,147,155,140,101,158,138,215],
+  },
+  "2023": {
+    egaleano:     [26,54,99,105,103,37,73,69,192,103,91,58],
+    jpieters:     [35,21,75,173,51,106,42,50,149,108,62,8],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[129,88,111,174,210,124,121,72,193,387,153,85],
+    afgehandeld:  [61,75,174,154,143,278,115,119,341,211,153,66],
+  },
+  "2024": {
+    egaleano:     [77,58,130,43,87,105,120,27,91,70,46,101],
+    jpieters:     [46,50,78,33,93,62,55,67,75,38,57,38],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[117,94,147,178,114,160,147,109,103,119,131,85],
+    afgehandeld:  [123,108,208,180,167,76,175,94,166,108,103,139],
+  },
+  "2025": {
+    egaleano:     [47,64,111,123,93,50,104,51,87,69,88,58],
+    jpieters:     [110,79,47,85,141,40,89,51,81,71,74,48],
+    nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    binnengekomen:[158,129,176,157,195,106,187,139,145,125,158,156],
+    afgehandeld:  [157,143,158,234,90,208,193,102,168,140,162,106],
+  },
+};
+
+// Jaarlijkse totalen (som van maanddata)
+const kgSum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+const KG_JAARTOTALEN = KG_JAREN.map((jaar) => {
+  const d = KG_MAANDDATA[jaar];
+  return {
+    jaar,
+    egaleano:     kgSum(d.egaleano),
+    jpieters:     kgSum(d.jpieters),
+    nsambo:       kgSum(d.nsambo),
+    binnengekomen:kgSum(d.binnengekomen),
+    afgehandeld:  kgSum(d.afgehandeld),
+  };
+});
+
+const KG_COLORS = {
+  egaleano:     "#3b82f6",
+  jpieters:     "#10b981",
+  nsambo:       "#f59e0b",
+  binnengekomen:"#6366f1",
+  afgehandeld:  "#ef4444",
+};
+
+function TrendKartografenTab() {
+  const [geselecteerdJaar, setGeselecteerdJaar] = useState("2025");
+  const [toonTotalen, setToonTotalen] = useState(true);
+
+  const jaarData = KG_MAANDDATA[geselecteerdJaar];
+
+  // Maandelijkse grafiekdata voor geselecteerd jaar
+  const maandChartData = KG_MAANDEN.map((m, i) => ({
+    maand: m,
+    "E. Galeano":     jaarData.egaleano[i]     || 0,
+    "J. Pieters":     jaarData.jpieters[i]      || 0,
+    "N. Sambo":       jaarData.nsambo[i]        || 0,
+    "Binnengekomen":  jaarData.binnengekomen[i] || 0,
+    "Afgehandeld":    jaarData.afgehandeld[i]   || 0,
+  }));
+
+  // Check welke kartografen actief zijn in geselecteerd jaar
+  const egaleanoActief = kgSum(jaarData.egaleano) > 0;
+  const jpietersActief = kgSum(jaarData.jpieters) > 0;
+  const nsamboActief   = kgSum(jaarData.nsambo)   > 0;
+
+  // KPI kaarten voor geselecteerd jaar
+  const totEgaleano     = kgSum(jaarData.egaleano);
+  const totJpieters     = kgSum(jaarData.jpieters);
+  const totNsambo       = kgSum(jaarData.nsambo);
+  const totBinnengekomen= kgSum(jaarData.binnengekomen);
+  const totAfgehandeld  = kgSum(jaarData.afgehandeld);
+  const verschil        = totAfgehandeld - totBinnengekomen;
+
+  return (
+    <div className="space-y-6">
+      {/* Jaarlijkse trendgrafiek */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Jaarlijkse trend per kartograaf (2016–2025)</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Totale productie per kartograaf per jaar</p>
+            </div>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={toonTotalen}
+                onChange={(e) => setToonTotalen(e.target.checked)}
+                data-testid="checkbox-toon-totalen"
+                className="rounded"
+              />
+              <span>Toon binnengekomen / afgehandeld</span>
+            </label>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={KG_JAARTOTALEN} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="egaleano"  name="E. Galeano"  fill={KG_COLORS.egaleano}  radius={[3,3,0,0]} />
+              <Bar dataKey="jpieters"  name="J. Pieters"  fill={KG_COLORS.jpieters}  radius={[3,3,0,0]} />
+              <Bar dataKey="nsambo"    name="N. Sambo"    fill={KG_COLORS.nsambo}    radius={[3,3,0,0]} />
+              {toonTotalen && (
+                <>
+                  <Line type="monotone" dataKey="binnengekomen" name="Binnengekomen" stroke={KG_COLORS.binnengekomen} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="afgehandeld"   name="Afgehandeld"   stroke={KG_COLORS.afgehandeld}   strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                </>
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Lijndiagram jaarlijkse trend */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Lijndiagram jaarlijkse productie per kartograaf</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={KG_JAARTOTALEN} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="egaleano" name="E. Galeano" stroke={KG_COLORS.egaleano} strokeWidth={2} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="jpieters" name="J. Pieters" stroke={KG_COLORS.jpieters} strokeWidth={2} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="nsambo"   name="N. Sambo"   stroke={KG_COLORS.nsambo}   strokeWidth={2} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Maandelijkse detail voor geselecteerd jaar */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Maandelijkse productie per kartograaf</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Selecteer een jaar voor het maandoverzicht</p>
+            </div>
+            <Select value={geselecteerdJaar} onValueChange={setGeselecteerdJaar}>
+              <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-kartografen">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[...KG_JAREN].reverse().map((j) => (
+                  <SelectItem key={j} value={j} className="text-xs">{j}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* KPI kaarten */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {egaleanoActief && (
+              <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-egaleano">
+                <div className="text-2xl font-bold" style={{ color: KG_COLORS.egaleano }}>{totEgaleano.toLocaleString("nl-NL")}</div>
+                <div className="text-xs text-muted-foreground mt-1">E. Galeano</div>
+              </div>
+            )}
+            {jpietersActief && (
+              <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-jpieters">
+                <div className="text-2xl font-bold" style={{ color: KG_COLORS.jpieters }}>{totJpieters.toLocaleString("nl-NL")}</div>
+                <div className="text-xs text-muted-foreground mt-1">J. Pieters</div>
+              </div>
+            )}
+            {nsamboActief && (
+              <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-nsambo">
+                <div className="text-2xl font-bold" style={{ color: KG_COLORS.nsambo }}>{totNsambo.toLocaleString("nl-NL")}</div>
+                <div className="text-xs text-muted-foreground mt-1">N. Sambo</div>
+              </div>
+            )}
+            <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-binnengekomen">
+              <div className="text-2xl font-bold" style={{ color: KG_COLORS.binnengekomen }}>{totBinnengekomen.toLocaleString("nl-NL")}</div>
+              <div className="text-xs text-muted-foreground mt-1">Binnengekomen</div>
+            </div>
+            <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-afgehandeld">
+              <div className="text-2xl font-bold" style={{ color: verschil >= 0 ? "#10b981" : "#ef4444" }}>
+                {verschil >= 0 ? "+" : ""}{verschil.toLocaleString("nl-NL")}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Saldo (afg − binn)</div>
+            </div>
+          </div>
+
+          {/* Maandelijks staafdiagram */}
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={maandChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {egaleanoActief && <Bar dataKey="E. Galeano" fill={KG_COLORS.egaleano} radius={[3,3,0,0]} />}
+              {jpietersActief && <Bar dataKey="J. Pieters" fill={KG_COLORS.jpieters} radius={[3,3,0,0]} />}
+              {nsamboActief   && <Bar dataKey="N. Sambo"   fill={KG_COLORS.nsambo}   radius={[3,3,0,0]} />}
+            </BarChart>
+          </ResponsiveContainer>
+
+          {/* Detailtabel */}
+          <div className="overflow-x-auto rounded-md border text-xs">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="px-3 py-2 text-left font-semibold">Kartograaf</th>
+                  {KG_MAANDEN.map((m) => (
+                    <th key={m} className="px-2 py-2 text-right font-semibold">{m}</th>
+                  ))}
+                  <th className="px-3 py-2 text-right font-semibold">Totaal</th>
+                  <th className="px-3 py-2 text-right font-semibold">Gem.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {egaleanoActief && (
+                  <tr className="border-t">
+                    <td className="px-3 py-1.5 font-medium" style={{ color: KG_COLORS.egaleano }}>E. Galeano</td>
+                    {jaarData.egaleano.map((v, i) => (
+                      <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
+                    ))}
+                    <td className="px-3 py-1.5 text-right font-semibold">{totEgaleano}</td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">
+                      {(totEgaleano / jaarData.egaleano.filter(v => v > 0).length || 1).toFixed(1)}
+                    </td>
+                  </tr>
+                )}
+                {jpietersActief && (
+                  <tr className="border-t">
+                    <td className="px-3 py-1.5 font-medium" style={{ color: KG_COLORS.jpieters }}>J. Pieters</td>
+                    {jaarData.jpieters.map((v, i) => (
+                      <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
+                    ))}
+                    <td className="px-3 py-1.5 text-right font-semibold">{totJpieters}</td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">
+                      {(totJpieters / jaarData.jpieters.filter(v => v > 0).length || 1).toFixed(1)}
+                    </td>
+                  </tr>
+                )}
+                {nsamboActief && (
+                  <tr className="border-t">
+                    <td className="px-3 py-1.5 font-medium" style={{ color: KG_COLORS.nsambo }}>N. Sambo</td>
+                    {jaarData.nsambo.map((v, i) => (
+                      <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
+                    ))}
+                    <td className="px-3 py-1.5 text-right font-semibold">{totNsambo}</td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">
+                      {(totNsambo / jaarData.nsambo.filter(v => v > 0).length || 1).toFixed(1)}
+                    </td>
+                  </tr>
+                )}
+                <tr className="border-t bg-muted/30">
+                  <td className="px-3 py-1.5 font-semibold" style={{ color: KG_COLORS.binnengekomen }}>Binnengekomen</td>
+                  {jaarData.binnengekomen.map((v, i) => (
+                    <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                  ))}
+                  <td className="px-3 py-1.5 text-right font-bold">{totBinnengekomen}</td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">
+                    {(totBinnengekomen / (jaarData.binnengekomen.filter(v => v > 0).length || 1)).toFixed(1)}
+                  </td>
+                </tr>
+                <tr className="border-t bg-muted/30">
+                  <td className="px-3 py-1.5 font-semibold" style={{ color: KG_COLORS.afgehandeld }}>Afgehandeld</td>
+                  {jaarData.afgehandeld.map((v, i) => (
+                    <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                  ))}
+                  <td className="px-3 py-1.5 text-right font-bold">{totAfgehandeld}</td>
+                  <td className="px-3 py-1.5 text-right text-muted-foreground">
+                    {(totAfgehandeld / (jaarData.afgehandeld.filter(v => v > 0).length || 1)).toFixed(1)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
   const [periodeIdx, setPeriodeIdx] = useState(0);
@@ -1986,8 +2330,11 @@ export default function ProductiePage() {
 
           {/* ── Trends ────────────────────────────────────────────────── */}
           <TabsContent value="trends">
-            <Tabs defaultValue="kartografie">
+            <Tabs defaultValue="kartografen">
               <TabsList className="mb-5 flex-wrap h-auto gap-1">
+                <TabsTrigger value="kartografen" data-testid="tab-kartografen">
+                  Trend Kartografen
+                </TabsTrigger>
                 <TabsTrigger value="kartografie" data-testid="tab-kartografie">
                   Trend KM Binnen
                 </TabsTrigger>
@@ -2007,6 +2354,10 @@ export default function ProductiePage() {
                   Trend OR Notaris
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="kartografen">
+                <TrendKartografenTab />
+              </TabsContent>
 
               <TabsContent value="kartografie">
                 <KartografieTab />
