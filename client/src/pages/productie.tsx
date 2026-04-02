@@ -733,6 +733,207 @@ function BalieM3Tab() {
   );
 }
 
+// ── Trend OR Algemeen ─────────────────────────────────────────────────────────
+
+const ORA_JAREN_ASC = ["2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
+const ORA_MAANDEN   = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+type OrAlgemRij = { aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number };
+
+// Arrays indexed [maandIdx 0-11][jaarIdx 0-24]  (cumulative t/m maand, per jaar 2001-2025)
+const ORA_AK = [[71,123,92,114,117,103,152,179,162,125,146,119,131,123,100,103,120,166,124,158,142,134,148,144,174],[198,243,226,242,248,252,317,372,330,285,280,233,253,237,211,231,238,304,301,329,292,304,293,314,381],[342,370,135,399,145,191,489,547,511,467,448,378,435,371,342,374,388,429,431,415,429,526,484,465,591],[482,492,284,523,300,359,679,835,686,663,599,505,593,494,472,499,503,583,613,438,489,712,634,675,812],[615,614,413,666,433,502,857,1083,845,850,762,634,724,646,574,637,672,769,752,555,649,933,860,857,1006],[767,735,560,829,591,693,1045,1338,1010,1018,897,799,873,790,740,776,817,921,917,716,870,1191,1076,1058,1248],[888,862,709,969,719,874,1205,1563,1163,1177,1041,948,991,919,867,906,1008,1079,1072,846,1064,1389,1276,1263,1464],[1015,1012,849,1105,873,1066,1365,1758,1285,1322,1160,1105,1117,1064,987,1066,1156,1253,1190,967,1273,1631,1473,1444,1615],[1120,1169,1001,1246,1019,1229,1566,1978,1431,1484,1274,1249,1263,1191,1125,1206,1300,1380,1355,1095,1472,1826,1663,1641,1856],[1256,1284,1143,1379,1149,1410,1777,2192,1614,1626,1405,1381,1391,1331,1250,1347,1479,1552,1523,1244,1656,2010,1861,1870,2081],[1390,1439,1242,1550,1284,1604,2002,2420,1797,1747,1543,1536,1533,1458,1371,1505,1644,1730,1675,1384,1866,2202,2068,2099,2325],[1517,1580,1384,1684,1458,1805,2227,2635,1993,1926,1705,1676,1704,1635,1557,1672,1786,1892,1844,1550,2116,2441,2295,2379,2684]];
+const ORA_IS = [[45,96,114,122,129,125,138,171,171,119,141,148,131,119,91,89,90,119,89,128,107,72,88,85,86],[175,195,266,252,252,244,303,306,328,256,283,290,253,232,180,190,184,238,228,260,205,149,161,159,189],[306,310,404,389,410,438,471,463,509,438,468,444,394,355,315,327,316,367,318,304,309,266,269,245,294],[432,417,534,522,580,584,633,675,680,600,634,583,514,457,438,433,420,483,466,316,342,360,354,343,402],[532,552,663,677,724,750,793,855,842,782,812,732,650,604,536,551,592,604,581,402,427,468,486,448,495],[669,676,832,842,884,964,983,1055,1029,953,998,908,791,730,696,649,724,742,700,527,543,586,601,564,627],[780,798,988,1028,1038,1127,1165,1267,1211,1126,1176,1102,947,875,815,767,886,883,847,599,645,685,721,664,742],[924,951,1138,1190,1213,1334,1346,1425,1359,1303,1360,1303,1086,994,936,923,1017,1033,953,688,741,814,850,757,838],[1040,1102,1329,1355,1366,1496,1549,1641,1543,1473,1526,1495,1255,1120,1052,1047,1145,1179,1069,775,841,922,960,863,952],[1171,1251,1501,1503,1508,1671,1752,1872,1744,1627,1669,1654,1384,1270,1162,1171,1314,1320,1208,864,965,1032,1087,987,1086],[1289,1441,1622,1704,1673,1861,1979,2073,1928,1762,1867,1826,1508,1405,1274,1310,1455,1470,1341,956,1089,1162,1186,1091,1219],[1382,1612,1779,1838,1865,2076,2172,2273,2112,1958,2102,1972,1670,1543,1417,1456,1579,1604,1473,1050,1217,1303,1306,1228,1382]];
+const ORA_DH = [[102,51,89,90,210,125,100,25,73,52,115,77,77,105,77,75,104,79,130,119,56,72,183,119,135],[125,87,174,178,317,176,164,71,129,93,185,172,158,199,135,135,173,150,193,188,159,119,276,211,233],[144,147,287,322,343,224,292,120,237,127,209,287,200,289,213,187,280,210,241,231,227,236,384,313,303],[189,187,356,400,455,273,342,145,323,169,236,362,231,321,282,282,347,331,298,242,265,303,456,395,396],[211,269,447,450,496,358,415,191,384,206,330,398,277,371,355,359,439,441,359,343,335,383,584,497,450],[292,315,536,516,573,481,499,223,449,258,419,458,333,454,400,417,524,526,432,455,415,439,741,612,544],[342,349,613,552,641,606,577,303,508,301,479,522,421,516,526,465,603,617,470,576,496,523,819,732,645],[454,448,668,673,714,733,655,443,571,343,533,598,474,590,611,532,670,701,589,638,546,702,941,816,731],[493,565,728,830,784,815,764,524,622,409,642,670,529,698,681,591,749,762,664,713,625,797,1043,878,824],[608,599,844,902,823,855,848,609,676,488,718,812,682,811,739,649,811,834,708,791,673,874,1170,932,934],[683,694,972,1008,872,965,978,719,725,551,792,884,740,909,824,769,921,886,811,883,774,1030,1255,1022,1033],[768,777,1055,1057,967,1115,1052,843,797,599,919,928,866,998,893,835,1071,939,900,927,867,1244,1364,1100,1128]];
+const ORA_OP = [[7,3,10,7,5,8,5,8,11,12,12,9,9,8,4,0,7,1,16,10,9,8,6,23,3],[8,5,24,22,10,17,18,30,22,17,21,18,12,12,8,15,14,5,9,19,19,12,13,34,12],[12,14,34,28,14,27,28,39,38,25,30,34,18,15,24,25,24,13,16,23,25,26,33,52,22],[15,19,40,34,31,37,36,46,50,27,45,40,25,18,29,34,26,18,30,24,32,32,46,60,27],[19,26,47,41,38,42,47,52,62,36,50,51,36,23,32,39,33,25,39,30,43,39,66,71,37],[26,29,58,46,54,52,54,60,73,44,65,65,46,30,41,49,45,32,43,35,53,52,86,79,44],[38,33,68,56,63,58,64,70,84,56,80,73,52,43,43,56,48,43,47,39,62,65,97,89,54],[44,45,75,70,69,66,76,80,90,70,87,89,78,53,55,62,52,52,56,42,67,76,108,100,61],[56,58,83,87,79,75,79,94,103,83,103,99,64,55,58,76,60,56,67,46,76,84,119,114,106],[63,65,93,98,89,78,85,97,110,90,116,111,72,63,65,81,66,64,74,56,83,94,123,118,127],[68,75,96,108,93,88,94,102,119,93,126,114,80,74,70,90,75,71,76,61,92,101,128,128,138],[76,82,103,114,100,95,96,107,123,97,134,119,91,77,77,99,83,73,90,70,98,112,137,141,150]];
+const ORA_BS = [[5,8,12,10,3,2,0,10,10,17,12,6,6,3,7,10,4,12,4,3,3,9,5,5,7],[12,18,23,21,12,5,2,24,19,26,22,13,21,8,9,15,11,28,23,5,9,14,11,11,14],[13,26,29,34,19,12,4,37,26,33,31,24,30,13,19,23,22,42,29,10,19,30,20,22,24],[33,36,45,59,32,15,6,53,36,42,42,34,37,19,24,31,30,54,38,13,19,39,34,28,33],[48,51,49,77,42,19,6,71,45,56,54,42,47,23,37,42,38,65,51,21,27,48,48,35,43],[55,56,61,93,53,21,6,75,45,65,61,56,61,28,44,51,45,82,62,31,35,62,51,46,52],[67,62,79,108,58,21,8,79,62,79,78,62,68,34,53,58,52,92,91,35,42,73,61,53,64],[76,74,91,125,63,21,14,85,75,91,89,71,76,39,59,65,72,106,101,42,50,87,69,62,79],[84,84,103,146,70,25,17,87,87,110,95,77,81,48,61,68,81,117,112,49,56,110,72,74,90],[94,90,111,153,70,33,26,88,100,121,109,83,87,53,70,73,82,130,123,59,63,129,82,81,100],[105,99,124,166,71,36,27,96,114,138,121,88,91,59,81,83,89,137,126,73,71,137,85,84,110],[112,99,129,167,76,37,32,98,130,143,135,93,101,68,90,91,93,149,129,77,89,141,92,86,117]];
+const ORA_CS = [[2,0,1,4,3,2,0,2,2,0,2,0,0,0,0,0,1,0,0,0,0,1,0,0,0],[2,0,2,4,4,2,1,3,2,1,2,0,1,1,0,0,1,0,0,0,0,1,0,0,3],[2,0,3,4,6,2,2,3,3,3,4,2,1,1,0,0,1,0,0,0,0,1,1,3,4],[2,0,5,4,6,3,3,3,4,4,4,2,1,2,1,0,1,0,3,0,0,1,1,4,4],[2,0,5,5,10,3,3,4,7,5,5,2,2,2,1,0,1,0,3,0,1,1,1,4,5],[2,0,5,5,10,3,3,5,7,5,6,2,2,2,2,0,1,0,3,1,2,2,1,4,5],[5,1,5,6,10,3,4,5,7,6,6,2,2,3,2,0,2,1,3,1,2,2,2,5,6],[5,2,5,6,10,4,5,5,8,6,6,2,2,3,2,1,2,1,3,1,3,2,2,5,7],[5,2,5,7,14,4,5,6,8,6,6,4,2,3,3,1,2,1,3,1,4,3,2,7,7],[5,2,5,8,16,4,5,7,9,7,6,4,2,4,3,1,2,2,3,2,4,3,2,8,7],[5,2,5,9,19,4,5,8,10,7,6,4,2,5,3,1,5,2,3,2,7,3,2,10,8],[8,5,6,9,21,4,5,8,10,10,7,4,2,5,3,1,7,2,3,3,7,3,4,10,8]];
+
+const ORA_COLORS: Record<string, string> = { aktes:"#3b82f6", inschrijvingen:"#10b981", doorhalingen:"#f59e0b", opheffingen:"#ef4444", beslagen:"#8b5cf6", cessies:"#ec4899" };
+const ORA_LABELS: Record<string, string> = { aktes:"Aktes", inschrijvingen:"Inschrijvingen", doorhalingen:"Doorhalingen", opheffingen:"Opheffingen", beslagen:"Beslagen", cessies:"Cessies" };
+
+function buildOraData(maandIdx: number, jarenFilter: string[]): OrAlgemRij[] {
+  return jarenFilter.map((_j, i) => {
+    const ji = ORA_JAREN_ASC.indexOf(jarenFilter[i]);
+    return {
+      aktes:          ORA_AK[maandIdx][ji],
+      inschrijvingen: ORA_IS[maandIdx][ji],
+      doorhalingen:   ORA_DH[maandIdx][ji],
+      opheffingen:    ORA_OP[maandIdx][ji],
+      beslagen:       ORA_BS[maandIdx][ji],
+      cessies:        ORA_CS[maandIdx][ji],
+    };
+  });
+}
+
+const ORA_PERIODES = [
+  { label: "Alle jaren (2001–2025)", jaren: ORA_JAREN_ASC },
+  { label: "2001–2010", jaren: ORA_JAREN_ASC.slice(0, 10) },
+  { label: "2011–2025", jaren: ORA_JAREN_ASC.slice(10) },
+];
+
+function TrendOrAlgemeenTab() {
+  const [maand, setMaand]           = useState("Dec");
+  const [periodeIdx, setPeriodeIdx] = useState(0);
+
+  const maandIdx = ORA_MAANDEN.indexOf(maand);
+  const { jaren } = ORA_PERIODES[periodeIdx];
+  const data      = buildOraData(maandIdx, jaren);
+
+  const chartData = jaren.map((j, i) => ({
+    jaar: j,
+    ...data[i],
+  }));
+
+  const maxAktes         = Math.max(...data.map(d => d.aktes));
+  const maxInschrijvingen = Math.max(...data.map(d => d.inschrijvingen));
+  const maxDoorhalingen  = Math.max(...data.map(d => d.doorhalingen));
+  const maxOpheffingen   = Math.max(...data.map(d => d.opheffingen));
+
+  return (
+    <div className="space-y-5">
+      {/* Controls */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium">Periode t/m maand</span>
+          <Select value={maand} onValueChange={setMaand}>
+            <SelectTrigger className="w-28 h-8 text-sm" data-testid="select-ora-maand">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ORA_MAANDEN.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium">Jarenreeks</span>
+          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
+            <SelectTrigger className="w-52 h-8 text-sm" data-testid="select-ora-periode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ORA_PERIODES.map((p, i) => <SelectItem key={i} value={String(i)}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Max Aktes",          value: maxAktes,          color: ORA_COLORS.aktes },
+          { label: "Max Inschrijvingen", value: maxInschrijvingen, color: ORA_COLORS.inschrijvingen },
+          { label: "Max Doorhalingen",   value: maxDoorhalingen,   color: ORA_COLORS.doorhalingen },
+          { label: "Max Opheffingen",    value: maxOpheffingen,    color: ORA_COLORS.opheffingen },
+        ].map(k => (
+          <Card key={k.label} className="p-4">
+            <p className="text-xs text-muted-foreground">{k.label}</p>
+            <p className="text-2xl font-bold" style={{ color: k.color }}>{k.value.toLocaleString("nl-NL")}</p>
+            <p className="text-xs text-muted-foreground">t/m {maand}</p>
+          </Card>
+        ))}
+      </div>
+
+      {/* Lijndiagram — alle producten */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Trend alle producten — cumulatief t/m {maand}</CardTitle>
+          <CardDescription className="text-xs">Hoofdproducten (Aktes, Inschrijvingen, Doorhalingen) per jaar</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} width={55} tickFormatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                formatter={(val: number, name: string) => [val.toLocaleString("nl-NL"), ORA_LABELS[name] ?? name]} />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => ORA_LABELS[v] ?? v} />
+              <Line type="monotone" dataKey="aktes"          stroke={ORA_COLORS.aktes}          strokeWidth={2} dot={false} name="aktes" />
+              <Line type="monotone" dataKey="inschrijvingen" stroke={ORA_COLORS.inschrijvingen} strokeWidth={2} dot={false} name="inschrijvingen" />
+              <Line type="monotone" dataKey="doorhalingen"   stroke={ORA_COLORS.doorhalingen}   strokeWidth={2} dot={false} name="doorhalingen" />
+              <Line type="monotone" dataKey="opheffingen"    stroke={ORA_COLORS.opheffingen}    strokeWidth={1.5} dot={false} name="opheffingen" strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="beslagen"       stroke={ORA_COLORS.beslagen}       strokeWidth={1.5} dot={false} name="beslagen" strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="cessies"        stroke={ORA_COLORS.cessies}        strokeWidth={1}   dot={false} name="cessies" strokeDasharray="2 2" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Staafdiagram — gestapeld */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Gestapeld staafdiagram — cumulatief t/m {maand}</CardTitle>
+          <CardDescription className="text-xs">Totaal volume per jaar opgedeeld per product</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} width={55} tickFormatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                formatter={(val: number, name: string) => [val.toLocaleString("nl-NL"), ORA_LABELS[name] ?? name]} />
+              <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => ORA_LABELS[v] ?? v} />
+              <Bar dataKey="aktes"          stackId="a" fill={ORA_COLORS.aktes}          name="aktes"          radius={[0,0,0,0]} />
+              <Bar dataKey="inschrijvingen" stackId="a" fill={ORA_COLORS.inschrijvingen} name="inschrijvingen" />
+              <Bar dataKey="doorhalingen"   stackId="a" fill={ORA_COLORS.doorhalingen}   name="doorhalingen" />
+              <Bar dataKey="opheffingen"    stackId="a" fill={ORA_COLORS.opheffingen}    name="opheffingen" />
+              <Bar dataKey="beslagen"       stackId="a" fill={ORA_COLORS.beslagen}        name="beslagen" />
+              <Bar dataKey="cessies"        stackId="a" fill={ORA_COLORS.cessies}         name="cessies"   radius={[3,3,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Detailtabel */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Detailoverzicht — t/m {maand}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jaar</TableHead>
+                  <TableHead className="text-right" style={{ color: ORA_COLORS.aktes }}>Aktes</TableHead>
+                  <TableHead className="text-right" style={{ color: ORA_COLORS.inschrijvingen }}>Inschrijvingen</TableHead>
+                  <TableHead className="text-right" style={{ color: ORA_COLORS.doorhalingen }}>Doorhalingen</TableHead>
+                  <TableHead className="text-right" style={{ color: ORA_COLORS.opheffingen }}>Opheffingen</TableHead>
+                  <TableHead className="text-right" style={{ color: ORA_COLORS.beslagen }}>Beslagen</TableHead>
+                  <TableHead className="text-right" style={{ color: ORA_COLORS.cessies }}>Cessies</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {chartData.map(r => (
+                  <TableRow key={r.jaar} data-testid={`row-ora-${r.jaar}`}>
+                    <TableCell className="font-medium">{r.jaar}</TableCell>
+                    <TableCell className="text-right">{r.aktes.toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{r.inschrijvingen.toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{r.doorhalingen.toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{r.opheffingen.toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{r.beslagen.toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{r.cessies.toLocaleString("nl-NL")}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/40 font-semibold">
+                  <TableCell>Gem.</TableCell>
+                  <TableCell className="text-right">{(data.reduce((s,d)=>s+d.aktes,0)/data.length).toFixed(0)}</TableCell>
+                  <TableCell className="text-right">{(data.reduce((s,d)=>s+d.inschrijvingen,0)/data.length).toFixed(0)}</TableCell>
+                  <TableCell className="text-right">{(data.reduce((s,d)=>s+d.doorhalingen,0)/data.length).toFixed(0)}</TableCell>
+                  <TableCell className="text-right">{(data.reduce((s,d)=>s+d.opheffingen,0)/data.length).toFixed(0)}</TableCell>
+                  <TableCell className="text-right">{(data.reduce((s,d)=>s+d.beslagen,0)/data.length).toFixed(0)}</TableCell>
+                  <TableCell className="text-right">{(data.reduce((s,d)=>s+d.cessies,0)/data.length).toFixed(0)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
@@ -1368,6 +1569,9 @@ export default function ProductiePage() {
             <TabsTrigger value="balie3" data-testid="tab-balie3">
               Trend OR Info
             </TabsTrigger>
+            <TabsTrigger value="oralgem" data-testid="tab-oralgem">
+              Trend OR Algemeen
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="kartografie">
@@ -1384,6 +1588,10 @@ export default function ProductiePage() {
 
           <TabsContent value="balie3">
             <BalieM3Tab />
+          </TabsContent>
+
+          <TabsContent value="oralgem">
+            <TrendOrAlgemeenTab />
           </TabsContent>
         </Tabs>
       </div>
