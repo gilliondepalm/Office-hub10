@@ -35,7 +35,7 @@ import { formatDate } from "@/lib/dateUtils";
 
 const userFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
-  password: z.string().min(4, "Minimaal 4 tekens"),
+  password: z.string().min(8, "Minimaal 8 tekens"),
   voornamen: z.string().min(1, "Voornamen zijn verplicht"),
   voorvoegsel: z.string().optional(),
   achternaam: z.string().min(1, "Achternaam is verplicht"),
@@ -55,7 +55,7 @@ const userFormSchema = z.object({
 
 const editFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
-  password: z.string().optional(),
+  password: z.string().optional().refine(val => !val || val.length >= 8, { message: "Minimaal 8 tekens" }),
   voornamen: z.string().min(1, "Voornamen zijn verplicht"),
   voorvoegsel: z.string().optional(),
   achternaam: z.string().min(1, "Achternaam is verplicht"),
