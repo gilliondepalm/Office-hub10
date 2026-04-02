@@ -220,7 +220,7 @@ export default function DashboardPage() {
               {user?.fullName}
             </h1>
             <p className="text-white/85 text-sm max-w-lg drop-shadow-sm">
-              Welkom bij het Kantoor Dashboard. Hier vindt u een overzicht van uw kantooromgeving.
+              Welkom bij het Kadaster Dashboard. Hier vindt u een overzicht van uw kantooromgeving.
             </p>
           </div>
           {isAdmin && (

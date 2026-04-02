@@ -98,7 +98,7 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[hsl(48,96%,53%)] text-[hsl(152,30%,10%)] font-bold text-sm">
               KD
             </div>
-            <span className="text-lg font-semibold tracking-tight">Kantoor Dashboard</span>
+            <span className="text-lg font-semibold tracking-tight">Kadaster Dashboard</span>
           </div>
           <div className="space-y-4 max-w-md">
             <h1 className="text-4xl font-bold leading-tight">
@@ -125,7 +125,7 @@ export default function LoginPage() {
             </div>
           </div>
           <div className="space-y-0.5">
-            <p className="text-xs text-white/50">Kantoor Dashboard v2.0</p>
+            <p className="text-xs text-white/50">Kadaster Dashboard v2.0</p>
             <p className="text-xs text-white/50">GDP © ir. G.G. de Palm</p>
           </div>
         </div>

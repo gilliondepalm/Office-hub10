@@ -73,7 +73,7 @@ export function AppSidebar() {
             KD
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-sidebar-foreground">Kantoor Dashboard</span>
+            <span className="text-sm font-semibold text-sidebar-foreground">Kadaster Dashboard</span>
             <span className="text-xs text-sidebar-foreground/60">
               {isAdminRole(user?.role) ? "Beheerportaal" : "Medewerkersportaal"}
             </span>
