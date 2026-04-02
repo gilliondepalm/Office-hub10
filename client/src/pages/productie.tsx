@@ -2088,6 +2088,208 @@ function MaandelijkseProdLandmetersTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Maandelijkse Productie KM Info
+
+type KmInfoRij = {
+  maand: number;
+  topo_kaarten: number; plot_overzicht: number; plot_grens_uitz: number; afdrukken_kaarten: number;
+  sit_a4: number; sit_a3: number;
+  reg_meetbrief: number; reg_extractplan: number; inzage_kad: number;
+  uur_tarieven: number; digitale_bestanden: number;
+  blok_maten: number; kopie_veldwerk: number; coordinaten: number; hulp_kaart: number; terrein_onderzoek: number; proces_verbaal: number;
+};
+
+const LEGE_KMI_RIJ = (maand: number): KmInfoRij => ({
+  maand,
+  topo_kaarten: 0, plot_overzicht: 0, plot_grens_uitz: 0, afdrukken_kaarten: 0,
+  sit_a4: 0, sit_a3: 0,
+  reg_meetbrief: 0, reg_extractplan: 0, inzage_kad: 0,
+  uur_tarieven: 0, digitale_bestanden: 0,
+  blok_maten: 0, kopie_veldwerk: 0, coordinaten: 0, hulp_kaart: 0, terrein_onderzoek: 0, proces_verbaal: 0,
+});
+
+const KMI_MAAND_NAMEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+function kmInfoTotaal(r: KmInfoRij): number {
+  return r.topo_kaarten + r.plot_overzicht + r.plot_grens_uitz + r.afdrukken_kaarten
+    + r.sit_a4 + r.sit_a3
+    + r.reg_meetbrief + r.reg_extractplan + r.inzage_kad
+    + r.uur_tarieven + r.digitale_bestanden
+    + r.blok_maten + r.kopie_veldwerk + r.coordinaten + r.hulp_kaart + r.terrein_onderzoek + r.proces_verbaal;
+}
+
+function MaandelijkseProdKmInfoTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const kanBewerken = user && (user.role === "admin" || user.role === "manager");
+
+  const huidigJaar = new Date().getFullYear();
+  const beschikbareJaren = Array.from({ length: 5 }, (_, i) => String(huidigJaar - 2 + i));
+  const [jaar, setJaar] = useState(String(huidigJaar));
+  const [rijen, setRijen] = useState<KmInfoRij[]>(
+    Array.from({ length: 12 }, (_, i) => LEGE_KMI_RIJ(i + 1))
+  );
+  const [opgeslagen, setOpgeslagen] = useState(false);
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-km-info", jaar],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-km-info?jaar=${jaar}`);
+      const data: KmInfoRij[] = await res.json();
+      const nieuw: KmInfoRij[] = Array.from({ length: 12 }, (_, i) => {
+        const gevonden = data.find(r => r.maand === i + 1);
+        return gevonden ? { ...gevonden } : LEGE_KMI_RIJ(i + 1);
+      });
+      setRijen(nieuw);
+      return data;
+    },
+  });
+
+  const { mutate: opslaan, isPending } = useMutation({
+    mutationFn: async () => {
+      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar) }));
+      await apiRequest("POST", "/api/maand-prod-km-info", { rows: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-km-info", jaar] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-km-info"] });
+      toast({ title: "Opgeslagen", description: `Productie KM Info ${jaar} opgeslagen.` });
+      setOpgeslagen(true);
+      setTimeout(() => setOpgeslagen(false), 2000);
+    },
+    onError: (err: any) => toast({ title: "Fout", description: err.message, variant: "destructive" }),
+  });
+
+  const setVeld = (maandIdx: number, veld: keyof Omit<KmInfoRij, "maand">, val: number) => {
+    setRijen(prev => prev.map((r, i) => i === maandIdx ? { ...r, [veld]: val } : r));
+    setOpgeslagen(false);
+  };
+
+  const numInput = (maandIdx: number, veld: keyof Omit<KmInfoRij, "maand">, testId: string) => (
+    <input
+      type="number"
+      min={0}
+      value={rijen[maandIdx][veld] || ""}
+      onChange={e => setVeld(maandIdx, veld, parseInt(e.target.value) || 0)}
+      disabled={!kanBewerken || isLoading}
+      data-testid={testId}
+      className="w-12 text-right bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-primary rounded px-1 py-0.5 text-sm disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+    />
+  );
+
+  const kolomHeaders = [
+    { label: "Kadastrale kaart produkten", cols: ["Topo-\ngrafische\nkaarten", "Plot-\noverzicht", "Plot Grens-\nuitzetting", "Afdrukken\nvan\nkaarten"], colspan: 4 },
+    { label: "Situatieschets", cols: ["Situatie-\nschets A4", "Situatie-\nschets A3"], colspan: 2 },
+    { label: "Reg. Mbr", cols: ["Regulier\nMeetbrief"], colspan: 1 },
+    { label: "Reg. Extr", cols: ["Regulier\nExtractplan"], colspan: 1 },
+    { label: "Inzage KAD", cols: ["Inzage\nKAD"], colspan: 1 },
+    { label: "Digitale bestanden", cols: ["Uur-\ntarieven", "Digitale\nbestanden"], colspan: 2 },
+    { label: "Kadstrale Metingen", cols: ["Blok-\nmaten", "Kopie\nveldwerk", "Coor-\ndinaten", "Hulp-\nkaart", "Terrein-\nonderzoek", "Proces-\nverbaal"], colspan: 6 },
+  ];
+
+  const veldnamen: (keyof Omit<KmInfoRij, "maand">)[] = [
+    "topo_kaarten", "plot_overzicht", "plot_grens_uitz", "afdrukken_kaarten",
+    "sit_a4", "sit_a3",
+    "reg_meetbrief",
+    "reg_extractplan",
+    "inzage_kad",
+    "uur_tarieven", "digitale_bestanden",
+    "blok_maten", "kopie_veldwerk", "coordinaten", "hulp_kaart", "terrein_onderzoek", "proces_verbaal",
+  ];
+
+  const kolomTotalen = veldnamen.map(v => rijen.reduce((s, r) => s + r[v], 0));
+  const rijTotalen = rijen.map(r => kmInfoTotaal(r));
+  const eindTotaal = rijTotalen.reduce((s, t) => s + t, 0);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="text-base font-semibold">
+              Binnengekomen Inzage Deel II {jaar}
+            </CardTitle>
+            <div className="flex items-center gap-3">
+              <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
+                <SelectTrigger className="w-28" data-testid="select-jaar-km-info">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {beschikbareJaren.map(j => (
+                    <SelectItem key={j} value={j} data-testid={`option-jaar-km-info-${j}`}>{j}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {kanBewerken && (
+                <Button
+                  size="sm"
+                  onClick={() => opslaan()}
+                  disabled={isPending || opgeslagen}
+                  data-testid="button-opslaan-kmi"
+                >
+                  {opgeslagen ? "✓ Opgeslagen" : isPending ? "Bezig…" : "Opslaan"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-yellow-300/90 dark:bg-yellow-600/80">
+                  <th className="px-2 py-1.5 text-left font-semibold border border-yellow-400/60 min-w-[48px]">Maand</th>
+                  {kolomHeaders.map(g => (
+                    <th key={g.label} colSpan={g.colspan} className="px-2 py-1 text-center font-semibold border border-yellow-400/60 text-xs">{g.label}</th>
+                  ))}
+                  <th className="px-2 py-1.5 text-center font-semibold border border-yellow-400/60">Totaal</th>
+                </tr>
+                <tr className="bg-yellow-200/80 dark:bg-yellow-700/60">
+                  <th className="px-2 py-1 border border-yellow-400/40"></th>
+                  {veldnamen.map((v, i) => (
+                    <th key={v} className="px-1 py-1 text-center text-xs font-medium border border-yellow-400/40 min-w-[52px] whitespace-pre-line leading-tight">
+                      {kolomHeaders.flatMap(g => g.cols)[i]}
+                    </th>
+                  ))}
+                  <th className="px-2 py-1 border border-yellow-400/40"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rijen.map((rij, mi) => (
+                  <tr key={rij.maand} className={mi % 2 === 0 ? "bg-white dark:bg-background" : "bg-yellow-50/60 dark:bg-yellow-900/10"}>
+                    <td className="px-2 py-1 font-medium border border-border/40 text-sm">{KMI_MAAND_NAMEN[mi]}</td>
+                    {veldnamen.map((v, vi) => (
+                      <td key={v} className="px-1 py-0.5 border border-border/30 text-center">
+                        {numInput(mi, v, `input-kmi-${mi}-${vi}`)}
+                      </td>
+                    ))}
+                    <td className="px-2 py-1 border border-border/40 text-center font-semibold text-sm">
+                      <span data-testid={`text-kmi-totaal-${mi}`}>{rijTotalen[mi] || ""}</span>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-yellow-300/70 dark:bg-yellow-700/50 font-semibold">
+                  <td className="px-2 py-1.5 border border-yellow-400/60 text-sm font-bold">Totaal</td>
+                  {kolomTotalen.map((t, i) => (
+                    <td key={i} className="px-1 py-1.5 border border-yellow-400/60 text-center text-sm">
+                      <span data-testid={`text-kmi-col-totaal-${i}`}>{t || ""}</span>
+                    </td>
+                  ))}
+                  <td className="px-2 py-1.5 border border-yellow-400/60 text-center font-bold text-sm">
+                    <span data-testid="text-kmi-eindtotaal">{eindTotaal || ""}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Trend Kartografen data
 const KG_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 const KG_JAREN = ["2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
@@ -3174,12 +3376,18 @@ export default function ProductiePage() {
                 <TabsTrigger value="prod-landmeters" data-testid="tab-prod-landmeters">
                   Productie Landmeters
                 </TabsTrigger>
+                <TabsTrigger value="prod-km-info" data-testid="tab-prod-km-info">
+                  Productie KM Info
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="prod-kartografen">
                 <MaandelijkseProdKartografenTab />
               </TabsContent>
               <TabsContent value="prod-landmeters">
                 <MaandelijkseProdLandmetersTab />
+              </TabsContent>
+              <TabsContent value="prod-km-info">
+                <MaandelijkseProdKmInfoTab />
               </TabsContent>
             </Tabs>
           </TabsContent>

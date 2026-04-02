@@ -35,6 +35,7 @@ import {
   type MaandProdSamenvatting, type InsertMaandProdSamenvatting,
   type MaandProdLandmeter, type InsertMaandProdLandmeter,
   type MaandProdSamenvattingLm, type InsertMaandProdSamenvattingLm,
+  type MaandProdKmInfo, type InsertMaandProdKmInfo,
   type TrendKmBuiten, type InsertTrendKmBuiten,
   type TrendKmInfo, type InsertTrendKmInfo,
   type TrendOrInfo, type InsertTrendOrInfo,
@@ -43,7 +44,7 @@ import {
   type TrendKartografenHist, type InsertTrendKartografenHist,
   helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
   maandProdKartograaf, maandProdSamenvatting,
-  maandProdLandmeter, maandProdSamenvattingLm,
+  maandProdLandmeter, maandProdSamenvattingLm, maandProdKmInfo,
   trendKmBuiten, trendKmInfo, trendOrInfo, trendOrAlgemeen, trendOrNotaris, trendKartografenHist,
 } from "@shared/schema";
 
@@ -220,6 +221,11 @@ export interface IStorage {
   getTrendKmBuiten(): Promise<TrendKmBuiten[]>;
   bulkUpsertTrendKmBuiten(rows: InsertTrendKmBuiten[]): Promise<void>;
   deleteTrendKmBuitenByJaar(jaar: number): Promise<void>;
+
+  getMaandProdKmInfo(jaar: number): Promise<MaandProdKmInfo[]>;
+  saveMaandProdKmInfo(rows: InsertMaandProdKmInfo[]): Promise<void>;
+  getAllMaandProdKmInfo(): Promise<MaandProdKmInfo[]>;
+  upsertTrendKmInfoRow(data: InsertTrendKmInfo): Promise<void>;
 
   getTrendKmInfo(): Promise<TrendKmInfo[]>;
   bulkUpsertTrendKmInfo(rows: InsertTrendKmInfo[]): Promise<void>;
@@ -1284,6 +1290,33 @@ export class DatabaseStorage implements IStorage {
         .where(eq(trendKmBuiten.id, existing.id));
     } else {
       await db.insert(trendKmBuiten).values(data);
+    }
+  }
+
+  async getMaandProdKmInfo(jaar: number): Promise<MaandProdKmInfo[]> {
+    return await db.select().from(maandProdKmInfo).where(eq(maandProdKmInfo.jaar, jaar)).orderBy(maandProdKmInfo.maand);
+  }
+  async saveMaandProdKmInfo(rows: InsertMaandProdKmInfo[]): Promise<void> {
+    if (rows.length === 0) return;
+    const jaar = rows[0].jaar;
+    const maanden = [...new Set(rows.map(r => r.maand))];
+    for (const m of maanden) {
+      await db.delete(maandProdKmInfo).where(and(eq(maandProdKmInfo.jaar, jaar), eq(maandProdKmInfo.maand, m)));
+    }
+    await db.insert(maandProdKmInfo).values(rows);
+  }
+  async getAllMaandProdKmInfo(): Promise<MaandProdKmInfo[]> {
+    return await db.select().from(maandProdKmInfo).orderBy(maandProdKmInfo.jaar, maandProdKmInfo.maand);
+  }
+  async upsertTrendKmInfoRow(data: InsertTrendKmInfo): Promise<void> {
+    const [existing] = await db.select().from(trendKmInfo)
+      .where(and(eq(trendKmInfo.jaar, data.jaar), eq(trendKmInfo.maand, data.maand)));
+    if (existing) {
+      await db.update(trendKmInfo)
+        .set({ kkp: data.kkp, db: data.db, sa: data.sa, rm: data.rm, re: data.re, km: data.km, ik: data.ik })
+        .where(eq(trendKmInfo.id, existing.id));
+    } else {
+      await db.insert(trendKmInfo).values(data);
     }
   }
 

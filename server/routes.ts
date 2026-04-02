@@ -26,6 +26,7 @@ import {
   insertMaandProdSamenvattingSchema,
   insertMaandProdLandmeterSchema,
   insertMaandProdSamenvattingLmSchema,
+  insertMaandProdKmInfoSchema,
   insertTrendKmBuitenSchema,
   insertTrendKmInfoSchema,
   insertTrendOrInfoSchema,
@@ -2490,6 +2491,36 @@ export async function registerRoutes(
     const jaar = parseInt(req.params.jaar);
     if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
     try { await storage.deleteTrendKmBuitenByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Maand Prod KM Info ────────────────────────────────────────────────────────
+  app.get("/api/maand-prod-km-info", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const jaar = parseInt(req.query.jaar as string) || new Date().getFullYear();
+      const rows = await storage.getMaandProdKmInfo(jaar);
+      res.json(rows);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/maand-prod-km-info", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertMaandProdKmInfoSchema.parse(r));
+      await storage.saveMaandProdKmInfo(parsed);
+      for (const r of parsed) {
+        const kkp = r.topo_kaarten + r.plot_overzicht + r.plot_grens_uitz + r.afdrukken_kaarten;
+        const sa  = r.sit_a4 + r.sit_a3;
+        const rm  = r.reg_meetbrief;
+        const re  = r.reg_extractplan;
+        const ik  = r.inzage_kad;
+        const db_ = r.uur_tarieven + r.digitale_bestanden;
+        const km  = r.blok_maten + r.kopie_veldwerk + r.coordinaten + r.hulp_kaart + r.terrein_onderzoek + r.proces_verbaal;
+        await storage.upsertTrendKmInfoRow({ jaar: r.jaar, maand: r.maand, kkp, sa, rm, re, ik, db: db_, km });
+      }
+      res.json({ saved: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
 
   // ── Trend KM Info ─────────────────────────────────────────────────────────────

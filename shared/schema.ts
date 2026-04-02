@@ -504,6 +504,33 @@ export const insertTrendKmBuitenSchema = createInsertSchema(trendKmBuiten).omit(
 export type InsertTrendKmBuiten = z.infer<typeof insertTrendKmBuitenSchema>;
 export type TrendKmBuiten = typeof trendKmBuiten.$inferSelect;
 
+// ── Maand Prod KM Info ────────────────────────────────────────────────────────
+export const maandProdKmInfo = pgTable("maand_prod_km_info", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  topo_kaarten: integer("topo_kaarten").notNull().default(0),
+  plot_overzicht: integer("plot_overzicht").notNull().default(0),
+  plot_grens_uitz: integer("plot_grens_uitz").notNull().default(0),
+  afdrukken_kaarten: integer("afdrukken_kaarten").notNull().default(0),
+  sit_a4: integer("sit_a4").notNull().default(0),
+  sit_a3: integer("sit_a3").notNull().default(0),
+  reg_meetbrief: integer("reg_meetbrief").notNull().default(0),
+  reg_extractplan: integer("reg_extractplan").notNull().default(0),
+  inzage_kad: integer("inzage_kad").notNull().default(0),
+  uur_tarieven: integer("uur_tarieven").notNull().default(0),
+  digitale_bestanden: integer("digitale_bestanden").notNull().default(0),
+  blok_maten: integer("blok_maten").notNull().default(0),
+  kopie_veldwerk: integer("kopie_veldwerk").notNull().default(0),
+  coordinaten: integer("coordinaten").notNull().default(0),
+  hulp_kaart: integer("hulp_kaart").notNull().default(0),
+  terrein_onderzoek: integer("terrein_onderzoek").notNull().default(0),
+  proces_verbaal: integer("proces_verbaal").notNull().default(0),
+});
+export const insertMaandProdKmInfoSchema = createInsertSchema(maandProdKmInfo).omit({ id: true });
+export type InsertMaandProdKmInfo = z.infer<typeof insertMaandProdKmInfoSchema>;
+export type MaandProdKmInfo = typeof maandProdKmInfo.$inferSelect;
+
 // ── Trend KM Info ─────────────────────────────────────────────────────────────
 export const trendKmInfo = pgTable("trend_km_info", {
   id: serial("id").primaryKey(),
