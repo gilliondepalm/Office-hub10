@@ -140,6 +140,20 @@ All routes prefixed with `/api/` and require authentication except login.
 - Each tab has a TrendImportButton component for CSV import (admin/manager roles only)
 - DB tables seeded with historical data: trend_km_info (216 rows), trend_or_info (216 rows), trend_or_algemeen (300 rows), trend_or_notaris (5400 rows), trend_kartografen_hist (120 rows), trend_km_buiten (372 rows)
 
+## Maandelijkse Productie Module (tab "Maandelijkse productie")
+- **Productie Kartografen** (tab-prod-kartografen): per kartograaf mbr/kad_spl/gr_uitz/ex_pl/plot_coor/losse_mbr invoer
+  - DB: maand_prod_kartograaf + maand_prod_samenvatting
+  - Write-through: synct naar trend_kartografen_hist + kartografie_productie
+  - Prod = mbr + kad_spl + gr_uitz (exclusief ex_pl/plot_coor/losse_mbr)
+- **Productie Landmeters** (tab-prod-landmeters): per landmeter ex_uitb/meting/gr_uitz/l_meting/plot_inzage_coord invoer
+  - DB: maand_prod_landmeter + maand_prod_samenvatting_lm
+  - Write-through: synct naar trend_km_buiten
+  - Totaal = meting + gr_uitz (ex_uitb/l_meting/plot_inzage_coord niet in totaal)
+  - Standaard landmeters: H. Balootje, R. Conradus, L. Francisca, E. Felicia, A. Zimmerman, J. Baromeo, M. Isidora
+  - "Afgeboekte stukken" rij is speciaal (geen invoervelden, niet meegeteld)
+- GET /api/trend-kartografen-hist en GET /api/kartografie-productie mergen automatisch maand_prod data voor ontbrekende maanden
+- GET /api/trend-km-buiten mergt automatisch maand_prod_landmeter data voor ontbrekende maanden
+
 ## Running Locally
 ```bash
 npm install

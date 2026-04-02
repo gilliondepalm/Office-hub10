@@ -447,6 +447,33 @@ export const insertMaandProdSamenvattingSchema = createInsertSchema(maandProdSam
 export type InsertMaandProdSamenvatting = z.infer<typeof insertMaandProdSamenvattingSchema>;
 export type MaandProdSamenvatting = typeof maandProdSamenvatting.$inferSelect;
 
+// ── Maandelijkse productie landmeters ────────────────────────────────────────
+export const maandProdLandmeter = pgTable("maand_prod_landmeter", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  landmeter: text("landmeter").notNull(),
+  ex_uitb: integer("ex_uitb").notNull().default(0),
+  meting: integer("meting").notNull().default(0),
+  gr_uitz: integer("gr_uitz").notNull().default(0),
+  l_meting: integer("l_meting").notNull().default(0),
+  plot_inzage_coord: integer("plot_inzage_coord").notNull().default(0),
+});
+export const insertMaandProdLandmeterSchema = createInsertSchema(maandProdLandmeter).omit({ id: true });
+export type InsertMaandProdLandmeter = z.infer<typeof insertMaandProdLandmeterSchema>;
+export type MaandProdLandmeter = typeof maandProdLandmeter.$inferSelect;
+
+export const maandProdSamenvattingLm = pgTable("maand_prod_samenvatting_lm", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  binnengekomen: integer("binnengekomen").notNull().default(0),
+  aantal_landmeters: integer("aantal_landmeters").notNull().default(0),
+});
+export const insertMaandProdSamenvattingLmSchema = createInsertSchema(maandProdSamenvattingLm).omit({ id: true });
+export type InsertMaandProdSamenvattingLm = z.infer<typeof insertMaandProdSamenvattingLmSchema>;
+export type MaandProdSamenvattingLm = typeof maandProdSamenvattingLm.$inferSelect;
+
 // ── Kartografie productie (KM Binnen import) ─────────────────────────────────
 export const kartografieProductie = pgTable("kartografie_productie", {
   id: serial("id").primaryKey(),

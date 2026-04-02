@@ -33,6 +33,8 @@ import {
   type KartografieProductie, type InsertKartografieProductie,
   type MaandProdKartograaf, type InsertMaandProdKartograaf,
   type MaandProdSamenvatting, type InsertMaandProdSamenvatting,
+  type MaandProdLandmeter, type InsertMaandProdLandmeter,
+  type MaandProdSamenvattingLm, type InsertMaandProdSamenvattingLm,
   type TrendKmBuiten, type InsertTrendKmBuiten,
   type TrendKmInfo, type InsertTrendKmInfo,
   type TrendOrInfo, type InsertTrendOrInfo,
@@ -41,6 +43,7 @@ import {
   type TrendKartografenHist, type InsertTrendKartografenHist,
   helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
   maandProdKartograaf, maandProdSamenvatting,
+  maandProdLandmeter, maandProdSamenvattingLm,
   trendKmBuiten, trendKmInfo, trendOrInfo, trendOrAlgemeen, trendOrNotaris, trendKartografenHist,
 } from "@shared/schema";
 
@@ -205,6 +208,14 @@ export interface IStorage {
   getMaandProdKartograafJaar(jaar: number): Promise<MaandProdKartograaf[]>;
   getAllMaandProdKartograaf(): Promise<MaandProdKartograaf[]>;
   getAllMaandProdSamenvatting(): Promise<MaandProdSamenvatting[]>;
+
+  getMaandProdLandmeter(jaar: number, maand: number): Promise<MaandProdLandmeter[]>;
+  saveMaandProdLandmeter(rows: InsertMaandProdLandmeter[]): Promise<void>;
+  getMaandProdSamenvattingLm(jaar: number, maand: number): Promise<MaandProdSamenvattingLm | undefined>;
+  saveMaandProdSamenvattingLm(data: InsertMaandProdSamenvattingLm): Promise<MaandProdSamenvattingLm>;
+  getAllMaandProdLandmeter(): Promise<MaandProdLandmeter[]>;
+  getAllMaandProdSamenvattingLm(): Promise<MaandProdSamenvattingLm[]>;
+  upsertTrendKmBuitenRow(data: InsertTrendKmBuiten): Promise<void>;
 
   getTrendKmBuiten(): Promise<TrendKmBuiten[]>;
   bulkUpsertTrendKmBuiten(rows: InsertTrendKmBuiten[]): Promise<void>;
@@ -1221,6 +1232,59 @@ export class DatabaseStorage implements IStorage {
   async getAllMaandProdSamenvatting(): Promise<MaandProdSamenvatting[]> {
     return await db.select().from(maandProdSamenvatting)
       .orderBy(maandProdSamenvatting.jaar, maandProdSamenvatting.maand);
+  }
+
+  async getMaandProdLandmeter(jaar: number, maand: number): Promise<MaandProdLandmeter[]> {
+    return await db.select().from(maandProdLandmeter)
+      .where(and(eq(maandProdLandmeter.jaar, jaar), eq(maandProdLandmeter.maand, maand)));
+  }
+
+  async saveMaandProdLandmeter(rows: InsertMaandProdLandmeter[]): Promise<void> {
+    if (rows.length === 0) return;
+    const { jaar, maand } = rows[0];
+    await db.delete(maandProdLandmeter).where(and(eq(maandProdLandmeter.jaar, jaar), eq(maandProdLandmeter.maand, maand)));
+    await db.insert(maandProdLandmeter).values(rows);
+  }
+
+  async getMaandProdSamenvattingLm(jaar: number, maand: number): Promise<MaandProdSamenvattingLm | undefined> {
+    const [row] = await db.select().from(maandProdSamenvattingLm)
+      .where(and(eq(maandProdSamenvattingLm.jaar, jaar), eq(maandProdSamenvattingLm.maand, maand)));
+    return row;
+  }
+
+  async saveMaandProdSamenvattingLm(data: InsertMaandProdSamenvattingLm): Promise<MaandProdSamenvattingLm> {
+    const existing = await this.getMaandProdSamenvattingLm(data.jaar, data.maand);
+    if (existing) {
+      const [updated] = await db.update(maandProdSamenvattingLm)
+        .set({ binnengekomen: data.binnengekomen, aantal_landmeters: data.aantal_landmeters })
+        .where(eq(maandProdSamenvattingLm.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [inserted] = await db.insert(maandProdSamenvattingLm).values(data).returning();
+    return inserted;
+  }
+
+  async getAllMaandProdLandmeter(): Promise<MaandProdLandmeter[]> {
+    return await db.select().from(maandProdLandmeter)
+      .orderBy(maandProdLandmeter.jaar, maandProdLandmeter.maand, maandProdLandmeter.landmeter);
+  }
+
+  async getAllMaandProdSamenvattingLm(): Promise<MaandProdSamenvattingLm[]> {
+    return await db.select().from(maandProdSamenvattingLm)
+      .orderBy(maandProdSamenvattingLm.jaar, maandProdSamenvattingLm.maand);
+  }
+
+  async upsertTrendKmBuitenRow(data: InsertTrendKmBuiten): Promise<void> {
+    const [existing] = await db.select().from(trendKmBuiten)
+      .where(and(eq(trendKmBuiten.jaar, data.jaar), eq(trendKmBuiten.maand, data.maand)));
+    if (existing) {
+      await db.update(trendKmBuiten)
+        .set({ binnengekomen: data.binnengekomen, afgehandeld: data.afgehandeld, uitbesteding: data.uitbesteding, gemiddeld: data.gemiddeld, landmeters: data.landmeters })
+        .where(eq(trendKmBuiten.id, existing.id));
+    } else {
+      await db.insert(trendKmBuiten).values(data);
+    }
   }
 
   // ── Trend helpers (delete-then-insert per jaar) ───────────────────────────

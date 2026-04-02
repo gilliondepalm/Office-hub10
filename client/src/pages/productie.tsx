@@ -1792,6 +1792,300 @@ function MaandelijkseProdKartografenTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Maandelijkse Productie Landmeters
+
+const STANDAARD_LANDMETERS = [
+  "H. Balootje", "R. Conradus", "L. Francisca", "E. Felicia",
+  "A. Zimmerman", "J. Baromeo", "M. Isidora",
+];
+
+type MplRij = {
+  landmeter: string;
+  ex_uitb: number; meting: number; gr_uitz: number;
+  l_meting: number; plot_inzage_coord: number;
+};
+
+const LEGE_LM_RIJ = (naam: string): MplRij => ({
+  landmeter: naam, ex_uitb: 0, meting: 0, gr_uitz: 0, l_meting: 0, plot_inzage_coord: 0,
+});
+
+function MaandelijkseProdLandmetersTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [maand, setMaand] = useState(new Date().getMonth() + 1);
+  const [rijen, setRijen] = useState<MplRij[]>([
+    ...STANDAARD_LANDMETERS.map(LEGE_LM_RIJ),
+    LEGE_LM_RIJ("afgeboekte_stukken"),
+  ]);
+  const [binnengekomen, setBinnengekomen] = useState(0);
+  const [aantalLandmeters, setAantalLandmeters] = useState(7);
+  const [nieuweNaam, setNieuweNaam] = useState("");
+  const [toonToevoegen, setToonToevoegen] = useState(false);
+  const [opgeslagen, setOpgeslagen] = useState(false);
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-landmeter", HUIDIG_JAAR, maand],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-landmeter?jaar=${HUIDIG_JAAR}&maand=${maand}`);
+      const data = await res.json();
+      if (data.landmeters && data.landmeters.length > 0) {
+        setRijen(data.landmeters.map((r: any): MplRij => ({
+          landmeter: r.landmeter,
+          ex_uitb: r.ex_uitb, meting: r.meting, gr_uitz: r.gr_uitz,
+          l_meting: r.l_meting, plot_inzage_coord: r.plot_inzage_coord,
+        })));
+      } else {
+        setRijen([...STANDAARD_LANDMETERS.map(LEGE_LM_RIJ), LEGE_LM_RIJ("afgeboekte_stukken")]);
+      }
+      if (data.samenvatting) {
+        setBinnengekomen(data.samenvatting.binnengekomen ?? 0);
+        setAantalLandmeters(data.samenvatting.aantal_landmeters ?? 7);
+      } else {
+        setBinnengekomen(0);
+        setAantalLandmeters(7);
+      }
+      setOpgeslagen(false);
+      return data;
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/maand-prod-landmeter", {
+        jaar: HUIDIG_JAAR, maand,
+        landmeters: rijen.map(r => ({ ...r, jaar: HUIDIG_JAAR, maand })),
+        samenvatting: { jaar: HUIDIG_JAAR, maand, binnengekomen, aantal_landmeters: aantalLandmeters },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-landmeter"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-km-buiten"] });
+      setOpgeslagen(true);
+      toast({ title: "Opgeslagen", description: `Productie Landmeters ${MAAND_NAMEN[maand - 1]} ${HUIDIG_JAAR} opgeslagen.` });
+    },
+    onError: () => toast({ title: "Fout", description: "Opslaan mislukt.", variant: "destructive" }),
+  });
+
+  const updateRij = (idx: number, veld: keyof MplRij, val: number | string) => {
+    setRijen(prev => prev.map((r, i) => i === idx ? { ...r, [veld]: val } : r));
+    setOpgeslagen(false);
+  };
+
+  const verwijderRij = (idx: number) => {
+    setRijen(prev => prev.filter((_, i) => i !== idx));
+    setOpgeslagen(false);
+  };
+
+  const voegToe = () => {
+    const naam = nieuweNaam.trim();
+    if (!naam) return;
+    setRijen(prev => [...prev, LEGE_LM_RIJ(naam)]);
+    setNieuweNaam("");
+    setToonToevoegen(false);
+    setOpgeslagen(false);
+  };
+
+  const totProd = (r: MplRij) => r.meting + r.gr_uitz;
+  const prodRijen = rijen.filter(r => r.landmeter !== "afgeboekte_stukken");
+  const totaalProd     = prodRijen.reduce((s, r) => s + totProd(r), 0);
+  const totaalExUitb   = prodRijen.reduce((s, r) => s + r.ex_uitb, 0);
+  const totaalMeting   = prodRijen.reduce((s, r) => s + r.meting, 0);
+  const totaalGrUitz   = prodRijen.reduce((s, r) => s + r.gr_uitz, 0);
+  const totaalLMeting  = prodRijen.reduce((s, r) => s + r.l_meting, 0);
+  const totaalPlotInz  = prodRijen.reduce((s, r) => s + r.plot_inzage_coord, 0);
+  const gemiddeld      = aantalLandmeters > 0 ? +(totaalProd / aantalLandmeters).toFixed(1) : 0;
+
+  const numInput = (val: number, onChange: (n: number) => void, testId?: string) => (
+    <input
+      type="number"
+      min={0}
+      value={val === 0 ? "" : val}
+      placeholder="0"
+      onChange={e => onChange(parseInt(e.target.value) || 0)}
+      data-testid={testId}
+      className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+    />
+  );
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Productie Landmeters {HUIDIG_JAAR}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse productie per landmeter in</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={String(maand)} onValueChange={v => setMaand(parseInt(v))}>
+                <SelectTrigger className="w-36 h-8 text-xs" data-testid="select-maand-mpl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAAND_NAMEN.map((m, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)} className="text-xs">{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                data-testid="button-opslaan-mpl"
+                className="h-8 text-xs"
+              >
+                {saveMutation.isPending ? "Opslaan..." : opgeslagen ? "✓ Opgeslagen" : "Opslaan"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Laden…</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2 text-left font-semibold min-w-[130px]">{MAAND_NAMEN[maand - 1]}</th>
+                    <th className="px-2 py-2 text-right font-semibold w-14">Totaal</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">Ex. Uitb.</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">Meting</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">Gr. uitz.</th>
+                    <th className="px-2 py-2 text-right font-semibold w-16">L_meting</th>
+                    <th className="px-2 py-2 text-right font-semibold w-20">Plot/Inzage Coord.</th>
+                    <th className="px-1 py-2 w-6"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rijen.map((rij, idx) => {
+                    const isAfgeboekt = rij.landmeter === "afgeboekte_stukken";
+                    return (
+                      <tr key={idx} className={`border-b hover:bg-muted/20 ${isAfgeboekt ? "text-muted-foreground italic" : ""}`}>
+                        <td className="px-3 py-1.5 font-medium">
+                          {isAfgeboekt ? "Afgeboekte stukken" : rij.landmeter}
+                        </td>
+                        <td className="px-2 py-1.5 text-right font-semibold text-primary">
+                          {totProd(rij) > 0 ? totProd(rij) : ""}
+                        </td>
+                        {isAfgeboekt ? (
+                          <>
+                            <td className="px-1 py-1 bg-muted/30" colSpan={5}></td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-1 py-1">{numInput(rij.ex_uitb,          v => updateRij(idx, "ex_uitb",          v), `input-exuitb-${idx}`)}</td>
+                            <td className="px-1 py-1">{numInput(rij.meting,            v => updateRij(idx, "meting",            v), `input-meting-${idx}`)}</td>
+                            <td className="px-1 py-1">{numInput(rij.gr_uitz,           v => updateRij(idx, "gr_uitz",           v), `input-gruitz-lm-${idx}`)}</td>
+                            <td className="px-1 py-1">{numInput(rij.l_meting,          v => updateRij(idx, "l_meting",          v), `input-lmeting-${idx}`)}</td>
+                            <td className="px-1 py-1">{numInput(rij.plot_inzage_coord, v => updateRij(idx, "plot_inzage_coord", v), `input-plot-lm-${idx}`)}</td>
+                          </>
+                        )}
+                        <td className="px-1 py-1 text-center">
+                          {!STANDAARD_LANDMETERS.includes(rij.landmeter) && !isAfgeboekt && (
+                            <button onClick={() => verwijderRij(idx)} className="text-muted-foreground hover:text-destructive text-xs">✕</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* Rij toevoegen */}
+                  {toonToevoegen ? (
+                    <tr className="border-b bg-muted/10">
+                      <td colSpan={8} className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={nieuweNaam}
+                            onChange={e => setNieuweNaam(e.target.value)}
+                            placeholder="Naam landmeter"
+                            className="border rounded px-2 py-1 text-xs w-40 bg-background"
+                            onKeyDown={e => e.key === "Enter" && voegToe()}
+                            data-testid="input-nieuwe-landmeter"
+                            autoFocus
+                          />
+                          <button onClick={voegToe} className="text-xs text-primary hover:underline">Toevoegen</button>
+                          <button onClick={() => setToonToevoegen(false)} className="text-xs text-muted-foreground hover:underline">Annuleren</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="px-3 py-1">
+                        <button
+                          onClick={() => setToonToevoegen(true)}
+                          className="text-xs text-muted-foreground hover:text-primary"
+                          data-testid="button-voeg-landmeter-toe"
+                        >
+                          + Landmeter toevoegen
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+
+                  <tr><td colSpan={8} className="py-1"></td></tr>
+
+                  {/* Productie totaal */}
+                  <tr className="border-t bg-muted/30 font-semibold">
+                    <td className="px-3 py-1.5">Productie totaal</td>
+                    <td className="px-2 py-1.5 text-right">{totaalProd || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totaalExUitb || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totaalMeting || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totaalGrUitz || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totaalLMeting || ""}</td>
+                    <td className="px-2 py-1.5 text-right">{totaalPlotInz || ""}</td>
+                    <td></td>
+                  </tr>
+
+                  {/* Binnengekomen — gebruikersinvoer */}
+                  <tr className="border-t hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">Binnengekomen</td>
+                    <td className="px-1 py-1" colSpan={6}>
+                      {numInput(binnengekomen, setBinnengekomen, "input-binnengekomen-lm")}
+                    </td>
+                    <td></td>
+                  </tr>
+
+                  {/* Gemiddeld — berekend */}
+                  <tr className="border-t hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">Gemiddeld/landmeter</td>
+                    <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={6}>{gemiddeld || ""}</td>
+                    <td></td>
+                  </tr>
+
+                  {/* Aantal landmeters — gebruikersinvoer */}
+                  <tr className="border-t hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">Aantal landmeters</td>
+                    <td className="px-1 py-1" colSpan={6}>
+                      {numInput(aantalLandmeters, setAantalLandmeters, "input-aantal-landmeters")}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
+            <div><span className="font-medium text-foreground">Totaal</span> = Meting + Gr. uitz.</div>
+            <div><span className="font-medium text-foreground">Ex. Uitb.</span> = Extern uitbesteed (niet in totaal)</div>
+            <div><span className="font-medium text-foreground">Meting</span> = Veldmeting</div>
+            <div><span className="font-medium text-foreground">Gr. uitz.</span> = Grens uitzetting</div>
+            <div><span className="font-medium text-foreground">L_meting</span> = Landmeting (niet in totaal)</div>
+            <div><span className="font-medium text-foreground">Plot/Inzage Coord.</span> = Plotwerk / Inzage / Coördinaten (niet in totaal)</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Trend Kartografen data
 const KG_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 const KG_JAREN = ["2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
@@ -2875,9 +3169,15 @@ export default function ProductiePage() {
                 <TabsTrigger value="prod-kartografen" data-testid="tab-prod-kartografen">
                   Productie Kartografen
                 </TabsTrigger>
+                <TabsTrigger value="prod-landmeters" data-testid="tab-prod-landmeters">
+                  Productie Landmeters
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="prod-kartografen">
                 <MaandelijkseProdKartografenTab />
+              </TabsContent>
+              <TabsContent value="prod-landmeters">
+                <MaandelijkseProdLandmetersTab />
               </TabsContent>
             </Tabs>
           </TabsContent>

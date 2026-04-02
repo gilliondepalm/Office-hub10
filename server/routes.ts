@@ -24,6 +24,8 @@ import {
   insertKartografieProductieSchema,
   insertMaandProdKartograafSchema,
   insertMaandProdSamenvattingSchema,
+  insertMaandProdLandmeterSchema,
+  insertMaandProdSamenvattingLmSchema,
   insertTrendKmBuitenSchema,
   insertTrendKmInfoSchema,
   insertTrendOrInfoSchema,
@@ -2396,10 +2398,80 @@ export async function registerRoutes(
     return isAdminRole(user?.role) || user?.role === "manager";
   }
 
+  // ── Maandelijkse productie Landmeters ─────────────────────────────────────
+  app.get("/api/maand-prod-landmeter", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const jaar = parseInt(req.query.jaar as string) || new Date().getFullYear();
+    const maand = parseInt(req.query.maand as string) || new Date().getMonth() + 1;
+    try {
+      const [landmeters, samenvatting] = await Promise.all([
+        storage.getMaandProdLandmeter(jaar, maand),
+        storage.getMaandProdSamenvattingLm(jaar, maand),
+      ]);
+      res.json({ landmeters, samenvatting: samenvatting ?? null });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
+  app.post("/api/maand-prod-landmeter", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const { jaar, maand, landmeters, samenvatting } = req.body;
+    if (!jaar || !maand || !Array.isArray(landmeters)) {
+      return res.status(400).json({ message: "Ongeldige data" });
+    }
+    try {
+      const parsedRows = landmeters.map((r: unknown) => insertMaandProdLandmeterSchema.parse(r));
+      await storage.saveMaandProdLandmeter(parsedRows);
+      const parsedSam = insertMaandProdSamenvattingLmSchema.parse(samenvatting);
+      const savedSam = await storage.saveMaandProdSamenvattingLm(parsedSam);
+
+      // ── Write-through naar trend_km_buiten ────────────────────────────────
+      const totProd = (r: { meting: number; gr_uitz: number }) => r.meting + r.gr_uitz;
+      const actieveRijen = parsedRows.filter(r => r.landmeter !== "afgeboekte_stukken");
+      const totAfgehandeld = actieveRijen.reduce((s, r) => s + totProd(r), 0);
+      const totUitbesteding = actieveRijen.reduce((s, r) => s + r.ex_uitb, 0);
+      const aantalLm = parsedSam.aantal_landmeters || 1;
+      const gemiddeld = aantalLm > 0 ? +(totAfgehandeld / aantalLm).toFixed(1) : 0;
+
+      await storage.upsertTrendKmBuitenRow(insertTrendKmBuitenSchema.parse({
+        jaar: parsedSam.jaar,
+        maand: parsedSam.maand,
+        binnengekomen: parsedSam.binnengekomen,
+        afgehandeld: totAfgehandeld,
+        uitbesteding: totUitbesteding,
+        gemiddeld,
+        landmeters: parsedSam.aantal_landmeters,
+      }));
+
+      res.json({ success: true, samenvatting: savedSam });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij opslaan" });
+    }
+  });
+
   // ── Trend KM Buiten ──────────────────────────────────────────────────────────
   app.get("/api/trend-km-buiten", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
-    try { res.json(await storage.getTrendKmBuiten()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+    try {
+      const [trendRows, lmRows, samRows] = await Promise.all([
+        storage.getTrendKmBuiten(),
+        storage.getAllMaandProdLandmeter(),
+        storage.getAllMaandProdSamenvattingLm(),
+      ]);
+      const trendKeys = new Set(trendRows.map(r => `${r.jaar}-${r.maand}`));
+      const totProd = (r: { meting: number; gr_uitz: number }) => r.meting + r.gr_uitz;
+      const extraRows = samRows
+        .filter(s => !trendKeys.has(`${s.jaar}-${s.maand}`))
+        .map(s => {
+          const actief = lmRows.filter(r => r.jaar === s.jaar && r.maand === s.maand && r.landmeter !== "afgeboekte_stukken");
+          const totAf = actief.reduce((acc, r) => acc + totProd(r), 0);
+          const totUitb = actief.reduce((acc, r) => acc + r.ex_uitb, 0);
+          const aantalLm = s.aantal_landmeters || 1;
+          return { id: 0, jaar: s.jaar, maand: s.maand, binnengekomen: s.binnengekomen, afgehandeld: totAf, uitbesteding: totUitb, gemiddeld: aantalLm > 0 ? +(totAf / aantalLm) : 0, landmeters: s.aantal_landmeters };
+        });
+      res.json([...trendRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : a.maand - b.maand));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
   app.post("/api/trend-km-buiten/import", async (req, res) => {
     const user = (req as any).user;
