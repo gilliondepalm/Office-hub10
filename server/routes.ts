@@ -24,6 +24,12 @@ import {
   insertKartografieProductieSchema,
   insertMaandProdKartograafSchema,
   insertMaandProdSamenvattingSchema,
+  insertTrendKmBuitenSchema,
+  insertTrendKmInfoSchema,
+  insertTrendOrInfoSchema,
+  insertTrendOrAlgemeenSchema,
+  insertTrendOrNotarisSchema,
+  insertTrendKartografenHistSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -2250,7 +2256,7 @@ export async function registerRoutes(
 
   app.post("/api/kartografie-productie/import", async (req, res) => {
     const user = (req as any).user;
-    if (!user || !isAdminRole(user.role)) return res.status(403).json({ message: "Alleen beheerders" });
+    if (!user || (!isAdminRole(user.role) && user.role !== "manager")) return res.status(403).json({ message: "Alleen beheerders of managers" });
     try {
       const { rows } = req.body;
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -2266,7 +2272,7 @@ export async function registerRoutes(
 
   app.delete("/api/kartografie-productie/:jaar", async (req, res) => {
     const user = (req as any).user;
-    if (!user || !isAdminRole(user.role)) return res.status(403).json({ message: "Alleen beheerders" });
+    if (!user || (!isAdminRole(user.role) && user.role !== "manager")) return res.status(403).json({ message: "Alleen beheerders of managers" });
     const jaar = parseInt(req.params.jaar);
     if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
     try {
@@ -2322,6 +2328,155 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Fout bij opslaan" });
     }
+  });
+
+  // ── Helper: controleer of gebruiker admin of manager is ─────────────────────
+  function isAdminOrManager(user: any): boolean {
+    return isAdminRole(user?.role) || user?.role === "manager";
+  }
+
+  // ── Trend KM Buiten ──────────────────────────────────────────────────────────
+  app.get("/api/trend-km-buiten", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try { res.json(await storage.getTrendKmBuiten()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/trend-km-buiten/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertTrendKmBuitenSchema.parse(r));
+      await storage.bulkUpsertTrendKmBuiten(parsed);
+      res.json({ imported: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+  app.delete("/api/trend-km-buiten/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try { await storage.deleteTrendKmBuitenByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Trend KM Info ─────────────────────────────────────────────────────────────
+  app.get("/api/trend-km-info", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try { res.json(await storage.getTrendKmInfo()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/trend-km-info/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertTrendKmInfoSchema.parse(r));
+      await storage.bulkUpsertTrendKmInfo(parsed);
+      res.json({ imported: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+  app.delete("/api/trend-km-info/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try { await storage.deleteTrendKmInfoByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Trend OR Info ─────────────────────────────────────────────────────────────
+  app.get("/api/trend-or-info", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try { res.json(await storage.getTrendOrInfo()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/trend-or-info/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertTrendOrInfoSchema.parse(r));
+      await storage.bulkUpsertTrendOrInfo(parsed);
+      res.json({ imported: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+  app.delete("/api/trend-or-info/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try { await storage.deleteTrendOrInfoByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Trend OR Algemeen ─────────────────────────────────────────────────────────
+  app.get("/api/trend-or-algemeen", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try { res.json(await storage.getTrendOrAlgemeen()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/trend-or-algemeen/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertTrendOrAlgemeenSchema.parse(r));
+      await storage.bulkUpsertTrendOrAlgemeen(parsed);
+      res.json({ imported: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+  app.delete("/api/trend-or-algemeen/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try { await storage.deleteTrendOrAlgemeenByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Trend OR Notaris ──────────────────────────────────────────────────────────
+  app.get("/api/trend-or-notaris", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try { res.json(await storage.getTrendOrNotaris()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/trend-or-notaris/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertTrendOrNotarisSchema.parse(r));
+      await storage.bulkUpsertTrendOrNotaris(parsed);
+      res.json({ imported: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+  app.delete("/api/trend-or-notaris/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try { await storage.deleteTrendOrNotarisByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Trend Kartografen historisch ──────────────────────────────────────────────
+  app.get("/api/trend-kartografen-hist", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try { res.json(await storage.getTrendKartografenHist()); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/trend-kartografen-hist/import", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertTrendKartografenHistSchema.parse(r));
+      await storage.bulkUpsertTrendKartografenHist(parsed);
+      res.json({ imported: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+  app.delete("/api/trend-kartografen-hist/:jaar", async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try { await storage.deleteTrendKartografenHistByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   return httpServer;

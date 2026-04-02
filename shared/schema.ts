@@ -461,3 +461,94 @@ export const kartografieProductie = pgTable("kartografie_productie", {
 export const insertKartografieProductieSchema = createInsertSchema(kartografieProductie).omit({ id: true });
 export type InsertKartografieProductie = z.infer<typeof insertKartografieProductieSchema>;
 export type KartografieProductie = typeof kartografieProductie.$inferSelect;
+
+// ── Trend KM Buiten ──────────────────────────────────────────────────────────
+export const trendKmBuiten = pgTable("trend_km_buiten", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  binnengekomen: integer("binnengekomen").notNull().default(0),
+  afgehandeld: integer("afgehandeld").notNull().default(0),
+  uitbesteding: integer("uitbesteding").notNull().default(0),
+  gemiddeld: real("gemiddeld").notNull().default(0),
+  landmeters: integer("landmeters").notNull().default(0),
+});
+export const insertTrendKmBuitenSchema = createInsertSchema(trendKmBuiten).omit({ id: true });
+export type InsertTrendKmBuiten = z.infer<typeof insertTrendKmBuitenSchema>;
+export type TrendKmBuiten = typeof trendKmBuiten.$inferSelect;
+
+// ── Trend KM Info ─────────────────────────────────────────────────────────────
+export const trendKmInfo = pgTable("trend_km_info", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  kkp: integer("kkp").notNull().default(0),
+  db: integer("db").notNull().default(0),
+  sa: integer("sa").notNull().default(0),
+  rm: integer("rm").notNull().default(0),
+  re: integer("re").notNull().default(0),
+  km: integer("km").notNull().default(0),
+  ik: integer("ik").notNull().default(0),
+});
+export const insertTrendKmInfoSchema = createInsertSchema(trendKmInfo).omit({ id: true });
+export type InsertTrendKmInfo = z.infer<typeof insertTrendKmInfoSchema>;
+export type TrendKmInfo = typeof trendKmInfo.$inferSelect;
+
+// ── Trend OR Info ─────────────────────────────────────────────────────────────
+export const trendOrInfo = pgTable("trend_or_info", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  inzagen: integer("inzagen").notNull().default(0),
+  her_inzage: integer("her_inzage").notNull().default(0),
+  na_inzage: integer("na_inzage").notNull().default(0),
+  kadastaal_legger: integer("kadastaal_legger").notNull().default(0),
+  verklaring: integer("verklaring").notNull().default(0),
+  getuigschrift: integer("getuigschrift").notNull().default(0),
+});
+export const insertTrendOrInfoSchema = createInsertSchema(trendOrInfo).omit({ id: true });
+export type InsertTrendOrInfo = z.infer<typeof insertTrendOrInfoSchema>;
+export type TrendOrInfo = typeof trendOrInfo.$inferSelect;
+
+// ── Trend OR Algemeen ─────────────────────────────────────────────────────────
+export const trendOrAlgemeen = pgTable("trend_or_algemeen", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  aktes: integer("aktes").notNull().default(0),
+  inschrijvingen: integer("inschrijvingen").notNull().default(0),
+  doorhalingen: integer("doorhalingen").notNull().default(0),
+  opheffingen: integer("opheffingen").notNull().default(0),
+  beslagen: integer("beslagen").notNull().default(0),
+  cessies: integer("cessies").notNull().default(0),
+});
+export const insertTrendOrAlgemeenSchema = createInsertSchema(trendOrAlgemeen).omit({ id: true });
+export type InsertTrendOrAlgemeen = z.infer<typeof insertTrendOrAlgemeenSchema>;
+export type TrendOrAlgemeen = typeof trendOrAlgemeen.$inferSelect;
+
+// ── Trend OR Notaris ──────────────────────────────────────────────────────────
+export const trendOrNotaris = pgTable("trend_or_notaris", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  notaris_key: text("notaris_key").notNull(),
+  waarde: integer("waarde").notNull().default(0),
+});
+export const insertTrendOrNotarisSchema = createInsertSchema(trendOrNotaris).omit({ id: true });
+export type InsertTrendOrNotaris = z.infer<typeof insertTrendOrNotarisSchema>;
+export type TrendOrNotaris = typeof trendOrNotaris.$inferSelect;
+
+// ── Trend Kartografen historisch ──────────────────────────────────────────────
+export const trendKartografenHist = pgTable("trend_kartografen_hist", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  egaleano: integer("egaleano").notNull().default(0),
+  jpieters: integer("jpieters").notNull().default(0),
+  nsambo: integer("nsambo").notNull().default(0),
+  binnengekomen: integer("binnengekomen").notNull().default(0),
+  afgehandeld: integer("afgehandeld").notNull().default(0),
+});
+export const insertTrendKartografenHistSchema = createInsertSchema(trendKartografenHist).omit({ id: true });
+export type InsertTrendKartografenHist = z.infer<typeof insertTrendKartografenHistSchema>;
+export type TrendKartografenHist = typeof trendKartografenHist.$inferSelect;

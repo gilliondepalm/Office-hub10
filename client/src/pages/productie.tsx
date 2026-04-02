@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -272,9 +272,105 @@ function maandelijkseGroei(data: BalieRij[]): BalieRij[] {
 
 const BALIE_JAREN_ASC = Object.keys(BALIE_DATA).sort((a, b) => Number(a) - Number(b));
 
+function TrendImportButton({ label, queryKey, endpoint }: { label: string; queryKey: string; endpoint: string }) {
+  const [open, setOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const handleImport = async () => {
+    setStatus("loading");
+    try {
+      const res = await apiRequest("POST", endpoint, { csv: csvText });
+      const data = await res.json();
+      qc.invalidateQueries({ queryKey: [queryKey] });
+      setStatus("ok");
+      const n = data.inserted ?? data.count ?? 0;
+      setMessage(`${n} rijen geïmporteerd.`);
+      toast({ title: "Import geslaagd", description: `${n} rijen geïmporteerd.` });
+    } catch (e: any) {
+      setStatus("error");
+      setMessage(e?.message ?? "Onbekende fout");
+      toast({ title: "Import mislukt", description: e?.message ?? "Onbekende fout", variant: "destructive" });
+    }
+  };
+
+  const reset = () => { setStatus("idle"); setCsvText(""); setMessage(""); };
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => { setOpen(true); reset(); }} data-testid={`button-trend-import-${queryKey}`}>
+        <Upload className="h-3.5 w-3.5" /> CSV importeren
+      </Button>
+      <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) reset(); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>CSV importeren — {label}</DialogTitle>
+            <DialogDescription>
+              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar worden vervangen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileRef.current?.click()} data-testid={`button-trend-import-file-${queryKey}`}>
+                <Upload className="h-3.5 w-3.5" /> Bestand kiezen
+              </Button>
+              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => setCsvText(ev.target?.result as string ?? "");
+                reader.readAsText(file); e.target.value = "";
+              }} />
+            </div>
+            <Textarea
+              placeholder="Plak hier de CSV-inhoud..."
+              className="font-mono text-xs min-h-[200px]"
+              value={csvText}
+              onChange={e => { setCsvText(e.target.value); setStatus("idle"); }}
+              data-testid={`textarea-trend-csv-${queryKey}`}
+            />
+            {status === "ok" && (
+              <div className="flex items-center gap-1.5 text-green-700 dark:text-green-400 text-xs">
+                <CheckCircle2 className="h-3.5 w-3.5" /> {message}
+              </div>
+            )}
+            {status === "error" && (
+              <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 text-xs">
+                <AlertCircle className="h-3.5 w-3.5" /> {message}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Annuleren</Button>
+            <Button size="sm" disabled={!csvText.trim() || status === "loading"} onClick={handleImport} data-testid={`button-trend-import-submit-${queryKey}`}>
+              {status === "loading" ? "Importeren..." : "Importeren"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function BalieMedewerkerTab() {
   const [maandIdx, setMaandIdx] = useState(11);
   const [periodeIdx, setPeriodeIdx] = useState(0);
+
+  const { data: dbKmInfoRows } = useQuery<{ jaar: number; maand: number; kkp: number; db: number; sa: number; rm: number; re: number; km: number; ik: number }[]>({ queryKey: ['/api/trend-km-info'] });
+  const dbKmInfoMap = useMemo(() => {
+    if (!dbKmInfoRows || dbKmInfoRows.length === 0) return null;
+    const map: Record<string, BalieRij[]> = {};
+    for (const r of dbKmInfoRows) {
+      const j = String(r.jaar);
+      if (!map[j]) map[j] = Array(12).fill(null).map((_, idx) => ({ maand: BALIE_MAANDEN[idx], kkp:0, db:0, sa:0, rm:0, re:0, km:0, ik:0 }));
+      map[j][r.maand - 1] = { maand: BALIE_MAANDEN[r.maand - 1], kkp: r.kkp, db: r.db, sa: r.sa, rm: r.rm, re: r.re, km: r.km, ik: r.ik };
+    }
+    return map;
+  }, [dbKmInfoRows]);
+  const activeBalieData = dbKmInfoMap ?? BALIE_DATA;
 
   const allePeriodes: { label: string; range: [number, number] }[] = [
     { label: "Alle jaren (2008–2025)", range: [0, 18] },
@@ -287,7 +383,7 @@ function BalieMedewerkerTab() {
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    const rij = BALIE_DATA[jaar]?.[maandIdx];
+    const rij = activeBalieData[jaar]?.[maandIdx];
     return {
       jaar,
       kkp: rij?.kkp ?? 0,
@@ -308,6 +404,7 @@ function BalieMedewerkerTab() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
+        <TrendImportButton label="Trend KM Info" queryKey="/api/trend-km-info" endpoint="/api/trend-km-info/import" />
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
           <Select value={String(maandIdx)} onValueChange={v => setMaandIdx(Number(v))}>
@@ -530,6 +627,19 @@ function BalieM3Tab() {
   const [maandIdx, setMaandIdx]   = useState(11);
   const [periodeIdx, setPeriodeIdx] = useState(0);
 
+  const { data: dbOrInfoRows } = useQuery<{ jaar: number; maand: number; inzagen: number; her_inzage: number; na_inzage: number; kadastaal_legger: number; verklaring: number; getuigschrift: number }[]>({ queryKey: ['/api/trend-or-info'] });
+  const dbOrInfoMap = useMemo(() => {
+    if (!dbOrInfoRows || dbOrInfoRows.length === 0) return null;
+    const map: Record<string, Balie3Rij[]> = {};
+    for (const r of dbOrInfoRows) {
+      const j = String(r.jaar);
+      if (!map[j]) map[j] = Array(12).fill(null).map(() => ({ inzagen:0, herInzage:0, naInzage:0, kadastraalLegger:0, verklaring:0, getuigschrift:0 }));
+      map[j][r.maand - 1] = { inzagen: r.inzagen, herInzage: r.her_inzage, naInzage: r.na_inzage, kadastraalLegger: r.kadastaal_legger, verklaring: r.verklaring, getuigschrift: r.getuigschrift };
+    }
+    return map;
+  }, [dbOrInfoRows]);
+  const activeB3Data = dbOrInfoMap ?? BALIE3_DATA;
+
   const allePeriodes: { label: string; range: [number, number] }[] = [
     { label: "Alle jaren (2008–2025)", range: [0, 18] },
     { label: "2008–2015",             range: [0, 8]  },
@@ -541,7 +651,7 @@ function BalieM3Tab() {
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    const rij = BALIE3_DATA[jaar]?.[maandIdx];
+    const rij = activeB3Data[jaar]?.[maandIdx];
     return { jaar, ...(rij ?? { inzagen:0, herInzage:0, naInzage:0, kadastraalLegger:0, verklaring:0, getuigschrift:0 }) };
   });
 
@@ -553,6 +663,7 @@ function BalieM3Tab() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
+        <TrendImportButton label="Trend OR Info" queryKey="/api/trend-or-info" endpoint="/api/trend-or-info/import" />
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
           <Select value={String(maandIdx)} onValueChange={v => setMaandIdx(Number(v))}>
@@ -775,9 +886,28 @@ function TrendOrAlgemeenTab() {
   const [maand, setMaand]           = useState("Dec");
   const [periodeIdx, setPeriodeIdx] = useState(0);
 
+  const { data: dbOraRows } = useQuery<{ jaar: number; maand: number; aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number }[]>({ queryKey: ['/api/trend-or-algemeen'] });
+  const dbOraMap = useMemo(() => {
+    if (!dbOraRows || dbOraRows.length === 0) return null;
+    const map: Record<string, Record<number, OrAlgemRij>> = {};
+    for (const r of dbOraRows) {
+      const j = String(r.jaar);
+      if (!map[j]) map[j] = {};
+      map[j][r.maand] = { aktes: r.aktes, inschrijvingen: r.inschrijvingen, doorhalingen: r.doorhalingen, opheffingen: r.opheffingen, beslagen: r.beslagen, cessies: r.cessies };
+    }
+    return map;
+  }, [dbOraRows]);
+
+  const buildOraDataActive = (maandIdxLocal: number, jarenFilter: string[]): OrAlgemRij[] => {
+    if (dbOraMap) {
+      return jarenFilter.map(j => dbOraMap[j]?.[maandIdxLocal + 1] ?? { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 });
+    }
+    return buildOraData(maandIdxLocal, jarenFilter);
+  };
+
   const maandIdx = ORA_MAANDEN.indexOf(maand);
   const { jaren } = ORA_PERIODES[periodeIdx];
-  const data      = buildOraData(maandIdx, jaren);
+  const data      = buildOraDataActive(maandIdx, jaren);
 
   const chartData = jaren.map((j, i) => ({
     jaar: j,
@@ -793,6 +923,7 @@ function TrendOrAlgemeenTab() {
     <div className="space-y-5">
       {/* Controls */}
       <div className="flex flex-wrap gap-3 items-center">
+        <TrendImportButton label="Trend OR Algemeen" queryKey="/api/trend-or-algemeen" endpoint="/api/trend-or-algemeen/import" />
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground font-medium">Periode t/m maand</span>
           <Select value={maand} onValueChange={setMaand}>
@@ -1189,6 +1320,24 @@ function TrendOrNotarisTab() {
     new Set(ORN_NOTARISSEN.filter(n => n.actief).map(n => n.key))
   );
 
+  const { data: dbOrnRows } = useQuery<{ jaar: number; maand: number; notaris_key: string; waarde: number }[]>({ queryKey: ['/api/trend-or-notaris'] });
+  const dbOrnData = useMemo(() => {
+    if (!dbOrnRows || dbOrnRows.length === 0) return null;
+    const map: Record<string, Record<number, Record<number, number>>> = {};
+    for (const r of dbOrnRows) {
+      if (!map[r.notaris_key]) map[r.notaris_key] = {};
+      if (!map[r.notaris_key][r.maand]) map[r.notaris_key][r.maand] = {};
+      const ji = ORN_JAREN_ASC.indexOf(String(r.jaar));
+      if (ji >= 0) map[r.notaris_key][r.maand][ji] = r.waarde;
+    }
+    return map;
+  }, [dbOrnRows]);
+
+  const getOrnValue = (key: string, maandIdxLocal: number, ji: number): number => {
+    if (dbOrnData) return dbOrnData[key]?.[maandIdxLocal + 1]?.[ji] ?? 0;
+    return ORN_DATA[key]?.[maandIdxLocal]?.[ji] ?? 0;
+  };
+
   const maandIdx = ORN_MAANDEN.indexOf(maand);
   const { jaren } = ORN_PERIODES[periodeIdx];
 
@@ -1203,14 +1352,14 @@ function TrendOrNotarisTab() {
   const chartData = jaren.map((jaar) => {
     const ji = ORN_JAREN_ASC.indexOf(jaar);
     const row: Record<string,number|string> = { jaar };
-    ORN_NOTARISSEN.forEach(n => { row[n.key] = ORN_DATA[n.key]?.[maandIdx]?.[ji] ?? 0; });
+    ORN_NOTARISSEN.forEach(n => { row[n.key] = getOrnValue(n.key, maandIdx, ji); });
     return row;
   });
 
   // Ranking tabel: per notaris de waarde voor de laatste jaar in de periode
   const lastJi = ORN_JAREN_ASC.indexOf(jaren[jaren.length - 1]);
   const ranking = ORN_NOTARISSEN
-    .map(n => ({ ...n, waarde: ORN_DATA[n.key]?.[maandIdx]?.[lastJi] ?? 0 }))
+    .map(n => ({ ...n, waarde: getOrnValue(n.key, maandIdx, lastJi) }))
     .filter(n => selected.has(n.key) && n.waarde > 0)
     .sort((a, b) => b.waarde - a.waarde);
 
@@ -1218,6 +1367,7 @@ function TrendOrNotarisTab() {
     <div className="space-y-5">
       {/* Controls */}
       <div className="flex flex-wrap gap-3 items-start">
+        <TrendImportButton label="Trend OR Notaris" queryKey="/api/trend-or-notaris" endpoint="/api/trend-or-notaris/import" />
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground font-medium">Periode t/m maand</span>
           <Select value={maand} onValueChange={setMaand}>
@@ -1749,7 +1899,24 @@ function TrendKartografenTab() {
   const [geselecteerdJaar, setGeselecteerdJaar] = useState("2025");
   const [toonTotalen, setToonTotalen] = useState(true);
 
-  const jaarData = KG_MAANDDATA[geselecteerdJaar];
+  const { data: dbKgRows } = useQuery<{ jaar: number; maand: number; egaleano: number; jpieters: number; nsambo: number; binnengekomen: number; afgehandeld: number }[]>({ queryKey: ['/api/trend-kartografen-hist'] });
+  const dbKgMap = useMemo(() => {
+    if (!dbKgRows || dbKgRows.length === 0) return null;
+    const map: Record<string, typeof KG_MAANDDATA[string]> = {};
+    for (const r of dbKgRows) {
+      const j = String(r.jaar);
+      if (!map[j]) map[j] = { egaleano: Array(12).fill(0), jpieters: Array(12).fill(0), nsambo: Array(12).fill(0), binnengekomen: Array(12).fill(0), afgehandeld: Array(12).fill(0) };
+      map[j].egaleano[r.maand - 1] = r.egaleano;
+      map[j].jpieters[r.maand - 1] = r.jpieters;
+      map[j].nsambo[r.maand - 1] = r.nsambo;
+      map[j].binnengekomen[r.maand - 1] = r.binnengekomen;
+      map[j].afgehandeld[r.maand - 1] = r.afgehandeld;
+    }
+    return map;
+  }, [dbKgRows]);
+  const activeKgData = dbKgMap ?? KG_MAANDDATA;
+
+  const jaarData = activeKgData[geselecteerdJaar] ?? KG_MAANDDATA[geselecteerdJaar];
 
   // Maandelijkse grafiekdata voor geselecteerd jaar
   const maandChartData = KG_MAANDEN.map((m, i) => ({
@@ -1776,6 +1943,7 @@ function TrendKartografenTab() {
 
   return (
     <div className="space-y-6">
+      <TrendImportButton label="Trend Kartografen" queryKey="/api/trend-kartografen-hist" endpoint="/api/trend-kartografen-hist/import" />
       {/* Jaarlijkse trendgrafiek */}
       <Card>
         <CardHeader className="pb-2">
@@ -1990,6 +2158,24 @@ function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
   const [periodeIdx, setPeriodeIdx] = useState(0);
 
+  const { data: dbKmBuitenRows } = useQuery<{ jaar: number; maand: number; binnengekomen: number; afgehandeld: number; uitbesteding: number; gemiddeld: number; landmeters: number }[]>({ queryKey: ['/api/trend-km-buiten'] });
+  const dbLandmetersMap = useMemo(() => {
+    if (!dbKmBuitenRows || dbKmBuitenRows.length === 0) return null;
+    const maandNamen = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+    const map: Record<string, LandmetersRij[]> = {};
+    for (const r of dbKmBuitenRows) {
+      const m = maandNamen[r.maand - 1];
+      if (!m) continue;
+      if (!map[m]) map[m] = [];
+      map[m].push({ jaar: String(r.jaar), binnengekomen: r.binnengekomen, afgehandeld: r.afgehandeld, uitbesteding: r.uitbesteding, gemiddeld: r.gemiddeld, landmeters: r.landmeters });
+    }
+    for (const m of maandNamen) {
+      if (map[m]) map[m].sort((a, b) => Number(a.jaar) - Number(b.jaar));
+    }
+    return map;
+  }, [dbKmBuitenRows]);
+  const activeLandmetersData = dbLandmetersMap ?? LANDMETERS_DATA;
+
   const allePeriodes: { label: string; range: [number, number] }[] = [
     { label: "Alle jaren (1995–2025)", range: [0, 31] },
     { label: "1995–2004", range: [0, 10] },
@@ -1998,7 +2184,7 @@ function LandmetersTab() {
   ];
 
   const periode = allePeriodes[periodeIdx];
-  const volledigeData = LANDMETERS_DATA[maand] || [];
+  const volledigeData = activeLandmetersData[maand] || [];
   const data = volledigeData.slice(periode.range[0], periode.range[1]);
 
   const totBinnengekomen = data.reduce((s, d) => s + d.binnengekomen, 0);
@@ -2010,6 +2196,7 @@ function LandmetersTab() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
+        <TrendImportButton label="Trend Landmeters" queryKey="/api/trend-km-buiten" endpoint="/api/trend-km-buiten/import" />
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
           <Select value={maand} onValueChange={setMaand}>
@@ -2017,7 +2204,7 @@ function LandmetersTab() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.keys(LANDMETERS_DATA).map(m => (
+              {Object.keys(activeLandmetersData).map(m => (
                 <SelectItem key={m} value={m} data-testid={`option-lm-maand-${m}`}>{m}</SelectItem>
               ))}
             </SelectContent>

@@ -121,6 +121,24 @@ All routes prefixed with `/api/` and require authentication except login.
 - GET /api/yearly-awards?year=YYYY - Yearly awards (Afdeling/Manager van het Jaar), optionally filtered by year
 - POST /api/yearly-awards - Create yearly award (admin only): { year, type: "department"|"manager", name }
 - DELETE /api/yearly-awards/:id - Delete yearly award (admin only)
+- GET /api/trend-km-info - Trend balie KM info data (all rows)
+- POST /api/trend-km-info/import - Import CSV for trend KM info (admin/manager)
+- GET /api/trend-or-info - Trend balie OR info data (all rows)
+- POST /api/trend-or-info/import - Import CSV for trend OR info (admin/manager)
+- GET /api/trend-or-algemeen - Trend OR algemeen data (all rows)
+- POST /api/trend-or-algemeen/import - Import CSV for trend OR algemeen (admin/manager)
+- GET /api/trend-or-notaris - Trend OR notaris data (all rows, includes notaris_key + waarde per year/month)
+- POST /api/trend-or-notaris/import - Import CSV for trend OR notaris (admin/manager)
+- GET /api/trend-kartografen-hist - Trend kartografen historisch data (all rows)
+- POST /api/trend-kartografen-hist/import - Import CSV for trend kartografen (admin/manager)
+- GET /api/trend-km-buiten - Trend KM buiten (landmeters) data (all rows)
+- POST /api/trend-km-buiten/import - Import CSV for trend KM buiten (admin/manager)
+
+## Productiestatistieken Module
+- All 6 trend tabs (BalieMedewerkerTab, BalieM3Tab, TrendOrAlgemeenTab, TrendOrNotarisTab, TrendKartografenTab, LandmetersTab) fetch live data from DB via useQuery
+- Each tab falls back to hardcoded data if DB is empty
+- Each tab has a TrendImportButton component for CSV import (admin/manager roles only)
+- DB tables seeded with historical data: trend_km_info (216 rows), trend_or_info (216 rows), trend_or_algemeen (300 rows), trend_or_notaris (5400 rows), trend_kartografen_hist (120 rows), trend_km_buiten (372 rows)
 
 ## Running Locally
 ```bash

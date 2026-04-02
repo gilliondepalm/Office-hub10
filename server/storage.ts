@@ -33,8 +33,15 @@ import {
   type KartografieProductie, type InsertKartografieProductie,
   type MaandProdKartograaf, type InsertMaandProdKartograaf,
   type MaandProdSamenvatting, type InsertMaandProdSamenvatting,
+  type TrendKmBuiten, type InsertTrendKmBuiten,
+  type TrendKmInfo, type InsertTrendKmInfo,
+  type TrendOrInfo, type InsertTrendOrInfo,
+  type TrendOrAlgemeen, type InsertTrendOrAlgemeen,
+  type TrendOrNotaris, type InsertTrendOrNotaris,
+  type TrendKartografenHist, type InsertTrendKartografenHist,
   helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
   maandProdKartograaf, maandProdSamenvatting,
+  trendKmBuiten, trendKmInfo, trendOrInfo, trendOrAlgemeen, trendOrNotaris, trendKartografenHist,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -196,6 +203,30 @@ export interface IStorage {
   getMaandProdSamenvatting(jaar: number, maand: number): Promise<MaandProdSamenvatting | undefined>;
   saveMaandProdSamenvatting(data: InsertMaandProdSamenvatting): Promise<MaandProdSamenvatting>;
   getMaandProdKartograafJaar(jaar: number): Promise<MaandProdKartograaf[]>;
+
+  getTrendKmBuiten(): Promise<TrendKmBuiten[]>;
+  bulkUpsertTrendKmBuiten(rows: InsertTrendKmBuiten[]): Promise<void>;
+  deleteTrendKmBuitenByJaar(jaar: number): Promise<void>;
+
+  getTrendKmInfo(): Promise<TrendKmInfo[]>;
+  bulkUpsertTrendKmInfo(rows: InsertTrendKmInfo[]): Promise<void>;
+  deleteTrendKmInfoByJaar(jaar: number): Promise<void>;
+
+  getTrendOrInfo(): Promise<TrendOrInfo[]>;
+  bulkUpsertTrendOrInfo(rows: InsertTrendOrInfo[]): Promise<void>;
+  deleteTrendOrInfoByJaar(jaar: number): Promise<void>;
+
+  getTrendOrAlgemeen(): Promise<TrendOrAlgemeen[]>;
+  bulkUpsertTrendOrAlgemeen(rows: InsertTrendOrAlgemeen[]): Promise<void>;
+  deleteTrendOrAlgemeenByJaar(jaar: number): Promise<void>;
+
+  getTrendOrNotaris(): Promise<TrendOrNotaris[]>;
+  bulkUpsertTrendOrNotaris(rows: InsertTrendOrNotaris[]): Promise<void>;
+  deleteTrendOrNotarisByJaar(jaar: number): Promise<void>;
+
+  getTrendKartografenHist(): Promise<TrendKartografenHist[]>;
+  bulkUpsertTrendKartografenHist(rows: InsertTrendKartografenHist[]): Promise<void>;
+  deleteTrendKartografenHistByJaar(jaar: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1177,6 +1208,78 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(maandProdKartograaf)
       .where(eq(maandProdKartograaf.jaar, jaar))
       .orderBy(maandProdKartograaf.maand, maandProdKartograaf.kartograaf);
+  }
+
+  // ── Trend helpers (delete-then-insert per jaar) ───────────────────────────
+  private async bulkUpsertTrend<T extends { jaar: number; maand: number }>(
+    table: any, rows: T[]
+  ): Promise<void> {
+    if (rows.length === 0) return;
+    const jaren = [...new Set(rows.map(r => r.jaar))];
+    for (const jaar of jaren) {
+      await db.delete(table).where(eq(table.jaar, jaar));
+    }
+    await db.insert(table).values(rows as any);
+  }
+
+  async getTrendKmBuiten(): Promise<TrendKmBuiten[]> {
+    return await db.select().from(trendKmBuiten).orderBy(trendKmBuiten.jaar, trendKmBuiten.maand);
+  }
+  async bulkUpsertTrendKmBuiten(rows: InsertTrendKmBuiten[]): Promise<void> {
+    await this.bulkUpsertTrend(trendKmBuiten, rows);
+  }
+  async deleteTrendKmBuitenByJaar(jaar: number): Promise<void> {
+    await db.delete(trendKmBuiten).where(eq(trendKmBuiten.jaar, jaar));
+  }
+
+  async getTrendKmInfo(): Promise<TrendKmInfo[]> {
+    return await db.select().from(trendKmInfo).orderBy(trendKmInfo.jaar, trendKmInfo.maand);
+  }
+  async bulkUpsertTrendKmInfo(rows: InsertTrendKmInfo[]): Promise<void> {
+    await this.bulkUpsertTrend(trendKmInfo, rows);
+  }
+  async deleteTrendKmInfoByJaar(jaar: number): Promise<void> {
+    await db.delete(trendKmInfo).where(eq(trendKmInfo.jaar, jaar));
+  }
+
+  async getTrendOrInfo(): Promise<TrendOrInfo[]> {
+    return await db.select().from(trendOrInfo).orderBy(trendOrInfo.jaar, trendOrInfo.maand);
+  }
+  async bulkUpsertTrendOrInfo(rows: InsertTrendOrInfo[]): Promise<void> {
+    await this.bulkUpsertTrend(trendOrInfo, rows);
+  }
+  async deleteTrendOrInfoByJaar(jaar: number): Promise<void> {
+    await db.delete(trendOrInfo).where(eq(trendOrInfo.jaar, jaar));
+  }
+
+  async getTrendOrAlgemeen(): Promise<TrendOrAlgemeen[]> {
+    return await db.select().from(trendOrAlgemeen).orderBy(trendOrAlgemeen.jaar, trendOrAlgemeen.maand);
+  }
+  async bulkUpsertTrendOrAlgemeen(rows: InsertTrendOrAlgemeen[]): Promise<void> {
+    await this.bulkUpsertTrend(trendOrAlgemeen, rows);
+  }
+  async deleteTrendOrAlgemeenByJaar(jaar: number): Promise<void> {
+    await db.delete(trendOrAlgemeen).where(eq(trendOrAlgemeen.jaar, jaar));
+  }
+
+  async getTrendOrNotaris(): Promise<TrendOrNotaris[]> {
+    return await db.select().from(trendOrNotaris).orderBy(trendOrNotaris.jaar, trendOrNotaris.maand, trendOrNotaris.notaris_key);
+  }
+  async bulkUpsertTrendOrNotaris(rows: InsertTrendOrNotaris[]): Promise<void> {
+    await this.bulkUpsertTrend(trendOrNotaris, rows);
+  }
+  async deleteTrendOrNotarisByJaar(jaar: number): Promise<void> {
+    await db.delete(trendOrNotaris).where(eq(trendOrNotaris.jaar, jaar));
+  }
+
+  async getTrendKartografenHist(): Promise<TrendKartografenHist[]> {
+    return await db.select().from(trendKartografenHist).orderBy(trendKartografenHist.jaar, trendKartografenHist.maand);
+  }
+  async bulkUpsertTrendKartografenHist(rows: InsertTrendKartografenHist[]): Promise<void> {
+    await this.bulkUpsertTrend(trendKartografenHist, rows);
+  }
+  async deleteTrendKartografenHistByJaar(jaar: number): Promise<void> {
+    await db.delete(trendKartografenHist).where(eq(trendKartografenHist.jaar, jaar));
   }
 }
 
