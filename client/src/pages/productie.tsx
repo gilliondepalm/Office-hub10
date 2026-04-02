@@ -2170,34 +2170,26 @@ function MaandelijkseProdKmInfoTab() {
     <input
       type="number"
       min={0}
+      placeholder="0"
       value={rijen[maandIdx][veld] || ""}
       onChange={e => setVeld(maandIdx, veld, parseInt(e.target.value) || 0)}
       disabled={!kanBewerken || isLoading}
       data-testid={testId}
-      className="w-12 text-right bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-primary rounded px-1 py-0.5 text-sm disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
     />
   );
 
-  const kolomHeaders = [
-    { label: "Kadastrale kaart produkten", cols: ["Topo-\ngrafische\nkaarten", "Plot-\noverzicht", "Plot Grens-\nuitzetting", "Afdrukken\nvan\nkaarten"], colspan: 4 },
-    { label: "Situatieschets", cols: ["Situatie-\nschets A4", "Situatie-\nschets A3"], colspan: 2 },
-    { label: "Reg. Mbr", cols: ["Regulier\nMeetbrief"], colspan: 1 },
-    { label: "Reg. Extr", cols: ["Regulier\nExtractplan"], colspan: 1 },
-    { label: "Inzage KAD", cols: ["Inzage\nKAD"], colspan: 1 },
-    { label: "Digitale bestanden", cols: ["Uur-\ntarieven", "Digitale\nbestanden"], colspan: 2 },
-    { label: "Kadstrale Metingen", cols: ["Blok-\nmaten", "Kopie\nveldwerk", "Coor-\ndinaten", "Hulp-\nkaart", "Terrein-\nonderzoek", "Proces-\nverbaal"], colspan: 6 },
+  const kolomGroepen = [
+    { label: "Kadastrale kaart produkten", velden: ["topo_kaarten", "plot_overzicht", "plot_grens_uitz", "afdrukken_kaarten"] as const, subLabels: ["Topo-\ngrafische\nkaarten", "Plot-\noverzicht", "Plot Grens-\nuitzetting", "Afdrukken\nvan\nkaarten"] },
+    { label: "Situatieschets", velden: ["sit_a4", "sit_a3"] as const, subLabels: ["Situatie-\nschets A4", "Situatie-\nschets A3"] },
+    { label: "Reg. Mbr", velden: ["reg_meetbrief"] as const, subLabels: ["Regulier\nMeetbrief"] },
+    { label: "Reg. Extr", velden: ["reg_extractplan"] as const, subLabels: ["Regulier\nExtractplan"] },
+    { label: "Inzage KAD", velden: ["inzage_kad"] as const, subLabels: ["Inzage\nKAD"] },
+    { label: "Digitale bestanden", velden: ["uur_tarieven", "digitale_bestanden"] as const, subLabels: ["Uur-\ntarieven", "Digitale\nbestanden"] },
+    { label: "Kadstrale Metingen", velden: ["blok_maten", "kopie_veldwerk", "coordinaten", "hulp_kaart", "terrein_onderzoek", "proces_verbaal"] as const, subLabels: ["Blok-\nmaten", "Kopie\nveldwerk", "Coor-\ndinaten", "Hulp-\nkaart", "Terrein-\nonderzoek", "Proces-\nverbaal"] },
   ];
 
-  const veldnamen: (keyof Omit<KmInfoRij, "maand">)[] = [
-    "topo_kaarten", "plot_overzicht", "plot_grens_uitz", "afdrukken_kaarten",
-    "sit_a4", "sit_a3",
-    "reg_meetbrief",
-    "reg_extractplan",
-    "inzage_kad",
-    "uur_tarieven", "digitale_bestanden",
-    "blok_maten", "kopie_veldwerk", "coordinaten", "hulp_kaart", "terrein_onderzoek", "proces_verbaal",
-  ];
-
+  const veldnamen: (keyof Omit<KmInfoRij, "maand">)[] = kolomGroepen.flatMap(g => [...g.velden]);
   const kolomTotalen = veldnamen.map(v => rijen.reduce((s, r) => s + r[v], 0));
   const rijTotalen = rijen.map(r => kmInfoTotaal(r));
   const eindTotaal = rijTotalen.reduce((s, t) => s + t, 0);
@@ -2206,18 +2198,19 @@ function MaandelijkseProdKmInfoTab() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-base font-semibold">
-              Binnengekomen Inzage Deel II {jaar}
-            </CardTitle>
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Binnengekomen Inzage Deel II</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse KM-info per categorie in</p>
+            </div>
+            <div className="flex items-center gap-2">
               <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
-                <SelectTrigger className="w-28" data-testid="select-jaar-km-info">
+                <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-km-info">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {beschikbareJaren.map(j => (
-                    <SelectItem key={j} value={j} data-testid={`option-jaar-km-info-${j}`}>{j}</SelectItem>
+                    <SelectItem key={j} value={j} className="text-xs" data-testid={`option-jaar-km-info-${j}`}>{j}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -2227,62 +2220,85 @@ function MaandelijkseProdKmInfoTab() {
                   onClick={() => opslaan()}
                   disabled={isPending || opgeslagen}
                   data-testid="button-opslaan-kmi"
+                  className="h-8 text-xs"
                 >
-                  {opgeslagen ? "✓ Opgeslagen" : isPending ? "Bezig…" : "Opslaan"}
+                  {opgeslagen ? "✓ Opgeslagen" : isPending ? "Opslaan..." : "Opslaan"}
                 </Button>
               )}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-yellow-300/90 dark:bg-yellow-600/80">
-                  <th className="px-2 py-1.5 text-left font-semibold border border-yellow-400/60 min-w-[48px]">Maand</th>
-                  {kolomHeaders.map(g => (
-                    <th key={g.label} colSpan={g.colspan} className="px-2 py-1 text-center font-semibold border border-yellow-400/60 text-xs">{g.label}</th>
-                  ))}
-                  <th className="px-2 py-1.5 text-center font-semibold border border-yellow-400/60">Totaal</th>
-                </tr>
-                <tr className="bg-yellow-200/80 dark:bg-yellow-700/60">
-                  <th className="px-2 py-1 border border-yellow-400/40"></th>
-                  {veldnamen.map((v, i) => (
-                    <th key={v} className="px-1 py-1 text-center text-xs font-medium border border-yellow-400/40 min-w-[52px] whitespace-pre-line leading-tight">
-                      {kolomHeaders.flatMap(g => g.cols)[i]}
-                    </th>
-                  ))}
-                  <th className="px-2 py-1 border border-yellow-400/40"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rijen.map((rij, mi) => (
-                  <tr key={rij.maand} className={mi % 2 === 0 ? "bg-white dark:bg-background" : "bg-yellow-50/60 dark:bg-yellow-900/10"}>
-                    <td className="px-2 py-1 font-medium border border-border/40 text-sm">{KMI_MAAND_NAMEN[mi]}</td>
-                    {veldnamen.map((v, vi) => (
-                      <td key={v} className="px-1 py-0.5 border border-border/30 text-center">
-                        {numInput(mi, v, `input-kmi-${mi}-${vi}`)}
-                      </td>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Laden…</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-2 py-2 text-left font-semibold min-w-[44px]">Maand</th>
+                    {kolomGroepen.map(g => (
+                      <th
+                        key={g.label}
+                        colSpan={g.velden.length}
+                        className="px-2 py-2 text-center font-semibold border-l border-border/40"
+                      >
+                        {g.label}
+                      </th>
                     ))}
-                    <td className="px-2 py-1 border border-border/40 text-center font-semibold text-sm">
-                      <span data-testid={`text-kmi-totaal-${mi}`}>{rijTotalen[mi] || ""}</span>
+                    <th className="px-2 py-2 text-right font-semibold border-l border-border/40">Totaal</th>
+                  </tr>
+                  <tr className="border-b bg-muted/30">
+                    <th className="px-2 py-1"></th>
+                    {kolomGroepen.map(g =>
+                      g.velden.map((v, si) => (
+                        <th
+                          key={v}
+                          className={`px-1 py-1 text-center font-medium min-w-[52px] whitespace-pre-line leading-tight ${si === 0 ? "border-l border-border/40" : ""}`}
+                        >
+                          {g.subLabels[si]}
+                        </th>
+                      ))
+                    )}
+                    <th className="px-2 py-1 border-l border-border/40"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rijen.map((rij, mi) => (
+                    <tr key={rij.maand} className="border-b hover:bg-muted/20">
+                      <td className="px-2 py-1.5 font-semibold">{KMI_MAAND_NAMEN[mi]}</td>
+                      {kolomGroepen.map(g =>
+                        g.velden.map((v, si) => (
+                          <td key={v} className={`px-1 py-0.5 ${si === 0 ? "border-l border-border/20" : ""}`}>
+                            {numInput(mi, v, `input-kmi-${mi}-${veldnamen.indexOf(v)}`)}
+                          </td>
+                        ))
+                      )}
+                      <td className="px-2 py-1.5 text-right font-semibold text-primary border-l border-border/20">
+                        <span data-testid={`text-kmi-totaal-${mi}`}>{rijTotalen[mi] || ""}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="border-t bg-muted/30 font-semibold">
+                    <td className="px-2 py-1.5">Totaal</td>
+                    {kolomGroepen.map(g =>
+                      g.velden.map((v, si) => {
+                        const idx = veldnamen.indexOf(v);
+                        return (
+                          <td key={v} className={`px-2 py-1.5 text-right ${si === 0 ? "border-l border-border/20" : ""}`}>
+                            <span data-testid={`text-kmi-col-totaal-${idx}`}>{kolomTotalen[idx] || ""}</span>
+                          </td>
+                        );
+                      })
+                    )}
+                    <td className="px-2 py-1.5 text-right border-l border-border/20">
+                      <span data-testid="text-kmi-eindtotaal">{eindTotaal || ""}</span>
                     </td>
                   </tr>
-                ))}
-                <tr className="bg-yellow-300/70 dark:bg-yellow-700/50 font-semibold">
-                  <td className="px-2 py-1.5 border border-yellow-400/60 text-sm font-bold">Totaal</td>
-                  {kolomTotalen.map((t, i) => (
-                    <td key={i} className="px-1 py-1.5 border border-yellow-400/60 text-center text-sm">
-                      <span data-testid={`text-kmi-col-totaal-${i}`}>{t || ""}</span>
-                    </td>
-                  ))}
-                  <td className="px-2 py-1.5 border border-yellow-400/60 text-center font-bold text-sm">
-                    <span data-testid="text-kmi-eindtotaal">{eindTotaal || ""}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
