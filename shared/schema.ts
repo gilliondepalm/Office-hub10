@@ -608,6 +608,23 @@ export const insertTrendOrAlgemeenSchema = createInsertSchema(trendOrAlgemeen).o
 export type InsertTrendOrAlgemeen = z.infer<typeof insertTrendOrAlgemeenSchema>;
 export type TrendOrAlgemeen = typeof trendOrAlgemeen.$inferSelect;
 
+// ── Maandelijkse Productie OR Notaris ────────────────────────────────────────
+export const maandProdOrNotaris = pgTable("maand_prod_or_notaris", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  notaris_key: text("notaris_key").notNull(),
+  aktes: integer("aktes").notNull().default(0),
+  inschrijvingen: integer("inschrijvingen").notNull().default(0),
+  doorhalingen: integer("doorhalingen").notNull().default(0),
+  opheffingen: integer("opheffingen").notNull().default(0),
+  beslagen: integer("beslagen").notNull().default(0),
+  cessies: integer("cessies").notNull().default(0),
+});
+export const insertMaandProdOrNotarisSchema = createInsertSchema(maandProdOrNotaris).omit({ id: true });
+export type InsertMaandProdOrNotaris = z.infer<typeof insertMaandProdOrNotarisSchema>;
+export type MaandProdOrNotaris = typeof maandProdOrNotaris.$inferSelect;
+
 // ── Trend OR Notaris ──────────────────────────────────────────────────────────
 export const trendOrNotaris = pgTable("trend_or_notaris", {
   id: serial("id").primaryKey(),

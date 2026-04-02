@@ -46,6 +46,7 @@ import {
   helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
   maandProdKartograaf, maandProdSamenvatting,
   maandProdLandmeter, maandProdSamenvattingLm, maandProdOrInfo, maandProdKmInfo,
+  maandProdOrNotaris, type MaandProdOrNotaris, type InsertMaandProdOrNotaris,
   trendKmBuiten, trendKmInfo, trendOrInfo, trendOrAlgemeen, trendOrNotaris, trendKartografenHist,
 } from "@shared/schema";
 
@@ -227,6 +228,10 @@ export interface IStorage {
   saveMaandProdOrInfo(rows: InsertMaandProdOrInfo[]): Promise<void>;
   upsertTrendOrInfoRow(data: InsertTrendOrInfo): Promise<void>;
   upsertTrendOrAlgemeenRow(data: InsertTrendOrAlgemeen): Promise<void>;
+
+  getMaandProdOrNotaris(jaar: number, maand: number): Promise<MaandProdOrNotaris[]>;
+  saveMaandProdOrNotaris(rows: InsertMaandProdOrNotaris[]): Promise<void>;
+  upsertTrendOrNotarisRow(data: InsertTrendOrNotaris): Promise<void>;
 
   getMaandProdKmInfo(jaar: number): Promise<MaandProdKmInfo[]>;
   saveMaandProdKmInfo(rows: InsertMaandProdKmInfo[]): Promise<void>;
@@ -1331,6 +1336,27 @@ export class DatabaseStorage implements IStorage {
         .where(eq(trendOrAlgemeen.id, existing.id));
     } else {
       await db.insert(trendOrAlgemeen).values(data);
+    }
+  }
+
+  async getMaandProdOrNotaris(jaar: number, maand: number): Promise<MaandProdOrNotaris[]> {
+    return await db.select().from(maandProdOrNotaris)
+      .where(and(eq(maandProdOrNotaris.jaar, jaar), eq(maandProdOrNotaris.maand, maand)))
+      .orderBy(maandProdOrNotaris.notaris_key);
+  }
+  async saveMaandProdOrNotaris(rows: InsertMaandProdOrNotaris[]): Promise<void> {
+    if (rows.length === 0) return;
+    const { jaar, maand } = rows[0];
+    await db.delete(maandProdOrNotaris).where(and(eq(maandProdOrNotaris.jaar, jaar), eq(maandProdOrNotaris.maand, maand)));
+    await db.insert(maandProdOrNotaris).values(rows);
+  }
+  async upsertTrendOrNotarisRow(data: InsertTrendOrNotaris): Promise<void> {
+    const [existing] = await db.select().from(trendOrNotaris)
+      .where(and(eq(trendOrNotaris.jaar, data.jaar), eq(trendOrNotaris.maand, data.maand), eq(trendOrNotaris.notaris_key, data.notaris_key)));
+    if (existing) {
+      await db.update(trendOrNotaris).set({ waarde: data.waarde }).where(eq(trendOrNotaris.id, existing.id));
+    } else {
+      await db.insert(trendOrNotaris).values(data);
     }
   }
 

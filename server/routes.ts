@@ -28,6 +28,7 @@ import {
   insertMaandProdSamenvattingLmSchema,
   insertMaandProdKmInfoSchema,
   insertMaandProdOrInfoSchema,
+  insertMaandProdOrNotarisSchema,
   insertTrendKmBuitenSchema,
   insertTrendKmInfoSchema,
   insertTrendOrInfoSchema,
@@ -2568,8 +2569,39 @@ export async function registerRoutes(
         const verklaring  = r.verklaring_eensluidend + r.verklaring_geen_or;
         const getuigschrift = r.getuigschrift_volgende + r.getuigschrift_or;
         await storage.upsertTrendOrInfoRow({ jaar: r.jaar, maand: r.maand, inzagen, her_inzage: r.her_inzage, na_inzage: r.na_inzage, kadastaal_legger: r.kadastrale_legger, verklaring, getuigschrift });
-        await storage.upsertTrendOrAlgemeenRow({ jaar: r.jaar, maand: r.maand, aktes: r.aktes, inschrijvingen: r.inschrijvingen, doorhalingen: r.doorhalingen, opheffingen: r.opheffingen, beslagen: r.beslagen, cessies: r.cessies });
       }
+      res.json({ saved: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+
+  // ── Maandelijkse Productie OR Notaris ─────────────────────────────────────────
+  app.get("/api/maand-prod-or-notaris", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const jaar  = parseInt(req.query.jaar  as string) || new Date().getFullYear();
+      const maand = parseInt(req.query.maand as string) || new Date().getMonth() + 1;
+      res.json(await storage.getMaandProdOrNotaris(jaar, maand));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/maand-prod-or-notaris", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertMaandProdOrNotarisSchema.parse(r));
+      await storage.saveMaandProdOrNotaris(parsed);
+      for (const r of parsed) {
+        const waarde = r.aktes + r.inschrijvingen + r.doorhalingen + r.opheffingen + r.beslagen + r.cessies;
+        await storage.upsertTrendOrNotarisRow({ jaar: r.jaar, maand: r.maand, notaris_key: r.notaris_key, waarde });
+      }
+      const aktesTot      = parsed.reduce((s, r) => s + r.aktes, 0);
+      const inschrijvTot  = parsed.reduce((s, r) => s + r.inschrijvingen, 0);
+      const doorhalinTot  = parsed.reduce((s, r) => s + r.doorhalingen, 0);
+      const opheffTot     = parsed.reduce((s, r) => s + r.opheffingen, 0);
+      const beslagenTot   = parsed.reduce((s, r) => s + r.beslagen, 0);
+      const cessiesTot    = parsed.reduce((s, r) => s + r.cessies, 0);
+      const { jaar, maand } = parsed[0];
+      await storage.upsertTrendOrAlgemeenRow({ jaar, maand, aktes: aktesTot, inschrijvingen: inschrijvTot, doorhalingen: doorhalinTot, opheffingen: opheffTot, beslagen: beslagenTot, cessies: cessiesTot });
       res.json({ saved: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });

@@ -2096,7 +2096,6 @@ type OrInfoRij = {
   her_inzage: number; na_inzage: number; kadastrale_legger: number;
   verklaring_eensluidend: number; verklaring_geen_or: number;
   getuigschrift_volgende: number; getuigschrift_or: number;
-  aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number;
 };
 
 const LEGE_ORI_RIJ = (maand: number): OrInfoRij => ({
@@ -2105,7 +2104,6 @@ const LEGE_ORI_RIJ = (maand: number): OrInfoRij => ({
   her_inzage: 0, na_inzage: 0, kadastrale_legger: 0,
   verklaring_eensluidend: 0, verklaring_geen_or: 0,
   getuigschrift_volgende: 0, getuigschrift_or: 0,
-  aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0,
 });
 
 const ORI_MAAND_NAMEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
@@ -2119,18 +2117,11 @@ const ORI_INFO_GROEPEN = [
   { label: "Getuigschrift", velden: ["getuigschrift_volgende", "getuigschrift_or"] as const, subLabels: ["Getuigschrift\nvoor elk volgende\nonroerende zaken", "Getuigschrift\nonroerende\nzaken"] },
 ] as const;
 
-const ORI_ALG_GROEPEN = [
-  { label: "Akten en inschrijvingen", velden: ["aktes", "inschrijvingen", "doorhalingen", "opheffingen", "beslagen", "cessies"] as const, subLabels: ["Aktes", "Inschrijvingen", "Doorhalingen", "Opheffingen", "Beslagen", "Cessies"] },
-] as const;
-
 function oriInfoTotaal(r: OrInfoRij): number {
   return r.inzage_or + r.bulkdata + r.verkorte_inzage + r.schriftelijke_inzage + r.kopie_akte
     + r.her_inzage + r.na_inzage + r.kadastrale_legger
     + r.verklaring_eensluidend + r.verklaring_geen_or
     + r.getuigschrift_volgende + r.getuigschrift_or;
-}
-function oriAlgTotaal(r: OrInfoRij): number {
-  return r.aktes + r.inschrijvingen + r.doorhalingen + r.opheffingen + r.beslagen + r.cessies;
 }
 
 function MaandelijkseProdOrInfoTab() {
@@ -2160,13 +2151,12 @@ function MaandelijkseProdOrInfoTab() {
 
   const { mutate: opslaan, isPending } = useMutation({
     mutationFn: async () => {
-      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar) }));
+      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar), aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0 }));
       await apiRequest("POST", "/api/maand-prod-or-info", { rows: payload });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-or-info", jaar] });
       queryClient.invalidateQueries({ queryKey: ["/api/trend-or-info"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/trend-or-algemeen"] });
       toast({ title: "Opgeslagen", description: `Productie OR Info ${jaar} opgeslagen.` });
       setOpgeslagen(true);
       setTimeout(() => setOpgeslagen(false), 2000);
@@ -2193,7 +2183,7 @@ function MaandelijkseProdOrInfoTab() {
   );
 
   const renderTabel = (
-    groepen: typeof ORI_INFO_GROEPEN | typeof ORI_ALG_GROEPEN,
+    groepen: typeof ORI_INFO_GROEPEN,
     rijTotaalFn: (r: OrInfoRij) => number,
     testPrefix: string,
   ) => {
@@ -2302,15 +2292,8 @@ function MaandelijkseProdOrInfoTab() {
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground text-sm">Laden…</div>
           ) : (
-            <div className="space-y-6">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">OR Info → Trend OR Info</p>
-                {renderTabel(ORI_INFO_GROEPEN, oriInfoTotaal, "ori")}
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">OR Algemeen → Trend OR Algemeen</p>
-                {renderTabel(ORI_ALG_GROEPEN, oriAlgTotaal, "ora")}
-              </div>
+            <div>
+              {renderTabel(ORI_INFO_GROEPEN, oriInfoTotaal, "ori")}
             </div>
           )}
         </CardContent>
@@ -2320,8 +2303,174 @@ function MaandelijkseProdOrInfoTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Maandelijkse Productie KM Info
+// Maandelijkse Productie OR Notaris
 
+const ORN_ACTIEF = ORN_NOTARISSEN.filter(n => n.actief);
+const ORN_NOTARIS_MAANDEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+const ORN_KOLOMMEN = ["aktes","inschrijvingen","doorhalingen","opheffingen","beslagen","cessies"] as const;
+const ORN_KOLOM_LABELS = ["Aktes","Inschrijvingen","Doorhalingen","Opheffingen","Beslagen","Cessies"];
+type OrnVeld = typeof ORN_KOLOMMEN[number];
+
+type OrNotarisRij = { notaris_key: string; aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number };
+
+const legeOrnRij = (key: string): OrNotarisRij => ({ notaris_key: key, aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0 });
+const ornTotaal = (r: OrNotarisRij) => r.aktes + r.inschrijvingen + r.doorhalingen + r.opheffingen + r.beslagen + r.cessies;
+
+function MaandelijkseProdOrNotarisTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const kanBewerken = user && (user.role === "admin" || user.role === "manager");
+
+  const huidigJaar  = new Date().getFullYear();
+  const huidigMaand = new Date().getMonth() + 1;
+  const beschikbareJaren = Array.from({ length: 5 }, (_, i) => String(huidigJaar - 2 + i));
+
+  const [jaar,  setJaar]  = useState(String(huidigJaar));
+  const [maand, setMaand] = useState(huidigMaand);
+  const [rijen, setRijen] = useState<OrNotarisRij[]>(ORN_ACTIEF.map(n => legeOrnRij(n.key)));
+  const [opgeslagen, setOpgeslagen] = useState(false);
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-or-notaris", jaar, maand],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-or-notaris?jaar=${jaar}&maand=${maand}`);
+      const data: OrNotarisRij[] = await res.json();
+      setRijen(ORN_ACTIEF.map(n => {
+        const r = data.find(d => d.notaris_key === n.key);
+        return r ? { ...r } : legeOrnRij(n.key);
+      }));
+      return data;
+    },
+  });
+
+  const { mutate: opslaan, isPending } = useMutation({
+    mutationFn: async () => {
+      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar), maand }));
+      await apiRequest("POST", "/api/maand-prod-or-notaris", { rows: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-or-notaris", jaar, maand] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-or-notaris"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-or-algemeen"] });
+      toast({ title: "Opgeslagen", description: `Productie OR Notaris ${ORN_NOTARIS_MAANDEN[maand - 1]} ${jaar} opgeslagen.` });
+      setOpgeslagen(true);
+      setTimeout(() => setOpgeslagen(false), 2000);
+    },
+    onError: (err: any) => toast({ title: "Fout", description: err.message, variant: "destructive" }),
+  });
+
+  const setVeld = (idx: number, veld: OrnVeld, val: number) => {
+    setRijen(prev => prev.map((r, i) => i === idx ? { ...r, [veld]: val } : r));
+    setOpgeslagen(false);
+  };
+
+  const kolomTotalen = ORN_KOLOMMEN.map(v => rijen.reduce((s, r) => s + r[v], 0));
+  const aantalTotaal = kolomTotalen.reduce((s, t) => s + t, 0);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Productie OR Notarissen</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Voer per maand de aantallen per notaris in</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
+                <SelectTrigger className="w-24 h-8 text-xs" data-testid="select-jaar-orn">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {beschikbareJaren.map(j => <SelectItem key={j} value={j} className="text-xs" data-testid={`option-jaar-orn-${j}`}>{j}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={String(maand)} onValueChange={v => { setMaand(parseInt(v)); setOpgeslagen(false); }}>
+                <SelectTrigger className="w-24 h-8 text-xs" data-testid="select-maand-orn">
+                  <SelectValue>{ORN_NOTARIS_MAANDEN[maand - 1]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {ORN_NOTARIS_MAANDEN.map((m, i) => <SelectItem key={i} value={String(i + 1)} className="text-xs" data-testid={`option-maand-orn-${i+1}`}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {kanBewerken && (
+                <Button
+                  size="sm"
+                  onClick={() => opslaan()}
+                  disabled={isPending || opgeslagen}
+                  data-testid="button-opslaan-orn"
+                  className="h-8 text-xs"
+                >
+                  {opgeslagen ? "✓ Opgeslagen" : isPending ? "Opslaan..." : "Opslaan"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Laden…</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2 text-left font-semibold min-w-[160px]">Notaris</th>
+                    {ORN_KOLOM_LABELS.map(l => (
+                      <th key={l} className="px-2 py-2 text-right font-semibold min-w-[90px] border-l border-border/40">{l}</th>
+                    ))}
+                    <th className="px-2 py-2 text-right font-semibold border-l border-border/40">Totaal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rijen.map((rij, idx) => {
+                    const notaris = ORN_ACTIEF[idx];
+                    return (
+                      <tr key={rij.notaris_key} className="border-b hover:bg-muted/20">
+                        <td className="px-3 py-1.5 font-medium">{notaris?.naam ?? rij.notaris_key}</td>
+                        {ORN_KOLOMMEN.map(veld => (
+                          <td key={veld} className="px-1 py-0.5 border-l border-border/20">
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              value={rij[veld] || ""}
+                              onChange={e => setVeld(idx, veld, parseInt(e.target.value) || 0)}
+                              disabled={!kanBewerken || isLoading}
+                              data-testid={`input-orn-${idx}-${veld}`}
+                              className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-2 py-1.5 text-right font-semibold text-primary border-l border-border/20">
+                          <span data-testid={`text-orn-totaal-${idx}`}>{ornTotaal(rij) || ""}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t bg-muted/30 font-semibold">
+                    <td className="px-3 py-1.5">Aantal</td>
+                    {kolomTotalen.map((tot, i) => (
+                      <td key={i} className="px-2 py-1.5 text-right border-l border-border/20">
+                        <span data-testid={`text-orn-col-${ORN_KOLOMMEN[i]}`}>{tot || ""}</span>
+                      </td>
+                    ))}
+                    <td className="px-2 py-1.5 text-right border-l border-border/20">
+                      <span data-testid="text-orn-eindtotaal">{aantalTotaal || ""}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 type KmInfoRij = {
   maand: number;
   topo_kaarten: number; plot_overzicht: number; plot_grens_uitz: number; afdrukken_kaarten: number;
@@ -3630,6 +3779,9 @@ export default function ProductiePage() {
                 <TabsTrigger value="prod-or-info" data-testid="tab-prod-or-info">
                   Productie OR Info
                 </TabsTrigger>
+                <TabsTrigger value="prod-or-notaris" data-testid="tab-prod-or-notaris">
+                  Productie OR Notaris
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="prod-kartografen">
                 <MaandelijkseProdKartografenTab />
@@ -3642,6 +3794,9 @@ export default function ProductiePage() {
               </TabsContent>
               <TabsContent value="prod-or-info">
                 <MaandelijkseProdOrInfoTab />
+              </TabsContent>
+              <TabsContent value="prod-or-notaris">
+                <MaandelijkseProdOrNotarisTab />
               </TabsContent>
             </Tabs>
           </TabsContent>
