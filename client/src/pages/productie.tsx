@@ -1605,7 +1605,7 @@ function MaandelijkseProdKartografenTab() {
   const totExPl     = prodRijen.reduce((s, r) => s + r.ex_pl, 0);
   const totPlotCoor = prodRijen.reduce((s, r) => s + r.plot_coor, 0);
   const totLosseMbr = prodRijen.reduce((s, r) => s + r.losse_mbr, 0);
-  const gemiddeld   = aantalKartografen > 0 ? +(totProd / aantalKartografen).toFixed(1) : 0;
+  const gemiddeld   = aantalKartografen > 0 ? +((totProd / aantalKartografen) * 10).toFixed(1) : 0;
 
   const numInput = (val: number, onChange: (n: number) => void, testId?: string) => (
     <input
@@ -1754,7 +1754,7 @@ function MaandelijkseProdKartografenTab() {
 
                   {/* Gemiddeld — berekend */}
                   <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Gemiddeld/kartograaf</td>
+                    <td className="px-3 py-1.5 font-medium">Gemiddeld/kartograaf <span className="text-muted-foreground font-normal">×10</span></td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={7}>{gemiddeld || ""}</td>
                     <td></td>
                   </tr>
