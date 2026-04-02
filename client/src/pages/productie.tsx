@@ -1973,50 +1973,72 @@ export default function ProductiePage() {
         imageAlt="productie"
       />
       <div className="p-6 space-y-5">
-        <Tabs defaultValue="kartografie">
-          <TabsList className="mb-5 flex-wrap h-auto gap-1">
-            <TabsTrigger value="kartografie" data-testid="tab-kartografie">
-              Trend KM Binnen
+        {/* Buitenste tabs: Trends / Maandelijkse productie */}
+        <Tabs defaultValue="trends">
+          <TabsList className="mb-5 h-auto gap-1">
+            <TabsTrigger value="trends" data-testid="tab-outer-trends">
+              Trends
             </TabsTrigger>
-            <TabsTrigger value="landmeters" data-testid="tab-landmeters">
-              Trend KM Buiten
-            </TabsTrigger>
-            <TabsTrigger value="balie" data-testid="tab-balie">
-              Trend KM Info
-            </TabsTrigger>
-            <TabsTrigger value="balie3" data-testid="tab-balie3">
-              Trend OR Info
-            </TabsTrigger>
-            <TabsTrigger value="oralgem" data-testid="tab-oralgem">
-              Trend OR Algemeen
-            </TabsTrigger>
-            <TabsTrigger value="ornotaris" data-testid="tab-ornotaris">
-              Trend OR Notaris
+            <TabsTrigger value="maandelijks" data-testid="tab-outer-maandelijks">
+              Maandelijkse productie
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="kartografie">
-            <KartografieTab />
+          {/* ── Trends ────────────────────────────────────────────────── */}
+          <TabsContent value="trends">
+            <Tabs defaultValue="kartografie">
+              <TabsList className="mb-5 flex-wrap h-auto gap-1">
+                <TabsTrigger value="kartografie" data-testid="tab-kartografie">
+                  Trend KM Binnen
+                </TabsTrigger>
+                <TabsTrigger value="landmeters" data-testid="tab-landmeters">
+                  Trend KM Buiten
+                </TabsTrigger>
+                <TabsTrigger value="balie" data-testid="tab-balie">
+                  Trend KM Info
+                </TabsTrigger>
+                <TabsTrigger value="balie3" data-testid="tab-balie3">
+                  Trend OR Info
+                </TabsTrigger>
+                <TabsTrigger value="oralgem" data-testid="tab-oralgem">
+                  Trend OR Algemeen
+                </TabsTrigger>
+                <TabsTrigger value="ornotaris" data-testid="tab-ornotaris">
+                  Trend OR Notaris
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="kartografie">
+                <KartografieTab />
+              </TabsContent>
+
+              <TabsContent value="landmeters">
+                <LandmetersTab />
+              </TabsContent>
+
+              <TabsContent value="balie">
+                <BalieMedewerkerTab />
+              </TabsContent>
+
+              <TabsContent value="balie3">
+                <BalieM3Tab />
+              </TabsContent>
+
+              <TabsContent value="oralgem">
+                <TrendOrAlgemeenTab />
+              </TabsContent>
+
+              <TabsContent value="ornotaris">
+                <TrendOrNotarisTab />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
-          <TabsContent value="landmeters">
-            <LandmetersTab />
-          </TabsContent>
-
-          <TabsContent value="balie">
-            <BalieMedewerkerTab />
-          </TabsContent>
-
-          <TabsContent value="balie3">
-            <BalieM3Tab />
-          </TabsContent>
-
-          <TabsContent value="oralgem">
-            <TrendOrAlgemeenTab />
-          </TabsContent>
-
-          <TabsContent value="ornotaris">
-            <TrendOrNotarisTab />
+          {/* ── Maandelijkse productie ────────────────────────────────── */}
+          <TabsContent value="maandelijks">
+            <div className="text-center text-muted-foreground py-20 text-sm">
+              Maandelijkse productie — nog in ontwikkeling.
+            </div>
           </TabsContent>
         </Tabs>
       </div>
