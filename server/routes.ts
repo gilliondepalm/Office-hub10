@@ -2267,7 +2267,7 @@ export async function registerRoutes(
           const kRows = mpkRows.filter(r => r.jaar === s.jaar && r.maand === s.maand && r.kartograaf !== "afgeboekt_stukken");
           const totAf = kRows.reduce((acc, r) => acc + prod(r), 0);
           const aantalKart = s.aantal_kartografen || 1;
-          return { id: 0, jaar: s.jaar, maand: maandNaam, binnengekomen: s.binnengekomen, afgehandeld: totAf, gemiddeld: aantalKart > 0 ? +(totAf / aantalKart) : 0, kartografen: s.aantal_kartografen };
+          return { id: 0, jaar: s.jaar, maand: maandNaam, binnengekomen: s.binnengekomen, afgehandeld: totAf, gemiddeld: aantalKart > 0 ? +((totAf / aantalKart) * 10).toFixed(1) : 0, kartografen: s.aantal_kartografen };
         });
       res.json([...kpRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : MAAND_AFB.indexOf(a.maand) - MAAND_AFB.indexOf(b.maand)));
     } catch (err: any) {
@@ -2383,7 +2383,7 @@ export async function registerRoutes(
         maand: maandNaam,
         binnengekomen: parsedSam.binnengekomen,
         afgehandeld: totAfgehandeld,
-        gemiddeld: aantalKart > 0 ? +(totAfgehandeld / aantalKart).toFixed(1) : 0,
+        gemiddeld: aantalKart > 0 ? +((totAfgehandeld / aantalKart) * 10).toFixed(1) : 0,
         kartografen: parsedSam.aantal_kartografen,
       })]);
 
@@ -2432,7 +2432,7 @@ export async function registerRoutes(
       const totAfgehandeld = actieveRijen.reduce((s, r) => s + totProd(r), 0);
       const totUitbesteding = actieveRijen.reduce((s, r) => s + r.ex_uitb, 0);
       const aantalLm = parsedSam.aantal_landmeters || 1;
-      const gemiddeld = aantalLm > 0 ? +(totAfgehandeld / aantalLm).toFixed(1) : 0;
+      const gemiddeld = aantalLm > 0 ? +((totAfgehandeld / aantalLm) * 10).toFixed(1) : 0;
 
       await storage.upsertTrendKmBuitenRow(insertTrendKmBuitenSchema.parse({
         jaar: parsedSam.jaar,
@@ -2468,7 +2468,7 @@ export async function registerRoutes(
           const totAf = actief.reduce((acc, r) => acc + totProd(r), 0);
           const totUitb = actief.reduce((acc, r) => acc + r.ex_uitb, 0);
           const aantalLm = s.aantal_landmeters || 1;
-          return { id: 0, jaar: s.jaar, maand: s.maand, binnengekomen: s.binnengekomen, afgehandeld: totAf, uitbesteding: totUitb, gemiddeld: aantalLm > 0 ? +(totAf / aantalLm) : 0, landmeters: s.aantal_landmeters };
+          return { id: 0, jaar: s.jaar, maand: s.maand, binnengekomen: s.binnengekomen, afgehandeld: totAf, uitbesteding: totUitb, gemiddeld: aantalLm > 0 ? +((totAf / aantalLm) * 10).toFixed(1) : 0, landmeters: s.aantal_landmeters };
         });
       res.json([...trendRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : a.maand - b.maand));
     } catch (err: any) { res.status(500).json({ message: err.message }); }

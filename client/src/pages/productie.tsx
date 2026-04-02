@@ -1569,6 +1569,8 @@ function MaandelijkseProdKartografenTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-kartograaf"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-kartografen-hist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/kartografie-productie"] });
       setOpgeslagen(true);
       toast({ title: "Opgeslagen", description: `Productie ${MAAND_NAMEN[maand - 1]} ${HUIDIG_JAAR} opgeslagen.` });
     },
@@ -1893,7 +1895,7 @@ function MaandelijkseProdLandmetersTab() {
   const totaalGrUitz   = prodRijen.reduce((s, r) => s + r.gr_uitz, 0);
   const totaalLMeting  = prodRijen.reduce((s, r) => s + r.l_meting, 0);
   const totaalPlotInz  = prodRijen.reduce((s, r) => s + r.plot_inzage_coord, 0);
-  const gemiddeld      = aantalLandmeters > 0 ? +(totaalProd / aantalLandmeters).toFixed(1) : 0;
+  const gemiddeld      = aantalLandmeters > 0 ? +((totaalProd / aantalLandmeters) * 10).toFixed(1) : 0;
 
   const numInput = (val: number, onChange: (n: number) => void, testId?: string) => (
     <input
@@ -2049,7 +2051,7 @@ function MaandelijkseProdLandmetersTab() {
 
                   {/* Gemiddeld — berekend */}
                   <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Gemiddeld/landmeter</td>
+                    <td className="px-3 py-1.5 font-medium">Gemiddeld/landmeter <span className="text-muted-foreground font-normal">×10</span></td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={6}>{gemiddeld || ""}</td>
                     <td></td>
                   </tr>
