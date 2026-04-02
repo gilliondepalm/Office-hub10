@@ -27,6 +27,7 @@ import {
   insertMaandProdLandmeterSchema,
   insertMaandProdSamenvattingLmSchema,
   insertMaandProdKmInfoSchema,
+  insertMaandProdOrInfoSchema,
   insertTrendKmBuitenSchema,
   insertTrendKmInfoSchema,
   insertTrendOrInfoSchema,
@@ -2545,6 +2546,32 @@ export async function registerRoutes(
     const jaar = parseInt(req.params.jaar);
     if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
     try { await storage.deleteTrendKmInfoByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Maand Prod OR Info ────────────────────────────────────────────────────────
+  app.get("/api/maand-prod-or-info", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const jaar = parseInt(req.query.jaar as string) || new Date().getFullYear();
+      res.json(await storage.getMaandProdOrInfo(jaar));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+  app.post("/api/maand-prod-or-info", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const { rows } = req.body;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
+      const parsed = rows.map((r: unknown) => insertMaandProdOrInfoSchema.parse(r));
+      await storage.saveMaandProdOrInfo(parsed);
+      for (const r of parsed) {
+        const inzagen     = r.inzage_or + r.bulkdata + r.verkorte_inzage + r.schriftelijke_inzage + r.kopie_akte;
+        const verklaring  = r.verklaring_eensluidend + r.verklaring_geen_or;
+        const getuigschrift = r.getuigschrift_volgende + r.getuigschrift_or;
+        await storage.upsertTrendOrInfoRow({ jaar: r.jaar, maand: r.maand, inzagen, her_inzage: r.her_inzage, na_inzage: r.na_inzage, kadastaal_legger: r.kadastrale_legger, verklaring, getuigschrift });
+        await storage.upsertTrendOrAlgemeenRow({ jaar: r.jaar, maand: r.maand, aktes: r.aktes, inschrijvingen: r.inschrijvingen, doorhalingen: r.doorhalingen, opheffingen: r.opheffingen, beslagen: r.beslagen, cessies: r.cessies });
+      }
+      res.json({ saved: parsed.length });
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
 
   // ── Trend OR Info ─────────────────────────────────────────────────────────────

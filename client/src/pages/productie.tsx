@@ -2088,6 +2088,238 @@ function MaandelijkseProdLandmetersTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Maandelijkse Productie OR Info
+
+type OrInfoRij = {
+  maand: number;
+  inzage_or: number; bulkdata: number; verkorte_inzage: number; schriftelijke_inzage: number; kopie_akte: number;
+  her_inzage: number; na_inzage: number; kadastrale_legger: number;
+  verklaring_eensluidend: number; verklaring_geen_or: number;
+  getuigschrift_volgende: number; getuigschrift_or: number;
+  aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number;
+};
+
+const LEGE_ORI_RIJ = (maand: number): OrInfoRij => ({
+  maand,
+  inzage_or: 0, bulkdata: 0, verkorte_inzage: 0, schriftelijke_inzage: 0, kopie_akte: 0,
+  her_inzage: 0, na_inzage: 0, kadastrale_legger: 0,
+  verklaring_eensluidend: 0, verklaring_geen_or: 0,
+  getuigschrift_volgende: 0, getuigschrift_or: 0,
+  aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0,
+});
+
+const ORI_MAAND_NAMEN = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+const ORI_INFO_GROEPEN = [
+  { label: "Inzagen", velden: ["inzage_or", "bulkdata", "verkorte_inzage", "schriftelijke_inzage", "kopie_akte"] as const, subLabels: ["Inzage OR\nonroerende\nzaken", "Bulkdata", "Verkorte\ninzage/\nTenaamstelling", "Schriftelijke\ninzage/\nVolledig inzage", "Kopie\nakte"] },
+  { label: "Her inzage", velden: ["her_inzage"] as const, subLabels: ["Her\ninzage"] },
+  { label: "Na inzage", velden: ["na_inzage"] as const, subLabels: ["Na\ninzage"] },
+  { label: "Kadastrale legger", velden: ["kadastrale_legger"] as const, subLabels: ["Kadastrale\nlegger"] },
+  { label: "Verklaring", velden: ["verklaring_eensluidend", "verklaring_geen_or"] as const, subLabels: ["Verklaring\neensluidend-\nheid", "Verklaring\ngeen onroerende\nzaken"] },
+  { label: "Getuigschrift", velden: ["getuigschrift_volgende", "getuigschrift_or"] as const, subLabels: ["Getuigschrift\nvoor elk volgende\nonroerende zaken", "Getuigschrift\nonroerende\nzaken"] },
+] as const;
+
+const ORI_ALG_GROEPEN = [
+  { label: "Akten en inschrijvingen", velden: ["aktes", "inschrijvingen", "doorhalingen", "opheffingen", "beslagen", "cessies"] as const, subLabels: ["Aktes", "Inschrijvingen", "Doorhalingen", "Opheffingen", "Beslagen", "Cessies"] },
+] as const;
+
+function oriInfoTotaal(r: OrInfoRij): number {
+  return r.inzage_or + r.bulkdata + r.verkorte_inzage + r.schriftelijke_inzage + r.kopie_akte
+    + r.her_inzage + r.na_inzage + r.kadastrale_legger
+    + r.verklaring_eensluidend + r.verklaring_geen_or
+    + r.getuigschrift_volgende + r.getuigschrift_or;
+}
+function oriAlgTotaal(r: OrInfoRij): number {
+  return r.aktes + r.inschrijvingen + r.doorhalingen + r.opheffingen + r.beslagen + r.cessies;
+}
+
+function MaandelijkseProdOrInfoTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const kanBewerken = user && (user.role === "admin" || user.role === "manager");
+
+  const huidigJaar = new Date().getFullYear();
+  const beschikbareJaren = Array.from({ length: 5 }, (_, i) => String(huidigJaar - 2 + i));
+  const [jaar, setJaar] = useState(String(huidigJaar));
+  const [rijen, setRijen] = useState<OrInfoRij[]>(Array.from({ length: 12 }, (_, i) => LEGE_ORI_RIJ(i + 1)));
+  const [opgeslagen, setOpgeslagen] = useState(false);
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-or-info", jaar],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-or-info?jaar=${jaar}`);
+      const data: OrInfoRij[] = await res.json();
+      setRijen(Array.from({ length: 12 }, (_, i) => {
+        const gevonden = data.find(r => r.maand === i + 1);
+        return gevonden ? { ...gevonden } : LEGE_ORI_RIJ(i + 1);
+      }));
+      return data;
+    },
+  });
+
+  const { mutate: opslaan, isPending } = useMutation({
+    mutationFn: async () => {
+      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar) }));
+      await apiRequest("POST", "/api/maand-prod-or-info", { rows: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-or-info", jaar] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-or-info"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trend-or-algemeen"] });
+      toast({ title: "Opgeslagen", description: `Productie OR Info ${jaar} opgeslagen.` });
+      setOpgeslagen(true);
+      setTimeout(() => setOpgeslagen(false), 2000);
+    },
+    onError: (err: any) => toast({ title: "Fout", description: err.message, variant: "destructive" }),
+  });
+
+  const setVeld = (mi: number, veld: keyof Omit<OrInfoRij, "maand">, val: number) => {
+    setRijen(prev => prev.map((r, i) => i === mi ? { ...r, [veld]: val } : r));
+    setOpgeslagen(false);
+  };
+
+  const numInput = (mi: number, veld: keyof Omit<OrInfoRij, "maand">, testId: string) => (
+    <input
+      type="number"
+      min={0}
+      placeholder="0"
+      value={rijen[mi][veld] || ""}
+      onChange={e => setVeld(mi, veld, parseInt(e.target.value) || 0)}
+      disabled={!kanBewerken || isLoading}
+      data-testid={testId}
+      className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+    />
+  );
+
+  const renderTabel = (
+    groepen: typeof ORI_INFO_GROEPEN | typeof ORI_ALG_GROEPEN,
+    rijTotaalFn: (r: OrInfoRij) => number,
+    testPrefix: string,
+  ) => {
+    const velden = groepen.flatMap(g => [...g.velden]) as (keyof Omit<OrInfoRij, "maand">)[];
+    const kolomTotalen = velden.map(v => rijen.reduce((s, r) => s + r[v], 0));
+    const rijTotalen = rijen.map(r => rijTotaalFn(r));
+    const eindTotaal = rijTotalen.reduce((s, t) => s + t, 0);
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-2 py-2 text-left font-semibold min-w-[44px]">Maand</th>
+              {groepen.map(g => (
+                <th key={g.label} colSpan={g.velden.length} className="px-2 py-2 text-center font-semibold border-l border-border/40">
+                  {g.label}
+                </th>
+              ))}
+              <th className="px-2 py-2 text-right font-semibold border-l border-border/40">Totaal</th>
+            </tr>
+            <tr className="border-b bg-muted/30">
+              <th className="px-2 py-1"></th>
+              {groepen.map(g =>
+                g.velden.map((v, si) => (
+                  <th key={v} className={`px-1 py-1 text-center font-medium min-w-[60px] whitespace-pre-line leading-tight ${si === 0 ? "border-l border-border/40" : ""}`}>
+                    {g.subLabels[si]}
+                  </th>
+                ))
+              )}
+              <th className="px-2 py-1 border-l border-border/40"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rijen.map((rij, mi) => (
+              <tr key={rij.maand} className="border-b hover:bg-muted/20">
+                <td className="px-2 py-1.5 font-semibold">{ORI_MAAND_NAMEN[mi]}</td>
+                {groepen.map(g =>
+                  g.velden.map((v, si) => (
+                    <td key={v} className={`px-1 py-0.5 ${si === 0 ? "border-l border-border/20" : ""}`}>
+                      {numInput(mi, v as keyof Omit<OrInfoRij, "maand">, `input-${testPrefix}-${mi}-${velden.indexOf(v as any)}`)}
+                    </td>
+                  ))
+                )}
+                <td className="px-2 py-1.5 text-right font-semibold text-primary border-l border-border/20">
+                  <span data-testid={`text-${testPrefix}-totaal-${mi}`}>{rijTotalen[mi] || ""}</span>
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t bg-muted/30 font-semibold">
+              <td className="px-2 py-1.5">Totaal</td>
+              {groepen.map(g =>
+                g.velden.map((v, si) => {
+                  const idx = velden.indexOf(v as any);
+                  return (
+                    <td key={v} className={`px-2 py-1.5 text-right ${si === 0 ? "border-l border-border/20" : ""}`}>
+                      <span data-testid={`text-${testPrefix}-col-${idx}`}>{kolomTotalen[idx] || ""}</span>
+                    </td>
+                  );
+                })
+              )}
+              <td className="px-2 py-1.5 text-right border-l border-border/20">
+                <span data-testid={`text-${testPrefix}-eindtotaal`}>{eindTotaal || ""}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Binnengekomen Inzage Deel III</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse OR-info per categorie in</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
+                <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-or-info">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {beschikbareJaren.map(j => (
+                    <SelectItem key={j} value={j} className="text-xs" data-testid={`option-jaar-or-info-${j}`}>{j}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {kanBewerken && (
+                <Button
+                  size="sm"
+                  onClick={() => opslaan()}
+                  disabled={isPending || opgeslagen}
+                  data-testid="button-opslaan-ori"
+                  className="h-8 text-xs"
+                >
+                  {opgeslagen ? "✓ Opgeslagen" : isPending ? "Opslaan..." : "Opslaan"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Laden…</div>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">OR Info → Trend OR Info</p>
+                {renderTabel(ORI_INFO_GROEPEN, oriInfoTotaal, "ori")}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">OR Algemeen → Trend OR Algemeen</p>
+                {renderTabel(ORI_ALG_GROEPEN, oriAlgTotaal, "ora")}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Maandelijkse Productie KM Info
 
 type KmInfoRij = {
@@ -3395,6 +3627,9 @@ export default function ProductiePage() {
                 <TabsTrigger value="prod-km-info" data-testid="tab-prod-km-info">
                   Productie KM Info
                 </TabsTrigger>
+                <TabsTrigger value="prod-or-info" data-testid="tab-prod-or-info">
+                  Productie OR Info
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="prod-kartografen">
                 <MaandelijkseProdKartografenTab />
@@ -3404,6 +3639,9 @@ export default function ProductiePage() {
               </TabsContent>
               <TabsContent value="prod-km-info">
                 <MaandelijkseProdKmInfoTab />
+              </TabsContent>
+              <TabsContent value="prod-or-info">
+                <MaandelijkseProdOrInfoTab />
               </TabsContent>
             </Tabs>
           </TabsContent>

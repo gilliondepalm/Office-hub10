@@ -35,6 +35,7 @@ import {
   type MaandProdSamenvatting, type InsertMaandProdSamenvatting,
   type MaandProdLandmeter, type InsertMaandProdLandmeter,
   type MaandProdSamenvattingLm, type InsertMaandProdSamenvattingLm,
+  type MaandProdOrInfo, type InsertMaandProdOrInfo,
   type MaandProdKmInfo, type InsertMaandProdKmInfo,
   type TrendKmBuiten, type InsertTrendKmBuiten,
   type TrendKmInfo, type InsertTrendKmInfo,
@@ -44,7 +45,7 @@ import {
   type TrendKartografenHist, type InsertTrendKartografenHist,
   helpContentTable, officialHolidays, snipperdagen, yearlyAwards, jobFunctions, kartografieProductie,
   maandProdKartograaf, maandProdSamenvatting,
-  maandProdLandmeter, maandProdSamenvattingLm, maandProdKmInfo,
+  maandProdLandmeter, maandProdSamenvattingLm, maandProdOrInfo, maandProdKmInfo,
   trendKmBuiten, trendKmInfo, trendOrInfo, trendOrAlgemeen, trendOrNotaris, trendKartografenHist,
 } from "@shared/schema";
 
@@ -221,6 +222,11 @@ export interface IStorage {
   getTrendKmBuiten(): Promise<TrendKmBuiten[]>;
   bulkUpsertTrendKmBuiten(rows: InsertTrendKmBuiten[]): Promise<void>;
   deleteTrendKmBuitenByJaar(jaar: number): Promise<void>;
+
+  getMaandProdOrInfo(jaar: number): Promise<MaandProdOrInfo[]>;
+  saveMaandProdOrInfo(rows: InsertMaandProdOrInfo[]): Promise<void>;
+  upsertTrendOrInfoRow(data: InsertTrendOrInfo): Promise<void>;
+  upsertTrendOrAlgemeenRow(data: InsertTrendOrAlgemeen): Promise<void>;
 
   getMaandProdKmInfo(jaar: number): Promise<MaandProdKmInfo[]>;
   saveMaandProdKmInfo(rows: InsertMaandProdKmInfo[]): Promise<void>;
@@ -1290,6 +1296,41 @@ export class DatabaseStorage implements IStorage {
         .where(eq(trendKmBuiten.id, existing.id));
     } else {
       await db.insert(trendKmBuiten).values(data);
+    }
+  }
+
+  async getMaandProdOrInfo(jaar: number): Promise<MaandProdOrInfo[]> {
+    return await db.select().from(maandProdOrInfo).where(eq(maandProdOrInfo.jaar, jaar)).orderBy(maandProdOrInfo.maand);
+  }
+  async saveMaandProdOrInfo(rows: InsertMaandProdOrInfo[]): Promise<void> {
+    if (rows.length === 0) return;
+    const jaar = rows[0].jaar;
+    const maanden = [...new Set(rows.map(r => r.maand))];
+    for (const m of maanden) {
+      await db.delete(maandProdOrInfo).where(and(eq(maandProdOrInfo.jaar, jaar), eq(maandProdOrInfo.maand, m)));
+    }
+    await db.insert(maandProdOrInfo).values(rows);
+  }
+  async upsertTrendOrInfoRow(data: InsertTrendOrInfo): Promise<void> {
+    const [existing] = await db.select().from(trendOrInfo)
+      .where(and(eq(trendOrInfo.jaar, data.jaar), eq(trendOrInfo.maand, data.maand)));
+    if (existing) {
+      await db.update(trendOrInfo)
+        .set({ inzagen: data.inzagen, her_inzage: data.her_inzage, na_inzage: data.na_inzage, kadastaal_legger: data.kadastaal_legger, verklaring: data.verklaring, getuigschrift: data.getuigschrift })
+        .where(eq(trendOrInfo.id, existing.id));
+    } else {
+      await db.insert(trendOrInfo).values(data);
+    }
+  }
+  async upsertTrendOrAlgemeenRow(data: InsertTrendOrAlgemeen): Promise<void> {
+    const [existing] = await db.select().from(trendOrAlgemeen)
+      .where(and(eq(trendOrAlgemeen.jaar, data.jaar), eq(trendOrAlgemeen.maand, data.maand)));
+    if (existing) {
+      await db.update(trendOrAlgemeen)
+        .set({ aktes: data.aktes, inschrijvingen: data.inschrijvingen, doorhalingen: data.doorhalingen, opheffingen: data.opheffingen, beslagen: data.beslagen, cessies: data.cessies })
+        .where(eq(trendOrAlgemeen.id, existing.id));
+    } else {
+      await db.insert(trendOrAlgemeen).values(data);
     }
   }
 

@@ -504,6 +504,34 @@ export const insertTrendKmBuitenSchema = createInsertSchema(trendKmBuiten).omit(
 export type InsertTrendKmBuiten = z.infer<typeof insertTrendKmBuitenSchema>;
 export type TrendKmBuiten = typeof trendKmBuiten.$inferSelect;
 
+// ── Maand Prod OR Info ────────────────────────────────────────────────────────
+export const maandProdOrInfo = pgTable("maand_prod_or_info", {
+  id: serial("id").primaryKey(),
+  jaar: integer("jaar").notNull(),
+  maand: integer("maand").notNull(),
+  inzage_or: integer("inzage_or").notNull().default(0),
+  bulkdata: integer("bulkdata").notNull().default(0),
+  verkorte_inzage: integer("verkorte_inzage").notNull().default(0),
+  schriftelijke_inzage: integer("schriftelijke_inzage").notNull().default(0),
+  kopie_akte: integer("kopie_akte").notNull().default(0),
+  her_inzage: integer("her_inzage").notNull().default(0),
+  na_inzage: integer("na_inzage").notNull().default(0),
+  kadastrale_legger: integer("kadastrale_legger").notNull().default(0),
+  verklaring_eensluidend: integer("verklaring_eensluidend").notNull().default(0),
+  verklaring_geen_or: integer("verklaring_geen_or").notNull().default(0),
+  getuigschrift_volgende: integer("getuigschrift_volgende").notNull().default(0),
+  getuigschrift_or: integer("getuigschrift_or").notNull().default(0),
+  aktes: integer("aktes").notNull().default(0),
+  inschrijvingen: integer("inschrijvingen").notNull().default(0),
+  doorhalingen: integer("doorhalingen").notNull().default(0),
+  opheffingen: integer("opheffingen").notNull().default(0),
+  beslagen: integer("beslagen").notNull().default(0),
+  cessies: integer("cessies").notNull().default(0),
+});
+export const insertMaandProdOrInfoSchema = createInsertSchema(maandProdOrInfo).omit({ id: true });
+export type InsertMaandProdOrInfo = z.infer<typeof insertMaandProdOrInfoSchema>;
+export type MaandProdOrInfo = typeof maandProdOrInfo.$inferSelect;
+
 // ── Maand Prod KM Info ────────────────────────────────────────────────────────
 export const maandProdKmInfo = pgTable("maand_prod_km_info", {
   id: serial("id").primaryKey(),
