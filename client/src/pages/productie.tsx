@@ -1357,16 +1357,16 @@ export default function ProductiePage() {
         <Tabs defaultValue="kartografie">
           <TabsList className="mb-5 flex-wrap h-auto gap-1">
             <TabsTrigger value="kartografie" data-testid="tab-kartografie">
-              Kartografen
+              Trend Binnen
             </TabsTrigger>
             <TabsTrigger value="landmeters" data-testid="tab-landmeters">
-              Landmeters
+              Trend Buiten
             </TabsTrigger>
             <TabsTrigger value="balie" data-testid="tab-balie">
-              Balie Medewerker II
+              Trend KM Info
             </TabsTrigger>
             <TabsTrigger value="balie3" data-testid="tab-balie3">
-              Balie Medewerker III
+              Trend OR Info
             </TabsTrigger>
           </TabsList>
 
