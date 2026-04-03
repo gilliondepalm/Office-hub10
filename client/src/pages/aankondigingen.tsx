@@ -615,6 +615,7 @@ export default function AankondigingenPage() {
   const [selectedMessage, setSelectedMessage] = useState<MessageWithNames | null>(null);
   const [activeTab, setActiveTab] = useState<"announcements" | "messages" | "nieuwsbrieven" | "archief">("announcements");
   const [deleteConfirmAnn, setDeleteConfirmAnn] = useState<Announcement | null>(null);
+  const [permanentDeleteAnn, setPermanentDeleteAnn] = useState<Announcement | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -668,8 +669,10 @@ export default function AankondigingenPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/announcements/archived"] });
       toast({ title: "Aankondiging verwijderd" });
       setDeleteConfirmAnn(null);
+      setPermanentDeleteAnn(null);
     },
   });
 
@@ -844,6 +847,38 @@ export default function AankondigingenPage() {
           >
             Annuleren
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!permanentDeleteAnn} onOpenChange={(o) => { if (!o) setPermanentDeleteAnn(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Permanent verwijderen</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Weet u het zeker? Deze aankondiging wordt permanent verwijderd en kan niet worden hersteld.
+          </p>
+          <p className="text-sm font-medium mt-1">{permanentDeleteAnn?.title}</p>
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => permanentDeleteAnn && deleteMutation.mutate(permanentDeleteAnn.id)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-permanent-delete"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteMutation.isPending ? "Verwijderen..." : "Ja, permanent verwijderen"}
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setPermanentDeleteAnn(null)}
+              data-testid="button-cancel-permanent-delete"
+            >
+              Annuleren
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1037,6 +1072,14 @@ export default function AankondigingenPage() {
                           {formatDateTime(ann.createdAt)}
                         </p>
                       </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setPermanentDeleteAnn(ann)}
+                        data-testid={`button-permanent-delete-archived-${ann.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
