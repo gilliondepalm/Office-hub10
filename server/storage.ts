@@ -65,6 +65,8 @@ export interface IStorage {
   deleteEvent(id: string): Promise<void>;
 
   getAnnouncements(): Promise<Announcement[]>;
+  getArchivedAnnouncements(): Promise<Announcement[]>;
+  archiveAnnouncement(id: string): Promise<void>;
   createAnnouncement(ann: InsertAnnouncement): Promise<Announcement>;
   updateAnnouncement(id: string, data: Partial<InsertAnnouncement>): Promise<Announcement>;
   deleteAnnouncement(id: string): Promise<void>;
@@ -314,7 +316,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAnnouncements(): Promise<Announcement[]> {
-    return db.select().from(announcements).orderBy(desc(announcements.createdAt));
+    return db.select().from(announcements).where(eq(announcements.archived, false)).orderBy(desc(announcements.createdAt));
+  }
+
+  async getArchivedAnnouncements(): Promise<Announcement[]> {
+    return db.select().from(announcements).where(eq(announcements.archived, true)).orderBy(desc(announcements.createdAt));
+  }
+
+  async archiveAnnouncement(id: string): Promise<void> {
+    await db.update(announcements).set({ archived: true }).where(eq(announcements.id, id));
   }
 
   async createAnnouncement(ann: InsertAnnouncement): Promise<Announcement> {

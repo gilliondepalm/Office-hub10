@@ -20,7 +20,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import { Plus, Megaphone, Pin, Trash2, AlertCircle, Pencil, FileText, Upload, X, Send, Mail, MailOpen, Reply, Clock, User as UserIcon, Users, Newspaper } from "lucide-react";
+import { Plus, Megaphone, Pin, Trash2, AlertCircle, Pencil, FileText, Upload, X, Send, Mail, MailOpen, Reply, Clock, User as UserIcon, Users, Newspaper, Archive } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -613,12 +613,18 @@ export default function AankondigingenPage() {
   const [editAnn, setEditAnn] = useState<Announcement | null>(null);
   const [sendMsgOpen, setSendMsgOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<MessageWithNames | null>(null);
-  const [activeTab, setActiveTab] = useState<"announcements" | "messages" | "nieuwsbrieven">("announcements");
+  const [activeTab, setActiveTab] = useState<"announcements" | "messages" | "nieuwsbrieven" | "archief">("announcements");
+  const [deleteConfirmAnn, setDeleteConfirmAnn] = useState<Announcement | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
   const { data: announcements, isLoading } = useQuery<Announcement[]>({
     queryKey: ["/api/announcements"],
+  });
+
+  const { data: archivedAnnouncements, isLoading: archivedLoading } = useQuery<Announcement[]>({
+    queryKey: ["/api/announcements/archived"],
+    enabled: activeTab === "archief",
   });
 
   const { data: messagesData, isLoading: messagesLoading } = useQuery<MessageWithNames[]>({
@@ -663,6 +669,19 @@ export default function AankondigingenPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
       toast({ title: "Aankondiging verwijderd" });
+      setDeleteConfirmAnn(null);
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/announcements/${id}/archive`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/announcements/archived"] });
+      toast({ title: "Aankondiging gearchiveerd" });
+      setDeleteConfirmAnn(null);
     },
   });
 
@@ -764,6 +783,20 @@ export default function AankondigingenPage() {
             </Badge>
           )}
         </button>
+        {canCreateAnnouncement && (
+          <button
+            onClick={() => setActiveTab("archief")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === "archief"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-archief"
+          >
+            <Archive className="h-4 w-4 inline -mt-0.5" />
+            Oude aankondigingen
+          </button>
+        )}
       </div>
 
       <AnnouncementFormDialog open={createOpen} onOpenChange={setCreateOpen} />
@@ -772,6 +805,47 @@ export default function AankondigingenPage() {
       )}
       <SendMessageDialog open={sendMsgOpen} onOpenChange={setSendMsgOpen} />
       <MessageDetailDialog message={selectedMessage} onClose={() => setSelectedMessage(null)} currentUserId={user?.id || ""} />
+
+      <Dialog open={!!deleteConfirmAnn} onOpenChange={(o) => { if (!o) setDeleteConfirmAnn(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aankondiging verwijderen</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Wilt u deze aankondiging toevoegen aan de oude aankondiging archief?
+          </p>
+          <p className="text-sm font-medium mt-1">{deleteConfirmAnn?.title}</p>
+          <div className="flex gap-2 mt-4">
+            <Button
+              className="flex-1"
+              onClick={() => deleteConfirmAnn && archiveMutation.mutate(deleteConfirmAnn.id)}
+              disabled={archiveMutation.isPending || deleteMutation.isPending}
+              data-testid="button-confirm-archive"
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              {archiveMutation.isPending ? "Archiveren..." : "Ja, archiveren"}
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => deleteConfirmAnn && deleteMutation.mutate(deleteConfirmAnn.id)}
+              disabled={deleteMutation.isPending || archiveMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteMutation.isPending ? "Verwijderen..." : "Nee, verwijderen"}
+            </Button>
+          </div>
+          <Button
+            variant="ghost"
+            className="w-full mt-1"
+            onClick={() => setDeleteConfirmAnn(null)}
+            data-testid="button-cancel-delete"
+          >
+            Annuleren
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {activeTab === "announcements" && (
         <>
@@ -829,7 +903,7 @@ export default function AankondigingenPage() {
                           <Button size="icon" variant="ghost" onClick={() => setEditAnn(ann)} data-testid={`button-edit-announcement-${ann.id}`}>
                             <Pencil className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(ann.id)} data-testid={`button-delete-announcement-${ann.id}`}>
+                          <Button size="icon" variant="ghost" onClick={() => setDeleteConfirmAnn(ann)} data-testid={`button-delete-announcement-${ann.id}`}>
                             <Trash2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         </div>
@@ -914,6 +988,62 @@ export default function AankondigingenPage() {
 
       {activeTab === "nieuwsbrieven" && (
         <NieuwsbrievenTab />
+      )}
+
+      {activeTab === "archief" && (
+        <>
+          {archivedLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
+            </div>
+          ) : !archivedAnnouncements || archivedAnnouncements.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center py-12">
+                <Archive className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Geen gearchiveerde aankondigingen</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3">
+              {archivedAnnouncements.map((ann) => (
+                <Card key={ann.id} className="opacity-80">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <Archive className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-sm" data-testid={`text-archived-announcement-${ann.id}`}>{ann.title}</h3>
+                          <Badge variant="outline" className="text-xs">Gearchiveerd</Badge>
+                          {ann.priority === "high" && (
+                            <Badge variant="secondary" className="text-xs">Hoog</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{ann.content}</p>
+                        {ann.pdfUrl && (
+                          <a
+                            href={ann.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 mt-2 text-sm text-primary hover:underline"
+                            data-testid={`link-archived-pdf-${ann.id}`}
+                          >
+                            <FileText className="h-4 w-4" />
+                            PDF-bijlage bekijken
+                          </a>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {formatDateTime(ann.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
       )}
       </div>
     </div>

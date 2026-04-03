@@ -58,6 +58,7 @@ export const announcements = pgTable("announcements", {
   pdfUrl: text("pdf_url"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  archived: boolean("archived").notNull().default(false),
 });
 
 export const departments = pgTable("departments", {

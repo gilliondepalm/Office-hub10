@@ -1022,6 +1022,16 @@ export async function registerRoutes(
     res.json(all);
   });
 
+  app.get("/api/announcements/archived", requireAuth, async (_req, res) => {
+    const all = await storage.getArchivedAnnouncements();
+    res.json(all);
+  });
+
+  app.patch("/api/announcements/:id/archive", requireAuth, async (req, res) => {
+    await storage.archiveAnnouncement(req.params.id);
+    res.json({ message: "Gearchiveerd" });
+  });
+
   app.post("/api/announcements", requireAuth, async (req, res) => {
     try {
       const parsed = insertAnnouncementSchema.parse(req.body);
