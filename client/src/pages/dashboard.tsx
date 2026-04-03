@@ -132,6 +132,7 @@ export default function DashboardPage() {
 
   const { data: stats, isLoading } = useQuery<{
     totalEmployees: number;
+    temporaryEmployees: number;
     activeAbsences: number;
     upcomingEvents: number;
     totalRewardPoints: number;
@@ -274,10 +275,17 @@ export default function DashboardPage() {
             <Card className="overflow-hidden border border-border/60">
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground font-medium">Medewerkers</p>
-                    <p className="text-3xl font-bold tracking-tight" data-testid="stat-medewerkers">{stats?.totalEmployees || 0}</p>
-                    <p className="text-xs text-muted-foreground">Actieve medewerkers</p>
+                  <div className="flex gap-6 flex-1">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground font-medium">Medewerkers</p>
+                      <p className="text-3xl font-bold tracking-tight" data-testid="stat-medewerkers">{stats?.totalEmployees || 0}</p>
+                      <p className="text-xs text-muted-foreground">Actieve medewerkers</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground font-medium">Tijdelijk</p>
+                      <p className="text-3xl font-bold tracking-tight" data-testid="stat-tijdelijke-medewerkers">{stats?.temporaryEmployees || 0}</p>
+                      <p className="text-xs text-muted-foreground">Tijdelijke medewerkers</p>
+                    </div>
                   </div>
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                     <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />

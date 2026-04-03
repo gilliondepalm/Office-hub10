@@ -104,6 +104,7 @@ export interface IStorage {
 
   getDashboardStats(): Promise<{
     totalEmployees: number;
+    temporaryEmployees: number;
     activeAbsences: number;
     upcomingEvents: number;
     totalRewardPoints: number;
@@ -601,6 +602,7 @@ export class DatabaseStorage implements IStorage {
 
   async getDashboardStats() {
     const [employeeCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.active, true));
+    const [temporaryEmployeeCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(and(eq(users.active, true), eq(users.role, "tijdelijk")));
     const today = new Date().toISOString().split("T")[0];
     const [activeAbsenceCount] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -623,6 +625,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       totalEmployees: employeeCount?.count || 0,
+      temporaryEmployees: temporaryEmployeeCount?.count || 0,
       activeAbsences: activeAbsenceCount?.count || 0,
       upcomingEvents: eventCount?.count || 0,
       totalRewardPoints: rewardSum?.total || 0,
