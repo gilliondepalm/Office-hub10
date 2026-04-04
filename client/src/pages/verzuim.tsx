@@ -2292,14 +2292,23 @@ export default function VerzuimPage() {
                       <span className="font-bold text-base">{bal.remainingDays}</span>
                       <span className="text-muted-foreground"> van {bal.totalDays} dagen resterend</span>
                       <span className="text-muted-foreground"> ({bal.opgenomenDays} opgenomen</span>
+                      {(bal.geplandDays ?? 0) > 0 && (
+                        <span className="text-muted-foreground">, {bal.geplandDays} gepland</span>
+                      )}
                       {(bal.toegekendDays ?? 0) > 0 && (
                         <span className="text-muted-foreground">, {bal.toegekendDays} toegekend</span>
+                      )}
+                      {(bal.cancelDays ?? 0) > 0 && (
+                        <span className="text-muted-foreground">, {bal.cancelDays} gecanceld</span>
                       )}
                       {(bal.snipperdagen ?? 0) > 0 && (
                         <span className="text-muted-foreground">, {bal.snipperdagen} snipperdag</span>
                       )}
                       {(bal.ongeoorloofdDays ?? 0) > 0 && (
                         <span className="text-muted-foreground">, {bal.ongeoorloofdDays} ongeoorloofd</span>
+                      )}
+                      {(bal.persoonlijkGeoorloofdDays ?? 0) > 0 && (
+                        <span className="text-muted-foreground">, {bal.persoonlijkGeoorloofdDays} geoorloofd</span>
                       )}
                       <span className="text-muted-foreground">)</span>
                     </p>
