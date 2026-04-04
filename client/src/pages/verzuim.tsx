@@ -2084,14 +2084,14 @@ export default function VerzuimPage() {
                           };
 
                           // Build saldoNaPlanning map: absenceId → running remaining balance
-                          // For each user, sort their vakantie absences chronologically and accumulate
+                          // For each user, sort their vacation absences chronologically and accumulate
                           const saldoNaPlanningMap = new Map<string, number>();
-                          const userIds = Array.from(new Set(deptFilteredAbsences.filter(a => a.type === "vakantie" && a.status !== "cancelled").map(a => a.userId)));
+                          const userIds = Array.from(new Set(deptFilteredAbsences.filter(a => a.type === "vacation" && a.status !== "cancelled").map(a => a.userId)));
                           for (const uid of userIds) {
                             const bal = vacationBalances?.find(b => b.userId === uid);
                             if (!bal) continue;
                             const userVakantie = deptFilteredAbsences
-                              .filter(a => a.userId === uid && a.type === "vakantie" && a.status !== "cancelled")
+                              .filter(a => a.userId === uid && a.type === "vacation" && a.status !== "cancelled")
                               .sort((a, b) => a.startDate.localeCompare(b.startDate));
                             let running = bal.totalDays;
                             for (const abs of userVakantie) {
@@ -2181,7 +2181,7 @@ export default function VerzuimPage() {
                                   </TableCell>
                                   <TableCell className="text-right">
                                     {(() => {
-                                      if (absence.type !== "vakantie" || absence.status === "cancelled") {
+                                      if (absence.type !== "vacation" || absence.status === "cancelled") {
                                         return <span className="text-muted-foreground text-xs">-</span>;
                                       }
                                       const remaining = saldoNaPlanningMap.get(absence.id);
