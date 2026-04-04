@@ -1973,17 +1973,6 @@ export default function VerzuimPage() {
                   <span className="text-muted-foreground">Mijn vakantiesaldo:</span>{" "}
                   <span className="font-semibold" data-testid="text-my-remaining">{myBalance.remainingDays}</span>
                   <span className="text-muted-foreground"> van {myBalance.totalDays} dagen resterend</span>
-                  <span className="text-muted-foreground"> ({myBalance.opgenomenDays} opgenomen</span>
-                  {(myBalance.toegekendDays ?? 0) > 0 && (
-                    <span className="text-muted-foreground">, {myBalance.toegekendDays} toegekend</span>
-                  )}
-                  {(myBalance.snipperdagen ?? 0) > 0 && (
-                    <span className="text-muted-foreground">, {myBalance.snipperdagen} snipperdag</span>
-                  )}
-                  {(myBalance.ongeoorloofdDays ?? 0) > 0 && (
-                    <span className="text-muted-foreground">, {myBalance.ongeoorloofdDays} ongeoorloofd</span>
-                  )}
-                  <span className="text-muted-foreground">)</span>
                 </div>
               </CardContent>
             </Card>
