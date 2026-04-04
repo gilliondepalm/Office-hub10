@@ -1370,9 +1370,20 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/absences/user/:userId", requireAdmin, async (req, res) => {
+  app.get("/api/absences/user/:userId", requireAuth, async (req, res) => {
     try {
-      const absenceList = await storage.getAbsencesByUser(req.params.userId);
+      const currentUser = req.user as any;
+      const targetUserId = req.params.userId;
+      if (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      if (!isAdminRole(currentUser.role)) {
+        const targetUser = await storage.getUser(targetUserId);
+        if (!targetUser || targetUser.department !== currentUser.department) {
+          return res.status(403).json({ message: "Geen toegang tot deze medewerker" });
+        }
+      }
+      const absenceList = await storage.getAbsencesByUser(targetUserId);
       const active = absenceList.filter(a =>
         a.status === "pending" || a.status === "approved"
       );
@@ -1382,10 +1393,20 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/absences/:id/cancel", requireAdmin, async (req, res) => {
+  app.post("/api/absences/:id/cancel", requireAuth, async (req, res) => {
     try {
+      const currentUser = req.user as any;
+      if (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
       const absence = await storage.getAbsenceById(req.params.id);
       if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
+      if (!isAdminRole(currentUser.role)) {
+        const targetUser = await storage.getUser(absence.userId);
+        if (!targetUser || targetUser.department !== currentUser.department) {
+          return res.status(403).json({ message: "Geen toegang tot deze medewerker" });
+        }
+      }
 
       const absenceYear = new Date(absence.startDate).getFullYear();
       const [holidaysPrev, holidaysCurr, holidaysNext] = await Promise.all([
@@ -1465,8 +1486,12 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/absence-cancellations", requireAdmin, async (req, res) => {
+  app.post("/api/absence-cancellations", requireAuth, async (req, res) => {
     try {
+      const currentUser = req.user as any;
+      if (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
       const { absenceId, cancelledDate, cancelReason } = req.body;
       if (!absenceId || !cancelledDate) {
         return res.status(400).json({ message: "absenceId en cancelledDate zijn verplicht" });
@@ -1474,6 +1499,12 @@ export async function registerRoutes(
 
       const absence = await storage.getAbsenceById(absenceId);
       if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
+      if (!isAdminRole(currentUser.role)) {
+        const targetUser = await storage.getUser(absence.userId);
+        if (!targetUser || targetUser.department !== currentUser.department) {
+          return res.status(403).json({ message: "Geen toegang tot deze medewerker" });
+        }
+      }
 
       const affectsBalance = absence.type === "vacation"
         || (["sick", "bvvd"].includes(absence.type) && absence.deductVacation === true);

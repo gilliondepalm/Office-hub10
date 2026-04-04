@@ -695,8 +695,9 @@ function AbsenceReportDialog({
   );
 }
 
-function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; currentUser: User }) {
-  const [selectedDept, setSelectedDept] = useState<string>("");
+function CancelVerzuimTab({ allUsers, currentUser, isAdmin }: { allUsers: User[]; currentUser: User; isAdmin: boolean }) {
+  const myDept = currentUser.department || "Geen afdeling";
+  const [selectedDept, setSelectedDept] = useState<string>(isAdmin ? "" : myDept);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [confirmDay, setConfirmDay] = useState<{ dateStr: string; absence: Absence } | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("");
@@ -709,9 +710,9 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
     vacation: "Vakantie", sick: "Ziekte", personal: "Geoorloofd", other: "Ongeoorloofd", bvvd: "BVVD", persoonlijk: "Persoonlijk",
   };
 
-  const departments = [...new Set(
-    allUsers.filter(u => u.active).map(u => u.department || "Geen afdeling")
-  )].sort((a, b) => a.localeCompare(b, "nl"));
+  const departments = isAdmin
+    ? [...new Set(allUsers.filter(u => u.active).map(u => u.department || "Geen afdeling"))].sort((a, b) => a.localeCompare(b, "nl"))
+    : [myDept];
 
   const usersInDept = allUsers
     .filter(u => u.active && (u.department || "Geen afdeling") === selectedDept)
@@ -924,17 +925,24 @@ function CancelVerzuimTab({ allUsers, currentUser }: { allUsers: User[]; current
   return (
     <div className="space-y-6">
       <div className="flex gap-4 flex-wrap items-end">
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Afdeling</label>
-          <Select value={selectedDept} onValueChange={(v) => { setSelectedDept(v); setSelectedUserId(""); }}>
-            <SelectTrigger className="w-52" data-testid="select-cancel-dept">
-              <SelectValue placeholder="Kies afdeling…" />
-            </SelectTrigger>
-            <SelectContent>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
+        {isAdmin ? (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Afdeling</label>
+            <Select value={selectedDept} onValueChange={(v) => { setSelectedDept(v); setSelectedUserId(""); }}>
+              <SelectTrigger className="w-52" data-testid="select-cancel-dept">
+                <SelectValue placeholder="Kies afdeling…" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Afdeling</label>
+            <div className="h-10 px-3 flex items-center text-sm border rounded-md bg-muted/50 w-52">{myDept}</div>
+          </div>
+        )}
         {selectedDept && (
           <div className="space-y-1">
             <label className="text-sm font-medium">Medewerker</label>
@@ -1908,7 +1916,7 @@ export default function VerzuimPage() {
             Vakantiesaldo
           </button>
         )}
-        {isAdminRole(user?.role) && (
+        {(isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az") && (
           <button
             onClick={() => setActiveTab("cancel-verzuim")}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -2751,14 +2759,14 @@ export default function VerzuimPage() {
         </Card>
       )}
 
-      {activeTab === "cancel-verzuim" && isAdminRole(user?.role) && (
+      {activeTab === "cancel-verzuim" && (isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az") && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <XCircle className="h-4 w-4 text-muted-foreground" />
             <h3 className="font-semibold text-sm">Cancel Verzuim — Verlofkalender</h3>
           </CardHeader>
           <CardContent>
-            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} />
+            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} />
           </CardContent>
         </Card>
       )}
