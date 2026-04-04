@@ -2084,27 +2084,42 @@ export default function VerzuimPage() {
                             return count;
                           };
 
-                          // Build saldoNaPlanning map: absenceId → running remaining balance
-                          // For each user, sort their vacation absences chronologically and accumulate
+                          // Snipperdagen for current year (used in both saldo and synthetic rows)
+                          const currentYear = new Date().getFullYear();
+                          const yearSnipperdagen = (snipperdagenData || []).filter(s => s.year === currentYear);
+
+                          // Build saldoNaPlanning map: absenceId/snipperdagId → running remaining balance
+                          // Interleaves vacation absences and snipperdagen chronologically per user
                           const saldoNaPlanningMap = new Map<string, number>();
                           const userIds = Array.from(new Set(deptFilteredAbsences.filter(a => a.type === "vacation" && a.status !== "cancelled").map(a => a.userId)));
                           for (const uid of userIds) {
                             const bal = vacationBalances?.find(b => b.userId === uid);
                             if (!bal) continue;
-                            const userVakantie = deptFilteredAbsences
+                            // Build merged timeline: vacation absences + snipperdagen
+                            const vacEntries = deptFilteredAbsences
                               .filter(a => a.userId === uid && a.type === "vacation" && a.status !== "cancelled")
-                              .sort((a, b) => a.startDate.localeCompare(b.startDate));
+                              .map(a => ({ id: a.id, date: a.startDate, days: a.halfDay ? 0.5 : countWeekdays(a.startDate, a.endDate) }));
+                            const snipEntries = yearSnipperdagen.map(s => ({ id: `snipperdag-${s.id}`, date: s.date, days: 1 }));
+                            const merged = [...vacEntries, ...snipEntries].sort((a, b) => a.date.localeCompare(b.date));
                             let running = bal.totalDays;
-                            for (const abs of userVakantie) {
-                              const days = abs.halfDay ? 0.5 : countWeekdays(abs.startDate, abs.endDate);
-                              running -= days;
-                              saldoNaPlanningMap.set(abs.id, running);
+                            for (const entry of merged) {
+                              running -= entry.days;
+                              saldoNaPlanningMap.set(entry.id, running);
+                            }
+                          }
+                          // For medewerkers without vacation absences but with snipperdagen, compute snipperdag saldo
+                          if (!isAdminOrManager && user?.id && !userIds.includes(user.id)) {
+                            const bal = vacationBalances?.find(b => b.userId === user.id);
+                            if (bal) {
+                              let running = bal.totalDays;
+                              for (const s of [...yearSnipperdagen].sort((a, b) => a.date.localeCompare(b.date))) {
+                                running -= 1;
+                                saldoNaPlanningMap.set(`snipperdag-${s.id}`, running);
+                              }
                             }
                           }
 
                           // Build synthetic snipperdag rows for current year
-                          const currentYear = new Date().getFullYear();
-                          const yearSnipperdagen = (snipperdagenData || []).filter(s => s.year === currentYear);
                           const snipperdagSyntheticRows: any[] = yearSnipperdagen.map(s => ({
                             id: `snipperdag-${s.id}`,
                             _isSnipperdag: true,
@@ -2211,9 +2226,9 @@ export default function VerzuimPage() {
                                   </TableCell>
                                   <TableCell className="text-right">
                                     {(() => {
-                                      if (absence.type !== "vacation" || absence.status === "cancelled") {
-                                        return <span className="text-muted-foreground text-xs">-</span>;
-                                      }
+                                      const showSaldo = (absence.type === "vacation" && absence.status !== "cancelled") ||
+                                        (isSnipperdagRow && !isAdminOrManager);
+                                      if (!showSaldo) return <span className="text-muted-foreground text-xs">-</span>;
                                       const remaining = saldoNaPlanningMap.get(absence.id);
                                       if (remaining === undefined) return <span className="text-muted-foreground text-xs">-</span>;
                                       return (
