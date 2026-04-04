@@ -2102,7 +2102,32 @@ export default function VerzuimPage() {
                             }
                           }
 
-                          const sorted = [...filtered].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl"));
+                          // Build synthetic snipperdag rows for current year
+                          const currentYear = new Date().getFullYear();
+                          const yearSnipperdagen = (snipperdagenData || []).filter(s => s.year === currentYear);
+                          const snipperdagSyntheticRows: any[] = yearSnipperdagen.map(s => ({
+                            id: `snipperdag-${s.id}`,
+                            _isSnipperdag: true,
+                            snipperdagName: s.name,
+                            userId: isAdminOrManager ? "all" : (user?.id || ""),
+                            userName: isAdminOrManager ? "Alle medewerkers" : ((user as any)?.fullName || user?.username || ""),
+                            userDepartment: isAdminOrManager ? (myDept || "Geen afdeling") : (user?.department || "Geen afdeling"),
+                            type: "snipperdag",
+                            startDate: s.date,
+                            endDate: s.date,
+                            status: "approved",
+                            reason: s.name,
+                            halfDay: null,
+                            bvvdReason: null,
+                            approvedBy: null,
+                            persoonlijkBesluit: null,
+                          }));
+
+                          const sorted = [...filtered, ...snipperdagSyntheticRows].sort((a, b) =>
+                            ((a as any).startDate || "").localeCompare((b as any).startDate || "")
+                          ).sort((a, b) =>
+                            ((a as any).userName || "").localeCompare((b as any).userName || "", "nl")
+                          );
                           const colCount = isAdminOrManager ? 8 : 7;
                           const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
                           return depts.map(dept => (
@@ -2114,6 +2139,7 @@ export default function VerzuimPage() {
                               </TableRow>
                             )}
                             {sorted.filter(a => ((a as any).userDepartment || "Geen afdeling") === dept).map((absence) => {
+                              const isSnipperdagRow = !!(absence as any)._isSnipperdag;
                               const sc = statusConfig[absence.status] || statusConfig.pending;
                               const StatusIcon = sc.icon;
                               const baseReason = absence.type === "bvvd" && absence.bvvdReason
@@ -2122,15 +2148,15 @@ export default function VerzuimPage() {
                               const displayReason = absence.status === "cancelled" && (absence as any).cancelReason
                                 ? `${baseReason !== "-" ? baseReason + " · " : ""}Annulering: ${(absence as any).cancelReason}`
                                 : baseReason;
-                              const isApprovable = canApprove(absence);
-                              const isDuplicate = duplicateAbsenceIds.has(absence.id);
-                              const canDeleteThis = isAdminOrManager || absence.userId === user?.id;
+                              const isApprovable = !isSnipperdagRow && canApprove(absence);
+                              const isDuplicate = !isSnipperdagRow && duplicateAbsenceIds.has(absence.id);
+                              const canDeleteThis = !isSnipperdagRow && (isAdminOrManager || absence.userId === user?.id);
                               return (
                                 <TableRow
                                   key={absence.id}
                                   data-testid={`row-absence-${absence.id}`}
-                                  className={`cursor-pointer hover:bg-muted/40 transition-colors ${isDuplicate ? "bg-red-50/40 dark:bg-red-950/20" : ""}`}
-                                  onClick={(e) => {
+                                  className={`${isSnipperdagRow ? "bg-blue-950/5 dark:bg-blue-950/20" : "cursor-pointer hover:bg-muted/40"} transition-colors ${isDuplicate ? "bg-red-50/40 dark:bg-red-950/20" : ""}`}
+                                  onClick={isSnipperdagRow ? undefined : (e) => {
                                     if ((e.target as HTMLElement).closest("button,input,a,[role='checkbox']")) return;
                                     setDetailAbsence(absence);
                                   }}
@@ -2141,8 +2167,11 @@ export default function VerzuimPage() {
                                   <TableCell>
                                     <div className="flex flex-col gap-0.5">
                                       <div className="flex items-center gap-1">
-                                        <Badge variant="secondary" className="text-xs">
-                                          {absence.type === "persoonlijk" && (absence as any).persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[absence.type]}
+                                        <Badge
+                                          variant="secondary"
+                                          className={`text-xs ${isSnipperdagRow ? "bg-blue-900 text-white dark:bg-blue-800 dark:text-white border-0" : ""}`}
+                                        >
+                                          {isSnipperdagRow ? "Snipperdag" : (absence.type === "persoonlijk" && (absence as any).persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : typeLabels[absence.type])}
                                         </Badge>
                                         {isDuplicate && <span className="text-destructive font-bold text-sm leading-none">*</span>}
                                       </div>
