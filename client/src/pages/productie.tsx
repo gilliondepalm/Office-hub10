@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -2935,11 +2935,27 @@ const KG_COLORS = {
   afgehandeld:  "#ef4444",
 };
 
+const KG_EXTRA_PALETTE = ["#8b5cf6","#ec4899","#06b6d4","#84cc16","#f97316","#64748b","#a78bfa","#34d399","#fbbf24","#f87171"];
+
+const kgNaamNaarKey = (naam: string): keyof typeof KG_COLORS | null => {
+  const k = naam.toLowerCase().replace(/[.\s]+/g, "");
+  if (k === "egaleano" || k.includes("galeano")) return "egaleano";
+  if (k === "jpieters" || k.includes("pieters")) return "jpieters";
+  if (k === "nsambo" || k.includes("sambo")) return "nsambo";
+  return null;
+};
+
+type MpkRow = { id: number; jaar: number; maand: number; kartograaf: string; mbr: number; kad_spl: number; gr_uitz: number; ex_pl: number; plot_coor: number; losse_mbr: number };
+
 function TrendKartografenTab() {
   const [geselecteerdJaar, setGeselecteerdJaar] = useState("2025");
   const [toonTotalen, setToonTotalen] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set(["E. Galeano", "J. Pieters"]));
+  const [geinitialiseerd, setGeinitialiseerd] = useState(false);
 
   const { data: dbKgRows } = useQuery<{ jaar: number; maand: number; egaleano: number; jpieters: number; nsambo: number; binnengekomen: number; afgehandeld: number }[]>({ queryKey: ['/api/trend-kartografen-hist'] });
+  const { data: alleMpkRows } = useQuery<MpkRow[]>({ queryKey: ['/api/maand-prod-kartograaf/alle'] });
+
   const dbKgMap = useMemo(() => {
     if (!dbKgRows || dbKgRows.length === 0) return null;
     const map: Record<string, typeof KG_MAANDDATA[string]> = {};
@@ -2956,246 +2972,310 @@ function TrendKartografenTab() {
   }, [dbKgRows]);
   const activeKgData = dbKgMap ?? KG_MAANDDATA;
 
-  // Combineer hardcoded jaren met eventuele extra jaren uit DB
+  // Per kartograaf naam → jaar → [12 maanden prod]
+  const mpkDataMap = useMemo(() => {
+    const result: Record<string, Record<string, number[]>> = {};
+    if (!alleMpkRows) return result;
+    for (const r of alleMpkRows) {
+      if (r.kartograaf === "afgeboekt_stukken") continue;
+      const naam = r.kartograaf;
+      const jaar = String(r.jaar);
+      const maandIdx = r.maand - 1;
+      const prodWaarde = r.mbr + r.kad_spl + r.gr_uitz;
+      if (!result[naam]) result[naam] = {};
+      if (!result[naam][jaar]) result[naam][jaar] = Array(12).fill(0);
+      result[naam][jaar][maandIdx] = prodWaarde;
+    }
+    return result;
+  }, [alleMpkRows]);
+
+  // Unieke kartograaf namen uit DB
+  const alleKartografenNamen = useMemo(() => {
+    if (!alleMpkRows || alleMpkRows.length === 0) return ["E. Galeano", "J. Pieters"];
+    return [...new Set(alleMpkRows.filter(r => r.kartograaf !== "afgeboekt_stukken").map(r => r.kartograaf))].sort();
+  }, [alleMpkRows]);
+
+  // Initialiseer selected als alle kartografen zodra DB-data beschikbaar is
+  useEffect(() => {
+    if (!geinitialiseerd && alleMpkRows && alleMpkRows.length > 0) {
+      setSelected(new Set(alleKartografenNamen));
+      setGeinitialiseerd(true);
+    }
+  }, [alleKartografenNamen, alleMpkRows, geinitialiseerd]);
+
+  const kleurVoor = (naam: string): string => {
+    const key = kgNaamNaarKey(naam);
+    if (key) return KG_COLORS[key];
+    const idx = alleKartografenNamen.indexOf(naam);
+    return KG_EXTRA_PALETTE[idx % KG_EXTRA_PALETTE.length];
+  };
+
+  // Productiedata voor een kartograaf/jaar: mpkDataMap heeft prioriteit, daarna legacy
+  const getMpkMaandData = (naam: string, jaar: string): number[] => {
+    if (mpkDataMap[naam]?.[jaar]) return mpkDataMap[naam][jaar];
+    const key = kgNaamNaarKey(naam);
+    if (key) {
+      const legacyJaar = activeKgData[jaar];
+      if (legacyJaar) return (legacyJaar as any)[key] as number[];
+    }
+    return Array(12).fill(0);
+  };
+
+  // Alle jaren (hardcoded + DB + mpk)
   const alleKgJaren = useMemo(() => {
     const dbJaren = dbKgRows ? [...new Set(dbKgRows.map(r => String(r.jaar)))] : [];
-    return [...new Set([...KG_JAREN, ...dbJaren])].sort();
-  }, [dbKgRows]);
+    const mpkJaren = alleMpkRows ? [...new Set(alleMpkRows.map(r => String(r.jaar)))] : [];
+    return [...new Set([...KG_JAREN, ...dbJaren, ...mpkJaren])].sort();
+  }, [dbKgRows, alleMpkRows]);
 
+  const toggleKartograaf = (naam: string) =>
+    setSelected(prev => { const s = new Set(prev); s.has(naam) ? s.delete(naam) : s.add(naam); return s; });
+  const setAlle = () => setSelected(new Set(alleKartografenNamen));
+  const setGeenEen = () => setSelected(new Set());
+
+  // Jaarlijkse totalen voor trendgrafieken
+  const jaarTotaalData = useMemo(() => alleKgJaren.map(jaar => {
+    const row: Record<string, string | number> = { jaar };
+    for (const naam of alleKartografenNamen) {
+      row[naam] = kgSum(getMpkMaandData(naam, jaar));
+    }
+    const kgJaar = activeKgData[jaar] as any;
+    row["Binnengekomen"] = kgJaar ? kgSum(kgJaar.binnengekomen) : 0;
+    row["Afgehandeld"]   = kgJaar ? kgSum(kgJaar.afgehandeld)   : 0;
+    return row;
+  }), [alleKgJaren, alleKartografenNamen, mpkDataMap, activeKgData]);
+
+  // Maandelijkse data voor geselecteerd jaar
   const KG_LEEG_JAAR: KgJaarData = { egaleano: Array(12).fill(0), jpieters: Array(12).fill(0), nsambo: Array(12).fill(0), binnengekomen: Array(12).fill(0), afgehandeld: Array(12).fill(0) };
   const jaarData = activeKgData[geselecteerdJaar] ?? KG_MAANDDATA[geselecteerdJaar] ?? KG_LEEG_JAAR;
+  const totBinnengekomen = kgSum(jaarData.binnengekomen);
+  const totAfgehandeld   = kgSum(jaarData.afgehandeld);
+  const verschil         = totAfgehandeld - totBinnengekomen;
 
-  // Maandelijkse grafiekdata voor geselecteerd jaar
-  const maandChartData = KG_MAANDEN.map((m, i) => ({
-    maand: m,
-    "E. Galeano":     jaarData.egaleano[i]     || 0,
-    "J. Pieters":     jaarData.jpieters[i]      || 0,
-    "N. Sambo":       jaarData.nsambo[i]        || 0,
-    "Binnengekomen":  jaarData.binnengekomen[i] || 0,
-    "Afgehandeld":    jaarData.afgehandeld[i]   || 0,
-  }));
+  const selectedNamen = alleKartografenNamen.filter(n => selected.has(n));
 
-  // Check welke kartografen actief zijn in geselecteerd jaar
-  const egaleanoActief = kgSum(jaarData.egaleano) > 0;
-  const jpietersActief = kgSum(jaarData.jpieters) > 0;
-  const nsamboActief   = kgSum(jaarData.nsambo)   > 0;
-
-  // KPI kaarten voor geselecteerd jaar
-  const totEgaleano     = kgSum(jaarData.egaleano);
-  const totJpieters     = kgSum(jaarData.jpieters);
-  const totNsambo       = kgSum(jaarData.nsambo);
-  const totBinnengekomen= kgSum(jaarData.binnengekomen);
-  const totAfgehandeld  = kgSum(jaarData.afgehandeld);
-  const verschil        = totAfgehandeld - totBinnengekomen;
+  const maandChartData = KG_MAANDEN.map((m, i) => {
+    const row: Record<string, string | number> = { maand: m };
+    for (const naam of selectedNamen) {
+      row[naam] = getMpkMaandData(naam, geselecteerdJaar)[i] || 0;
+    }
+    return row;
+  });
 
   return (
     <div className="space-y-6">
       <TrendImportButton label="Trend Kartografen" queryKey="/api/trend-kartografen-hist" endpoint="/api/trend-kartografen-hist/import" />
-      {/* Jaarlijkse trendgrafiek */}
+
+      {/* Kartograaf toggle */}
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-semibold">Jaarlijkse trend per kartograaf (2016–2025)</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Totale productie per kartograaf per jaar</p>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-foreground">Kartografen:</span>
+            {alleKartografenNamen.map(naam => (
+              <label key={naam} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                <input
+                  type="checkbox"
+                  checked={selected.has(naam)}
+                  onChange={() => toggleKartograaf(naam)}
+                  data-testid={`checkbox-kartograaf-${naam.replace(/[\s.]+/g, "-").toLowerCase()}`}
+                  className="rounded"
+                  style={{ accentColor: kleurVoor(naam) }}
+                />
+                <span style={{ color: kleurVoor(naam) }} className="font-medium">{naam}</span>
+              </label>
+            ))}
+            <div className="ml-auto flex gap-2">
+              <button onClick={setAlle} className="text-xs text-primary hover:underline" data-testid="button-kg-alles-aan">Alles aan</button>
+              <span className="text-xs text-muted-foreground">|</span>
+              <button onClick={setGeenEen} className="text-xs text-muted-foreground hover:underline" data-testid="button-kg-alles-uit">Alles uit</button>
             </div>
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <input
-                type="checkbox"
-                checked={toonTotalen}
-                onChange={(e) => setToonTotalen(e.target.checked)}
-                data-testid="checkbox-toon-totalen"
-                className="rounded"
-              />
-              <span>Toon binnengekomen / afgehandeld</span>
-            </label>
           </div>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={KG_JAARTOTALEN} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="egaleano"  name="E. Galeano"  fill={KG_COLORS.egaleano}  radius={[3,3,0,0]} />
-              <Bar dataKey="jpieters"  name="J. Pieters"  fill={KG_COLORS.jpieters}  radius={[3,3,0,0]} />
-              <Bar dataKey="nsambo"    name="N. Sambo"    fill={KG_COLORS.nsambo}    radius={[3,3,0,0]} />
-              {toonTotalen && (
-                <>
-                  <Line type="monotone" dataKey="binnengekomen" name="Binnengekomen" stroke={KG_COLORS.binnengekomen} strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="afgehandeld"   name="Afgehandeld"   stroke={KG_COLORS.afgehandeld}   strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
-                </>
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Lijndiagram jaarlijkse trend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">Lijndiagram jaarlijkse productie per kartograaf</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={KG_JAARTOTALEN} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="egaleano" name="E. Galeano" stroke={KG_COLORS.egaleano} strokeWidth={2} dot={{ r: 4 }} />
-              <Line type="monotone" dataKey="jpieters" name="J. Pieters" stroke={KG_COLORS.jpieters} strokeWidth={2} dot={{ r: 4 }} />
-              <Line type="monotone" dataKey="nsambo"   name="N. Sambo"   stroke={KG_COLORS.nsambo}   strokeWidth={2} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Maandelijkse detail voor geselecteerd jaar */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-semibold">Maandelijkse productie per kartograaf</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Selecteer een jaar voor het maandoverzicht</p>
-            </div>
-            <Select value={geselecteerdJaar} onValueChange={setGeselecteerdJaar}>
-              <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-kartografen">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[...alleKgJaren].reverse().map((j) => (
-                  <SelectItem key={j} value={j} className="text-xs">{j}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {/* KPI kaarten */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {egaleanoActief && (
-              <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-egaleano">
-                <div className="text-2xl font-bold" style={{ color: KG_COLORS.egaleano }}>{totEgaleano.toLocaleString("nl-NL")}</div>
-                <div className="text-xs text-muted-foreground mt-1">E. Galeano</div>
+      {selectedNamen.length === 0 ? (
+        <div className="text-center text-muted-foreground py-12 text-sm">Selecteer ten minste één kartograaf om grafieken te tonen.</div>
+      ) : (
+        <>
+          {/* Jaarlijkse trendgrafiek */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-semibold">Jaarlijkse trend per kartograaf</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Totale productie per kartograaf per jaar</p>
+                </div>
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={toonTotalen}
+                    onChange={(e) => setToonTotalen(e.target.checked)}
+                    data-testid="checkbox-toon-totalen"
+                    className="rounded"
+                  />
+                  <span>Toon binnengekomen / afgehandeld</span>
+                </label>
               </div>
-            )}
-            {jpietersActief && (
-              <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-jpieters">
-                <div className="text-2xl font-bold" style={{ color: KG_COLORS.jpieters }}>{totJpieters.toLocaleString("nl-NL")}</div>
-                <div className="text-xs text-muted-foreground mt-1">J. Pieters</div>
-              </div>
-            )}
-            {nsamboActief && (
-              <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-nsambo">
-                <div className="text-2xl font-bold" style={{ color: KG_COLORS.nsambo }}>{totNsambo.toLocaleString("nl-NL")}</div>
-                <div className="text-xs text-muted-foreground mt-1">N. Sambo</div>
-              </div>
-            )}
-            <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-binnengekomen">
-              <div className="text-2xl font-bold" style={{ color: KG_COLORS.binnengekomen }}>{totBinnengekomen.toLocaleString("nl-NL")}</div>
-              <div className="text-xs text-muted-foreground mt-1">Binnengekomen</div>
-            </div>
-            <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-afgehandeld">
-              <div className="text-2xl font-bold" style={{ color: verschil >= 0 ? "#10b981" : "#ef4444" }}>
-                {verschil >= 0 ? "+" : ""}{verschil.toLocaleString("nl-NL")}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Saldo (afg − binn)</div>
-            </div>
-          </div>
-
-          {/* Maandelijks staafdiagram */}
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={maandChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {egaleanoActief && <Bar dataKey="E. Galeano" fill={KG_COLORS.egaleano} radius={[3,3,0,0]} />}
-              {jpietersActief && <Bar dataKey="J. Pieters" fill={KG_COLORS.jpieters} radius={[3,3,0,0]} />}
-              {nsamboActief   && <Bar dataKey="N. Sambo"   fill={KG_COLORS.nsambo}   radius={[3,3,0,0]} />}
-            </BarChart>
-          </ResponsiveContainer>
-
-          {/* Detailtabel */}
-          <div className="overflow-x-auto rounded-md border text-xs">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-muted/50">
-                  <th className="px-3 py-2 text-left font-semibold">Kartograaf</th>
-                  {KG_MAANDEN.map((m) => (
-                    <th key={m} className="px-2 py-2 text-right font-semibold">{m}</th>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {selectedNamen.map(naam => (
+                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
                   ))}
-                  <th className="px-3 py-2 text-right font-semibold">Totaal</th>
-                  <th className="px-3 py-2 text-right font-semibold">Gem.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {egaleanoActief && (
-                  <tr className="border-t">
-                    <td className="px-3 py-1.5 font-medium" style={{ color: KG_COLORS.egaleano }}>E. Galeano</td>
-                    {jaarData.egaleano.map((v, i) => (
-                      <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
-                    ))}
-                    <td className="px-3 py-1.5 text-right font-semibold">{totEgaleano}</td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">
-                      {(totEgaleano / jaarData.egaleano.filter(v => v > 0).length || 1).toFixed(1)}
-                    </td>
-                  </tr>
-                )}
-                {jpietersActief && (
-                  <tr className="border-t">
-                    <td className="px-3 py-1.5 font-medium" style={{ color: KG_COLORS.jpieters }}>J. Pieters</td>
-                    {jaarData.jpieters.map((v, i) => (
-                      <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
-                    ))}
-                    <td className="px-3 py-1.5 text-right font-semibold">{totJpieters}</td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">
-                      {(totJpieters / jaarData.jpieters.filter(v => v > 0).length || 1).toFixed(1)}
-                    </td>
-                  </tr>
-                )}
-                {nsamboActief && (
-                  <tr className="border-t">
-                    <td className="px-3 py-1.5 font-medium" style={{ color: KG_COLORS.nsambo }}>N. Sambo</td>
-                    {jaarData.nsambo.map((v, i) => (
-                      <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
-                    ))}
-                    <td className="px-3 py-1.5 text-right font-semibold">{totNsambo}</td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">
-                      {(totNsambo / jaarData.nsambo.filter(v => v > 0).length || 1).toFixed(1)}
-                    </td>
-                  </tr>
-                )}
-                <tr className="border-t bg-muted/30">
-                  <td className="px-3 py-1.5 font-semibold" style={{ color: KG_COLORS.binnengekomen }}>Binnengekomen</td>
-                  {jaarData.binnengekomen.map((v, i) => (
-                    <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                  {toonTotalen && (
+                    <>
+                      <Line type="monotone" dataKey="Binnengekomen" name="Binnengekomen" stroke={KG_COLORS.binnengekomen} strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="Afgehandeld"   name="Afgehandeld"   stroke={KG_COLORS.afgehandeld}   strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                    </>
+                  )}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Lijndiagram jaarlijkse trend */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Lijndiagram jaarlijkse productie per kartograaf</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {selectedNamen.map(naam => (
+                    <Line key={naam} type="monotone" dataKey={naam} stroke={kleurVoor(naam)} strokeWidth={2} dot={{ r: 4 }} />
                   ))}
-                  <td className="px-3 py-1.5 text-right font-bold">{totBinnengekomen}</td>
-                  <td className="px-3 py-1.5 text-right text-muted-foreground">
-                    {(totBinnengekomen / (jaarData.binnengekomen.filter(v => v > 0).length || 1)).toFixed(1)}
-                  </td>
-                </tr>
-                <tr className="border-t bg-muted/30">
-                  <td className="px-3 py-1.5 font-semibold" style={{ color: KG_COLORS.afgehandeld }}>Afgehandeld</td>
-                  {jaarData.afgehandeld.map((v, i) => (
-                    <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Maandelijkse detail voor geselecteerd jaar */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-semibold">Maandelijkse productie per kartograaf</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Selecteer een jaar voor het maandoverzicht</p>
+                </div>
+                <Select value={geselecteerdJaar} onValueChange={setGeselecteerdJaar}>
+                  <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-kartografen">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[...alleKgJaren].reverse().map((j) => (
+                      <SelectItem key={j} value={j} className="text-xs">{j}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* KPI kaarten */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {selectedNamen.map(naam => {
+                  const tot = kgSum(getMpkMaandData(naam, geselecteerdJaar));
+                  if (tot === 0) return null;
+                  return (
+                    <div key={naam} className="rounded-lg border bg-card p-3 text-center" data-testid={`kpi-kg-${naam.replace(/[\s.]+/g, "-").toLowerCase()}`}>
+                      <div className="text-2xl font-bold" style={{ color: kleurVoor(naam) }}>{tot.toLocaleString("nl-NL")}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{naam}</div>
+                    </div>
+                  );
+                })}
+                <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-binnengekomen">
+                  <div className="text-2xl font-bold" style={{ color: KG_COLORS.binnengekomen }}>{totBinnengekomen.toLocaleString("nl-NL")}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Binnengekomen</div>
+                </div>
+                <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-saldo">
+                  <div className="text-2xl font-bold" style={{ color: verschil >= 0 ? "#10b981" : "#ef4444" }}>
+                    {verschil >= 0 ? "+" : ""}{verschil.toLocaleString("nl-NL")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Saldo (afg − binn)</div>
+                </div>
+              </div>
+
+              {/* Maandelijks staafdiagram */}
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={maandChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {selectedNamen.map(naam => (
+                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
                   ))}
-                  <td className="px-3 py-1.5 text-right font-bold">{totAfgehandeld}</td>
-                  <td className="px-3 py-1.5 text-right text-muted-foreground">
-                    {(totAfgehandeld / (jaarData.afgehandeld.filter(v => v > 0).length || 1)).toFixed(1)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Detailtabel */}
+              <div className="overflow-x-auto rounded-md border text-xs">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="px-3 py-2 text-left font-semibold">Kartograaf</th>
+                      {KG_MAANDEN.map((m) => (
+                        <th key={m} className="px-2 py-2 text-right font-semibold">{m}</th>
+                      ))}
+                      <th className="px-3 py-2 text-right font-semibold">Totaal</th>
+                      <th className="px-3 py-2 text-right font-semibold">Gem.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedNamen.map(naam => {
+                      const maandArr = getMpkMaandData(naam, geselecteerdJaar);
+                      const tot = kgSum(maandArr);
+                      if (tot === 0) return null;
+                      const actieveMaanden = maandArr.filter(v => v > 0).length || 1;
+                      return (
+                        <tr key={naam} className="border-t">
+                          <td className="px-3 py-1.5 font-medium" style={{ color: kleurVoor(naam) }}>{naam}</td>
+                          {maandArr.map((v, i) => (
+                            <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
+                          ))}
+                          <td className="px-3 py-1.5 text-right font-semibold">{tot}</td>
+                          <td className="px-3 py-1.5 text-right text-muted-foreground">{(tot / actieveMaanden).toFixed(1)}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t bg-muted/30">
+                      <td className="px-3 py-1.5 font-semibold" style={{ color: KG_COLORS.binnengekomen }}>Binnengekomen</td>
+                      {jaarData.binnengekomen.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                      ))}
+                      <td className="px-3 py-1.5 text-right font-bold">{totBinnengekomen}</td>
+                      <td className="px-3 py-1.5 text-right text-muted-foreground">
+                        {(totBinnengekomen / (jaarData.binnengekomen.filter(v => v > 0).length || 1)).toFixed(1)}
+                      </td>
+                    </tr>
+                    <tr className="border-t bg-muted/30">
+                      <td className="px-3 py-1.5 font-semibold" style={{ color: KG_COLORS.afgehandeld }}>Afgehandeld</td>
+                      {jaarData.afgehandeld.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                      ))}
+                      <td className="px-3 py-1.5 text-right font-bold">{totAfgehandeld}</td>
+                      <td className="px-3 py-1.5 text-right text-muted-foreground">
+                        {(totAfgehandeld / (jaarData.afgehandeld.filter(v => v > 0).length || 1)).toFixed(1)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
