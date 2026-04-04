@@ -1898,18 +1898,20 @@ export default function VerzuimPage() {
           <ClipboardList className="h-4 w-4 inline mr-1.5 -mt-0.5" />
           Meldingen
         </button>
-        <button
-          onClick={() => setActiveTab("overzicht")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "overzicht"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          data-testid="tab-overzicht"
-        >
-          <Eye className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-          Overzicht
-        </button>
+        {isAdminOrManager && (
+          <button
+            onClick={() => setActiveTab("overzicht")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "overzicht"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="tab-overzicht"
+          >
+            <Eye className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+            Overzicht
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("vakantiesaldo")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
