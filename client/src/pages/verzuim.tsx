@@ -1978,7 +1978,7 @@ export default function VerzuimPage() {
                     <span className="text-muted-foreground">, {myBalance.toegekendDays} toegekend</span>
                   )}
                   {(myBalance.snipperdagen ?? 0) > 0 && (
-                    <span className="text-muted-foreground">, {myBalance.snipperdagen} snipperdagen</span>
+                    <span className="text-muted-foreground">, {myBalance.snipperdagen} snipperdag</span>
                   )}
                   {(myBalance.ongeoorloofdDays ?? 0) > 0 && (
                     <span className="text-muted-foreground">, {myBalance.ongeoorloofdDays} ongeoorloofd</span>
@@ -2307,7 +2307,7 @@ export default function VerzuimPage() {
                         <span className="text-muted-foreground">, {bal.toegekendDays} toegekend</span>
                       )}
                       {(bal.snipperdagen ?? 0) > 0 && (
-                        <span className="text-muted-foreground">, {bal.snipperdagen} snipperdagen</span>
+                        <span className="text-muted-foreground">, {bal.snipperdagen} snipperdag</span>
                       )}
                       {(bal.ongeoorloofdDays ?? 0) > 0 && (
                         <span className="text-muted-foreground">, {bal.ongeoorloofdDays} ongeoorloofd</span>
