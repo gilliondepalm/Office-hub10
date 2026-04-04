@@ -695,7 +695,7 @@ function AbsenceReportDialog({
   );
 }
 
-function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false }: { allUsers: User[]; currentUser: User; isAdmin: boolean; onlyMe?: boolean }) {
+function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, readOnly = false }: { allUsers: User[]; currentUser: User; isAdmin: boolean; onlyMe?: boolean; readOnly?: boolean }) {
   const myDept = currentUser.department || "Geen afdeling";
   const [selectedDept, setSelectedDept] = useState<string>(isAdmin ? "" : myDept);
   const [selectedUserId, setSelectedUserId] = useState<string>(onlyMe ? currentUser.id : "");
@@ -889,7 +889,7 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false }: { 
               : "";
             const holidaySuffix = isHoliday && !isWeekend ? ` · Feestdag: ${holidayName}` : "";
             const titleText = absence && !isCancelledDay
-              ? `${typeLabel} — klik om deze dag te cancelen${holidaySuffix}`
+              ? (readOnly ? `${typeLabel}${holidaySuffix}` : `${typeLabel} — klik om deze dag te cancelen${holidaySuffix}`)
               : isCancelledDay ? `${typeLabel} — al gecanceld${holidaySuffix}`
               : isHoliday && !isWeekend ? `Feestdag: ${holidayName}`
               : undefined;
@@ -899,7 +899,8 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false }: { 
                 key={dateStr}
                 className={cellClass}
                 title={titleText}
-                onClick={absence && !isCancelledDay ? () => setConfirmDay({ dateStr, absence }) : undefined}
+                onClick={!readOnly && absence && !isCancelledDay ? () => setConfirmDay({ dateStr, absence }) : undefined}
+                style={readOnly && absence && !isCancelledDay ? { cursor: "default" } : undefined}
                 data-testid={absence ? `day-cancel-${dateStr}` : isHoliday ? `day-holiday-${dateStr}` : undefined}
               >
                 {date.getDate()}
@@ -977,7 +978,8 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false }: { 
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300" />Ongeoorloofd</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-sky-200 border border-sky-400" />Feestdag</div>
-          <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>
+          {!readOnly && <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>}
+          {readOnly && <span className="text-blue-600 dark:text-blue-400 font-medium">— alleen weergave, geen wijzigingen mogelijk</span>}
         </div>
       )}
 
@@ -1039,7 +1041,7 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false }: { 
         </div>
       )}
 
-      {confirmDay && (
+      {!readOnly && confirmDay && (
         <Dialog open={!!confirmDay} onOpenChange={(open) => { if (!open) { setConfirmDay(null); setCancelReason(""); } }}>
           <DialogContent>
             <DialogHeader>
@@ -2804,7 +2806,7 @@ export default function VerzuimPage() {
             <h3 className="font-semibold text-sm">Cancel Verzuim — Verlofkalender</h3>
           </CardHeader>
           <CardContent>
-            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} onlyMe={!isAdminOrManager} />
+            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} onlyMe={!isAdminOrManager} readOnly={!isAdminOrManager} />
           </CardContent>
         </Card>
       )}
