@@ -1933,8 +1933,10 @@ export default function VerzuimPage() {
           }`}
           data-testid="tab-cancel-verzuim"
         >
-          <XCircle className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-          Cancel verzuim
+          {isAdminOrManager
+            ? <><XCircle className="h-4 w-4 inline mr-1.5 -mt-0.5" />Cancel verzuim</>
+            : <><CalendarDays className="h-4 w-4 inline mr-1.5 -mt-0.5" />Verlofkalender</>
+          }
         </button>
       </div>
 
@@ -2804,8 +2806,10 @@ export default function VerzuimPage() {
       {activeTab === "cancel-verzuim" && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <XCircle className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm">Cancel Verzuim — Verlofkalender</h3>
+            {isAdminOrManager
+              ? <XCircle className="h-4 w-4 text-muted-foreground" />
+              : <CalendarDays className="h-4 w-4 text-muted-foreground" />}
+            <h3 className="font-semibold text-sm">{isAdminOrManager ? "Cancel Verzuim — Verlofkalender" : "Verlofkalender"}</h3>
           </CardHeader>
           <CardContent>
             <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} onlyMe={!isAdminOrManager} readOnly={!isAdminOrManager} />
