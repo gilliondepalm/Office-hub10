@@ -1135,7 +1135,7 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
     5: "Uitstekend/voorbeeld voor anderen",
   };
 
-  const allBeoordelingen = (isAdmin || isPureManager) ? reviewsByYear : myReviews;
+  const allBeoordelingen = (isAdmin || isPureManager) ? reviewsByYear : myReviews?.filter(r => r.year === selectedYear);
   const reviewsToShow = isPureManager && myDept
     ? allBeoordelingen?.filter(r => {
         const u = users?.find(u2 => u2.id === r.userId);
@@ -1403,17 +1403,13 @@ function BeoordelingSection({ users, currentUser }: { users?: User[]; currentUse
       <div className="space-y-4">
         <div className="flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
-            {canEdit && (
-              <>
-                <Button variant="outline" size="icon" onClick={() => setSelectedYear(y => y - 1)} data-testid="button-beoor-year-prev">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-lg font-semibold min-w-[60px] text-center" data-testid="text-beoor-selected-year">{selectedYear}</span>
-                <Button variant="outline" size="icon" onClick={() => setSelectedYear(y => y + 1)} data-testid="button-beoor-year-next">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
+            <Button variant="outline" size="icon" onClick={() => setSelectedYear(y => y - 1)} data-testid="button-beoor-year-prev">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-lg font-semibold min-w-[60px] text-center" data-testid="text-beoor-selected-year">{selectedYear}</span>
+            <Button variant="outline" size="icon" onClick={() => setSelectedYear(y => y + 1)} data-testid="button-beoor-year-next">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
           {canEdit && (
             <div className="flex gap-2">
