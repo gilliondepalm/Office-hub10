@@ -1974,11 +1974,14 @@ export default function VerzuimPage() {
                   <span className="font-semibold" data-testid="text-my-remaining">{myBalance.remainingDays}</span>
                   <span className="text-muted-foreground"> van {myBalance.totalDays} dagen resterend</span>
                   <span className="text-muted-foreground"> ({myBalance.opgenomenDays} opgenomen</span>
-                  {myBalance.toegekendDays > myBalance.opgenomenDays && (
+                  {(myBalance.toegekendDays ?? 0) > 0 && (
                     <span className="text-muted-foreground">, {myBalance.toegekendDays} toegekend</span>
                   )}
-                  {myBalance.geplandDays > 0 && (
-                    <span className="text-muted-foreground">, {myBalance.geplandDays} gepland</span>
+                  {(myBalance.snipperdagen ?? 0) > 0 && (
+                    <span className="text-muted-foreground">, {myBalance.snipperdagen} snipperdagen</span>
+                  )}
+                  {(myBalance.ongeoorloofdDays ?? 0) > 0 && (
+                    <span className="text-muted-foreground">, {myBalance.ongeoorloofdDays} ongeoorloofd</span>
                   )}
                   <span className="text-muted-foreground">)</span>
                 </div>
@@ -2049,8 +2052,6 @@ export default function VerzuimPage() {
                           <TableHead>Periode gepland</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Saldo na planning</TableHead>
-                          <TableHead className="text-right">Afgewezen/Gecanceld</TableHead>
                           {isAdminOrManager && (
                             <TableHead>
                               <div className="flex items-center gap-2">
@@ -2070,54 +2071,9 @@ export default function VerzuimPage() {
                       </TableHeader>
                       <TableBody>
                         {(() => {
-                          // Helper: count weekdays (Mon-Fri) between two dates inclusive
-                          const countWeekdays = (start: string, end: string): number => {
-                            const s = new Date(start + "T00:00:00");
-                            const e = new Date(end + "T00:00:00");
-                            let count = 0;
-                            const cur = new Date(s);
-                            while (cur <= e) {
-                              const dow = cur.getDay();
-                              if (dow !== 0 && dow !== 6) count++;
-                              cur.setDate(cur.getDate() + 1);
-                            }
-                            return count;
-                          };
-
-                          // Snipperdagen for current year (used in both saldo and synthetic rows)
+                          // Snipperdagen for current year (used for synthetic rows)
                           const currentYear = new Date().getFullYear();
                           const yearSnipperdagen = (snipperdagenData || []).filter(s => s.year === currentYear);
-
-                          // Build saldoNaPlanning map: absenceId/snipperdagId → running remaining balance
-                          // Interleaves vacation absences and snipperdagen chronologically per user
-                          const saldoNaPlanningMap = new Map<string, number>();
-                          const userIds = Array.from(new Set(deptFilteredAbsences.filter(a => a.type === "vacation" && a.status !== "cancelled").map(a => a.userId)));
-                          for (const uid of userIds) {
-                            const bal = vacationBalances?.find(b => b.userId === uid);
-                            if (!bal) continue;
-                            // Build merged timeline: vacation absences + snipperdagen
-                            const vacEntries = deptFilteredAbsences
-                              .filter(a => a.userId === uid && a.type === "vacation" && a.status !== "cancelled")
-                              .map(a => ({ id: a.id, date: a.startDate, days: a.halfDay ? 0.5 : countWeekdays(a.startDate, a.endDate) }));
-                            const snipEntries = yearSnipperdagen.map(s => ({ id: `snipperdag-${s.id}`, date: s.date, days: 1 }));
-                            const merged = [...vacEntries, ...snipEntries].sort((a, b) => a.date.localeCompare(b.date));
-                            let running = bal.totalDays;
-                            for (const entry of merged) {
-                              running -= entry.days;
-                              saldoNaPlanningMap.set(entry.id, running);
-                            }
-                          }
-                          // For medewerkers without vacation absences but with snipperdagen, compute snipperdag saldo
-                          if (!isAdminOrManager && user?.id && !userIds.includes(user.id)) {
-                            const bal = vacationBalances?.find(b => b.userId === user.id);
-                            if (bal) {
-                              let running = bal.totalDays;
-                              for (const s of [...yearSnipperdagen].sort((a, b) => a.date.localeCompare(b.date))) {
-                                running -= 1;
-                                saldoNaPlanningMap.set(`snipperdag-${s.id}`, running);
-                              }
-                            }
-                          }
 
                           // Build synthetic snipperdag rows for current year
                           const snipperdagSyntheticRows: any[] = yearSnipperdagen.map(s => ({
@@ -2143,7 +2099,7 @@ export default function VerzuimPage() {
                           ).sort((a, b) =>
                             ((a as any).userName || "").localeCompare((b as any).userName || "", "nl")
                           );
-                          const colCount = isAdminOrManager ? 8 : 7;
+                          const colCount = isAdminOrManager ? 6 : 5;
                           const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
                           return depts.map(dept => (
                             <>{isAdminOrManager && (
@@ -2223,40 +2179,6 @@ export default function VerzuimPage() {
                                       <StatusIcon className="h-3 w-3" />
                                       {sc.label}
                                     </Badge>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {(() => {
-                                      const showSaldo = (absence.type === "vacation" && absence.status !== "cancelled") ||
-                                        (isSnipperdagRow && !isAdminOrManager);
-                                      if (!showSaldo) return <span className="text-muted-foreground text-xs">-</span>;
-                                      const remaining = saldoNaPlanningMap.get(absence.id);
-                                      if (remaining === undefined) return <span className="text-muted-foreground text-xs">-</span>;
-                                      return (
-                                        <Badge
-                                          variant={remaining <= 3 ? "destructive" : remaining <= 10 ? "outline" : "default"}
-                                          className="text-xs"
-                                          data-testid={`badge-saldo-${absence.id}`}
-                                        >
-                                          {formatDays(remaining)}
-                                        </Badge>
-                                      );
-                                    })()}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {(() => {
-                                      const isRejectedOrCancelled = absence.type === "vacation" && (absence.status === "rejected" || absence.status === "cancelled");
-                                      if (!isRejectedOrCancelled) return <span className="text-muted-foreground text-xs">-</span>;
-                                      const days = absence.halfDay ? 0.5 : countWeekdays(absence.startDate, absence.endDate);
-                                      return (
-                                        <Badge
-                                          variant="outline"
-                                          className="text-xs text-green-700 border-green-400 bg-green-50 dark:text-green-400 dark:border-green-600 dark:bg-green-950/30"
-                                          data-testid={`badge-afgewezen-${absence.id}`}
-                                        >
-                                          +{formatDays(days)}
-                                        </Badge>
-                                      );
-                                    })()}
                                   </TableCell>
                                   {isAdminOrManager && (
                                     <TableCell>
@@ -2370,18 +2292,35 @@ export default function VerzuimPage() {
                       {detailAbsence.halfDay === "pm" && <span className="ml-1 text-muted-foreground">(middag)</span>}
                     </p>
                   </div>
-                  {bal && (
-                    <div>
-                      <p className="text-muted-foreground font-medium mb-1">Vakantiesaldo</p>
-                      <Badge
-                        variant={bal.remainingDays <= 3 ? "destructive" : bal.remainingDays <= 10 ? "outline" : "default"}
-                        className="text-xs"
-                      >
-                        {formatDays(bal.remainingDays)} dagen resterend
-                      </Badge>
-                    </div>
-                  )}
                 </div>
+                {bal && (
+                  <div className="bg-muted/40 rounded-md p-3 text-sm border border-border/50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Palmtree className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Vakantiesaldo voor <span className="font-semibold text-foreground">{(detailAbsence as any).userName}</span>:</span>
+                    </div>
+                    <p className="text-sm ml-6">
+                      <span className="font-bold text-base">{bal.remainingDays}</span>
+                      <span className="text-muted-foreground"> van {bal.totalDays} dagen resterend</span>
+                      <span className="text-muted-foreground"> ({bal.opgenomenDays} opgenomen</span>
+                      {(bal.toegekendDays ?? 0) > 0 && (
+                        <span className="text-muted-foreground">, {bal.toegekendDays} toegekend</span>
+                      )}
+                      {(bal.snipperdagen ?? 0) > 0 && (
+                        <span className="text-muted-foreground">, {bal.snipperdagen} snipperdagen</span>
+                      )}
+                      {(bal.ongeoorloofdDays ?? 0) > 0 && (
+                        <span className="text-muted-foreground">, {bal.ongeoorloofdDays} ongeoorloofd</span>
+                      )}
+                      <span className="text-muted-foreground">)</span>
+                    </p>
+                    {(detailAbsence.type === "persoonlijk" || (detailAbsence.type === "personal" && (detailAbsence as any).persoonlijkBesluit === "geoorloofd")) && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1.5 ml-6 italic">
+                        Geoorloofd verzuim heeft geen invloed op het aantal vakantiedagen.
+                      </p>
+                    )}
+                  </div>
+                )}
                 {baseReason && (
                   <div>
                     <p className="text-muted-foreground font-medium mb-1">Reden</p>
