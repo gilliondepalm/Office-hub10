@@ -119,10 +119,6 @@ function ReadOnlyFunctioneringForm({ review }: { review: FunctioneringReview }) 
             <label className="text-xs font-medium text-muted-foreground print:text-black">Communicatie</label>
             <p className="text-sm whitespace-pre-wrap">{fieldValue(review.communicatie)}</p>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground print:text-black">Leidinggeven (indien van toepassing)</label>
-            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.leidinggeven)}</p>
-          </div>
         </CardContent>
       </Card>
 
@@ -136,10 +132,6 @@ function ReadOnlyFunctioneringForm({ review }: { review: FunctioneringReview }) 
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground print:text-black">Scholings- en opleidingswensen</label>
             <p className="text-sm whitespace-pre-wrap">{fieldValue(review.scholingswensen)}</p>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground print:text-black">Loopbaanwensen</label>
-            <p className="text-sm whitespace-pre-wrap">{fieldValue(review.loopbaanwensen)}</p>
           </div>
         </CardContent>
       </Card>
@@ -243,11 +235,9 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
     werkinhoud: "",
     samenwerking: "",
     communicatie: "",
-    leidinggeven: "",
     arbeidsomstandigheden: "",
     persoonlijkeOntwikkeling: "",
     scholingswensen: "",
-    loopbaanwensen: "",
     doelstelling1: "",
     doelstelling1Termijn: "",
     doelstelling2: "",
@@ -361,11 +351,9 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
       werkinhoud: review.werkinhoud || "",
       samenwerking: review.samenwerking || "",
       communicatie: review.communicatie || "",
-      leidinggeven: review.leidinggeven || "",
       arbeidsomstandigheden: review.arbeidsomstandigheden || "",
       persoonlijkeOntwikkeling: review.persoonlijkeOntwikkeling || "",
       scholingswensen: review.scholingswensen || "",
-      loopbaanwensen: review.loopbaanwensen || "",
       doelstelling1: review.doelstelling1 || "",
       doelstelling1Termijn: review.doelstelling1Termijn || "",
       doelstelling2: review.doelstelling2 || "",
@@ -739,18 +727,6 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 data-testid="input-func-communicatie"
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground print:text-black">Leidinggeven (indien van toepassing)</label>
-              <Textarea
-                value={formData.leidinggeven}
-                onChange={(e) => updateField("leidinggeven", e.target.value)}
-                readOnly={!canEdit}
-                rows={2}
-                placeholder="Hoe ervaart u de stijl van leidinggeven?"
-                className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
-                data-testid="input-func-leidinggeven"
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -779,18 +755,6 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
                 placeholder="Welke cursussen of opleidingen heeft u nodig?"
                 className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
                 data-testid="input-func-scholingswensen"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground print:text-black">Loopbaanwensen</label>
-              <Textarea
-                value={formData.loopbaanwensen}
-                onChange={(e) => updateField("loopbaanwensen", e.target.value)}
-                readOnly={!canEdit}
-                rows={2}
-                placeholder="Wat zijn uw loopbaanwensen en ambities?"
-                className="print:border-0 print:border-b print:rounded-none print:px-0 print:shadow-none print:resize-none"
-                data-testid="input-func-loopbaanwensen"
               />
             </div>
           </CardContent>
