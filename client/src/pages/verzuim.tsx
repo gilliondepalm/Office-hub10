@@ -769,7 +769,6 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
   const dateToAbsence = useMemo(() => {
     const map: Record<string, Absence> = {};
     for (const abs of userAbsences || []) {
-      if (abs.status === "cancelled") continue;
       const start = new Date(abs.startDate + "T00:00:00");
       const end = new Date(abs.endDate + "T00:00:00");
       const cur = new Date(start);
@@ -778,8 +777,8 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
         if (dow !== 0 && dow !== 6) {
           const dateStr = cur.toISOString().split("T")[0];
           const existing = map[dateStr];
-          const thisCancelled = cancelledDates.get(dateStr)?.has(abs.id) ?? false;
-          const existingCancelled = !!(existing && (cancelledDates.get(dateStr)?.has(existing.id) ?? false));
+          const thisCancelled = abs.status === "cancelled" || (cancelledDates.get(dateStr)?.has(abs.id) ?? false);
+          const existingCancelled = !!(existing && (existing.status === "cancelled" || (cancelledDates.get(dateStr)?.has(existing.id) ?? false)));
           if (!existing || (existingCancelled && !thisCancelled)) {
             map[dateStr] = abs;
           }
@@ -871,6 +870,8 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
             const isWeekend = dow === 0 || dow === 6;
             const absence = dateToAbsence[dateStr];
             const isCancelledDay = !!absence && (cancelledDates.get(dateStr)?.has(absence.id) ?? false);
+            const isAbsenceCancelled = !!absence && absence.status === "cancelled";
+            const isAnyCancel = isCancelledDay || isAbsenceCancelled;
             const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
             const holidayName = publicHolidayMap.get(dateStr);
             const isHoliday = !!holidayName;
@@ -879,7 +880,7 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
 
             let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none relative";
 
-            if (isCancelledDay && absence) {
+            if (isAnyCancel && absence) {
               cellClass += " " + getTypeCellColor(absence, true);
             } else if (absence) {
               cellClass += " " + getTypeCellColor(absence, false);
@@ -906,9 +907,12 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
               : "";
             const snipperdagSuffix = isSnipperdag ? ` · Snipperdag: ${snipperdagName}` : "";
             const holidaySuffix = isHoliday && !isWeekend ? ` · Feestdag: ${holidayName}` : "";
-            const titleText = absence && !isCancelledDay
+            const cancelledReason = isAbsenceCancelled && (absence as any).cancelReason
+              ? (absence as any).cancelReason
+              : null;
+            const titleText = absence && !isAnyCancel
               ? (readOnly ? `${typeLabel}${holidaySuffix}${snipperdagSuffix}` : `${typeLabel} — klik om deze dag te cancelen${holidaySuffix}${snipperdagSuffix}`)
-              : isCancelledDay ? `${typeLabel} — al gecanceld${holidaySuffix}${snipperdagSuffix}`
+              : isAnyCancel ? `${typeLabel} — gecanceld${cancelledReason ? `: ${cancelledReason}` : ""}${holidaySuffix}${snipperdagSuffix}`
               : isSnipperdag ? `Snipperdag: ${snipperdagName}${holidaySuffix}`
               : isHoliday && !isWeekend ? `Feestdag: ${holidayName}`
               : undefined;
@@ -918,21 +922,21 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
                 key={dateStr}
                 className={cellClass}
                 title={titleText}
-                onClick={!readOnly && absence && !isCancelledDay ? () => setConfirmDay({ dateStr, absence }) : undefined}
-                style={readOnly && absence && !isCancelledDay ? { cursor: "default" } : undefined}
+                onClick={!readOnly && absence && !isAnyCancel ? () => setConfirmDay({ dateStr, absence }) : undefined}
+                style={readOnly && absence && !isAnyCancel ? { cursor: "default" } : undefined}
                 data-testid={absence ? `day-cancel-${dateStr}` : isSnipperdag ? `day-snipperdag-${dateStr}` : isHoliday ? `day-holiday-${dateStr}` : undefined}
               >
                 {date.getDate()}
-                {isHalfDay && !isCancelledDay && (
+                {isHalfDay && !isAnyCancel && (
                   <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold">½</span>
                 )}
-                {isCancelledDay && (
+                {isAnyCancel && (
                   <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold text-slate-500">✕</span>
                 )}
                 {isSnipperdag && !absence && (
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white/70" />
                 )}
-                {isHoliday && !isWeekend && !isCancelledDay && !isSnipperdag && (
+                {isHoliday && !isWeekend && !isAnyCancel && !isSnipperdag && (
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-sky-500 dark:bg-sky-400" />
                 )}
               </div>

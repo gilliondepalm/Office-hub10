@@ -1347,7 +1347,17 @@ export async function registerRoutes(
       }
 
       const { status, persoonlijkBesluit } = req.body;
-      await storage.updateAbsenceStatus(req.params.id, status, userId, undefined, persoonlijkBesluit ?? undefined);
+      // Persoonlijk future rejections → treat as cancelled with standard reason
+      let actualStatus = status;
+      let autoCancelReason: string | undefined = undefined;
+      if (status === "rejected" && absence.type === "persoonlijk") {
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (absence.startDate > todayStr) {
+          actualStatus = "cancelled";
+          autoCancelReason = "Uw verzoek voor verzuim op basis van persoonlijke redenen wordt niet gehonoreerd.";
+        }
+      }
+      await storage.updateAbsenceStatus(req.params.id, actualStatus, userId, autoCancelReason, persoonlijkBesluit ?? undefined);
       res.json({ message: "Bijgewerkt" });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Bijwerken mislukt" });
