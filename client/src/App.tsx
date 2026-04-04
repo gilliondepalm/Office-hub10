@@ -304,7 +304,144 @@ Rollen:
 \u2022 Manager: toegang tot de meeste modules (uitgezonderd Beheer panel). Beheert verlofaanvragen en vult Beloningen in uitsluitend voor medewerkers uit de eigen afdeling. Kan geen aankondigingen aanmaken.
 \u2022 Medewerker: toegang tot Dashboard, Kalender, Aankondigingen, Verzuim, Beloningen en Applicaties (conform de toegewezen modules).
 
-Zie het rechtenoverzicht hieronder voor een volledig overzicht per module en rol, en de zichtbaarheidstabel voor de Organisatie module.`,
+Zie het rechtenoverzicht hieronder voor een volledig overzicht per module en rol, en de zichtbaarheidstabel voor de Organisatie module.
+
+──────────────────────────────────────────
+DATABASETABELLEN \u2014 OVERZICHT
+──────────────────────────────────────────
+
+PERSONEEL & TOEGANG
+\u25ba users \u2014 Medewerkers (gebruikers van het systeem)
+  Velden: id, username, password, full_name, email, role (directeur/admin/manager/manager_az/employee/tijdelijk), department, avatar, active, permissions (array), start_date, end_date, birth_date, vacation_days_total, vacation_days_saldo_oud, vacation_days_cancel, phone_extension, functie, kadaster_id, cedula_nr, telefoonnr, mobielnr, adres, voornamen, voorvoegsel, achternaam.
+
+\u25ba departments \u2014 Afdelingen binnen de organisatie
+  Velden: id, name, description, manager_id (verwijzing naar users).
+
+\u25ba job_functions \u2014 Functies / job-titels
+  Velden: id, name, description, department_id, sort_order, description_file_path (pad naar PDF-functiebeschrijving).
+
+\u25ba position_history \u2014 Functiehistorie per medewerker (loopbaan)
+  Velden: id, user_id, function_title, start_date, end_date, salary, notes.
+
+\u25ba applications \u2014 Externe applicaties en systemen
+  Velden: id, name, description, url, path, icon.
+
+\u25ba app_access \u2014 Toegangsrechten per medewerker per applicatie
+  Velden: id, user_id, application_id, access_level, granted_at.
+
+COMMUNICATIE
+\u25ba announcements \u2014 Aankondigingen (nieuwsberichten)
+  Velden: id, title, content, priority, pinned, pdf_url, created_by, created_at, archived.
+
+\u25ba messages \u2014 Directe berichten tussen medewerkers
+  Velden: id, from_user_id, to_user_id, subject, content, reply, replied_at, read, created_at.
+
+\u25ba events \u2014 Evenementen in de kalender
+  Velden: id, title, description, date, end_date, time, location, category (vergadering/training/sociaal/deadline), created_by, created_at.
+
+\u25ba official_holidays \u2014 Offici\u00eble feestdagen per jaar
+  Velden: id, name, date, year, created_by.
+
+\u25ba snipperdagen \u2014 Verplichte vrije dagen (worden van vakantiesaldo afgetrokken)
+  Velden: id, name, date, year, created_by, created_at.
+
+VERZUIM & VERLOF
+\u25ba absences \u2014 Verzuim- en verlofmeldingen
+  Velden: id, user_id, type (sick/vacation/personal/other/bvvd/persoonlijk), start_date, end_date, reason, bvvd_reason, half_day, status (pending/approved/rejected/cancelled), approved_by, deduct_vacation, cancel_reason, persoonlijk_besluit (geoorloofd/ongeoorloofd), created_at.
+
+\u25ba absence_cancellations \u2014 Per-dag annuleringen van een goedgekeurde verlofperiode
+  Velden: id, absence_id, cancelled_date, cancel_reason, cancelled_by, affects_balance (of vakantiedagensaldo wordt hersteld), created_at.
+
+BELONINGEN & BEOORDELING
+\u25ba functionering_reviews \u2014 Functioneringsgesprekken per medewerker per jaar
+  Velden: id, user_id, year, medewerker, functie, afdeling, leidinggevende, datum, periode, terugblik_taken, terugblik_resultaten, terugblik_knelpunten, werkinhoud, samenwerking, communicatie, arbeidsomstandigheden, persoonlijke_ontwikkeling, scholingswensen, doelstelling_1/2/3 + termijnen, afspraken, opmerking_medewerker, opmerking_leidinggevende, created_by, created_at, updated_at.
+
+\u25ba competencies \u2014 Competenties per functie (gebruikt bij beoordeling)
+  Velden: id, functie, name, norm_1 t/m norm_5 (normbeschrijving per score), sort_order.
+
+\u25ba beoordeling_reviews \u2014 Beoordelingsgesprekken per medewerker per jaar
+  Velden: id, user_id, year, medewerker, functie, afdeling, beoordelaar, datum, periode, total_score, afspraken, opmerking_medewerker, opmerking_beoordelaar, created_by, created_at, updated_at.
+
+\u25ba beoordeling_scores \u2014 Scores per competentie per beoordelingsgesprek
+  Velden: id, review_id, competency_id, score (1\u20135), toelichting.
+
+\u25ba jaarplan_items \u2014 Jaarplannen / doelstellingen per medewerker
+  Velden: id, user_id, year, afspraken, start_datum, eind_datum, voortgang, status (niet gestart/in uitvoering/op schema/vertraagd/afgerond/geannuleerd), created_by, created_at, updated_at.
+
+\u25ba rewards \u2014 Beloningspunten per medewerker
+  Velden: id, user_id, points, reason, awarded_by, awarded_at.
+
+\u25ba yearly_awards \u2014 Jaarawards (bijv. medewerker van het jaar)
+  Velden: id, year, type, name, photo, awarded_by, awarded_at.
+
+\u25ba personal_development \u2014 Persoonlijke ontwikkeling / gevolgde trainingen
+  Velden: id, user_id, training_name, start_date, end_date, completed.
+
+ORGANISATIE & DOCUMENTEN
+\u25ba ao_procedures \u2014 Administratieve procedures per afdeling
+  Velden: id, department_id, title, description.
+
+\u25ba ao_instructions \u2014 Stapsgewijze instructies bij een AO-procedure
+  Velden: id, procedure_id, title, content, sort_order.
+
+\u25ba legislation_links \u2014 Wetgevingslinks en externe bronnen
+  Velden: id, title, url, description, category, pdf_url.
+
+\u25ba cao_documents \u2014 CAO-documenten per hoofdstuk
+  Velden: id, chapter_number, title, document_url.
+
+PRODUCTIE \u2014 KARTOGRAFIE (KM Binnen)
+\u25ba maand_prod_kartograaf \u2014 Maandelijkse productie per kartograaf
+  Velden: id, jaar, maand, kartograaf, mbr, kad_spl, gr_uitz, ex_pl, plot_coor, losse_mbr.
+
+\u25ba maand_prod_samenvatting \u2014 Maandoverzicht KM Binnen (kartografen)
+  Velden: id, jaar, maand, binnengekomen, aantal_kartografen.
+
+\u25ba kartografie_productie \u2014 Kartografie productie import (KM Binnen totalen)
+  Velden: id, jaar, maand, binnengekomen, afgehandeld, gemiddeld, kartografen.
+
+\u25ba trend_kartografen_hist \u2014 Historische trend per kartograaf
+  Velden: id, jaar, maand, egaleano, jpieters, nsambo, binnengekomen, afgehandeld.
+
+PRODUCTIE \u2014 LANDMETERS (KM Buiten)
+\u25ba maand_prod_landmeter \u2014 Maandelijkse productie per landmeter
+  Velden: id, jaar, maand, landmeter, ex_uitb, meting, gr_uitz, l_meting, plot_inzage_coord.
+
+\u25ba maand_prod_samenvatting_lm \u2014 Maandoverzicht KM Buiten (landmeters)
+  Velden: id, jaar, maand, binnengekomen, aantal_landmeters, eilandgebied, particulier, grensuitzetting.
+
+\u25ba trend_km_buiten \u2014 Trendcijfers KM Buiten per maand
+  Velden: id, jaar, maand, binnengekomen, afgehandeld, uitbesteding, gemiddeld, landmeters.
+
+PRODUCTIE \u2014 OPENBAAR REGISTER (OR)
+\u25ba maand_prod_or_info \u2014 Maandelijkse productie OR per productsoort
+  Velden: id, jaar, maand, inzage_or, bulkdata, verkorte_inzage, schriftelijke_inzage, kopie_akte, her_inzage, na_inzage, kadastrale_legger, verklaring_eensluidend, verklaring_geen_or, getuigschrift_volgende, getuigschrift_or, aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies.
+
+\u25ba trend_or_info \u2014 Trendcijfers OR inzagen per maand
+  Velden: id, jaar, maand, inzagen, her_inzage, na_inzage, kadastaal_legger, verklaring, getuigschrift.
+
+\u25ba trend_or_algemeen \u2014 Trendcijfers OR algemeen (aktes, inschrijvingen etc.)
+  Velden: id, jaar, maand, aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies.
+
+\u25ba maand_prod_or_notaris \u2014 Maandelijkse OR-productie per notaris
+  Velden: id, jaar, maand, notaris_key, aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies, sort_order.
+
+\u25ba trend_or_notaris \u2014 Trendcijfers per notaris
+  Velden: id, jaar, maand, notaris_key, waarde.
+
+PRODUCTIE \u2014 KM INFO
+\u25ba maand_prod_km_info \u2014 Maandelijkse productie KM Info per productsoort
+  Velden: id, jaar, maand, topo_kaarten, plot_overzicht, plot_grens_uitz, afdrukken_kaarten, sit_a4, sit_a3, reg_meetbrief, reg_extractplan, inzage_kad, uur_tarieven, digitale_bestanden, blok_maten, kopie_veldwerk, coordinaten, hulp_kaart, terrein_onderzoek, proces_verbaal.
+
+\u25ba trend_km_info \u2014 Trendcijfers KM Info per maand
+  Velden: id, jaar, maand, kkp, db, sa, rm, re, km, ik.
+
+SYSTEEM
+\u25ba site_settings \u2014 Systeeminstellingen (sleutel-waarde paren)
+  Velden: key (primaire sleutel), value, updated_at. Gebruikt voor o.a. achtergrondafbeeldingen.
+
+\u25ba help_content \u2014 Help-teksten per paginaroute (bewerkbaar via Help-knop)
+  Velden: id, page_route (uniek, bijv. /beheer), title, content.`,
   },
   "/profiel": {
     title: "Mijn Profiel",
