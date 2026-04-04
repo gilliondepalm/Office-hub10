@@ -2050,6 +2050,7 @@ export default function VerzuimPage() {
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Saldo na planning</TableHead>
+                          <TableHead className="text-right">Afgewezen/Gecanceld</TableHead>
                           {isAdminOrManager && (
                             <TableHead>
                               <div className="flex items-center gap-2">
@@ -2102,7 +2103,7 @@ export default function VerzuimPage() {
                           }
 
                           const sorted = [...filtered].sort((a, b) => ((a as any).userName || "").localeCompare((b as any).userName || "", "nl"));
-                          const colCount = isAdminOrManager ? 7 : 6;
+                          const colCount = isAdminOrManager ? 8 : 7;
                           const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
                           return depts.map(dept => (
                             <>{isAdminOrManager && (
@@ -2193,6 +2194,22 @@ export default function VerzuimPage() {
                                           data-testid={`badge-saldo-${absence.id}`}
                                         >
                                           {formatDays(remaining)}
+                                        </Badge>
+                                      );
+                                    })()}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {(() => {
+                                      const isRejectedOrCancelled = absence.type === "vacation" && (absence.status === "rejected" || absence.status === "cancelled");
+                                      if (!isRejectedOrCancelled) return <span className="text-muted-foreground text-xs">-</span>;
+                                      const days = absence.halfDay ? 0.5 : countWeekdays(absence.startDate, absence.endDate);
+                                      return (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs text-green-700 border-green-400 bg-green-50 dark:text-green-400 dark:border-green-600 dark:bg-green-950/30"
+                                          data-testid={`badge-afgewezen-${absence.id}`}
+                                        >
+                                          +{formatDays(days)}
                                         </Badge>
                                       );
                                     })()}
