@@ -1374,10 +1374,11 @@ export async function registerRoutes(
     try {
       const currentUser = req.user as any;
       const targetUserId = req.params.userId;
-      if (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+      if (currentUser.id === targetUserId) {
+        // eigen data altijd toegestaan
+      } else if (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
         return res.status(403).json({ message: "Geen toegang" });
-      }
-      if (!isAdminRole(currentUser.role)) {
+      } else if (!isAdminRole(currentUser.role)) {
         const targetUser = await storage.getUser(targetUserId);
         if (!targetUser || targetUser.department !== currentUser.department) {
           return res.status(403).json({ message: "Geen toegang tot deze medewerker" });
@@ -1499,7 +1500,9 @@ export async function registerRoutes(
 
       const absence = await storage.getAbsenceById(absenceId);
       if (!absence) return res.status(404).json({ message: "Verlofmelding niet gevonden" });
-      if (!isAdminRole(currentUser.role)) {
+      if (currentUser.id === absence.userId) {
+        // eigen verzuim altijd toegestaan
+      } else if (!isAdminRole(currentUser.role)) {
         const targetUser = await storage.getUser(absence.userId);
         if (!targetUser || targetUser.department !== currentUser.department) {
           return res.status(403).json({ message: "Geen toegang tot deze medewerker" });

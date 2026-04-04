@@ -695,10 +695,10 @@ function AbsenceReportDialog({
   );
 }
 
-function CancelVerzuimTab({ allUsers, currentUser, isAdmin }: { allUsers: User[]; currentUser: User; isAdmin: boolean }) {
+function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false }: { allUsers: User[]; currentUser: User; isAdmin: boolean; onlyMe?: boolean }) {
   const myDept = currentUser.department || "Geen afdeling";
   const [selectedDept, setSelectedDept] = useState<string>(isAdmin ? "" : myDept);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>(onlyMe ? currentUser.id : "");
   const [confirmDay, setConfirmDay] = useState<{ dateStr: string; absence: Absence } | null>(null);
   const [cancelReason, setCancelReason] = useState<string>("");
   const { toast } = useToast();
@@ -925,25 +925,27 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin }: { allUsers: User[]
   return (
     <div className="space-y-6">
       <div className="flex gap-4 flex-wrap items-end">
-        {isAdmin ? (
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Afdeling</label>
-            <Select value={selectedDept} onValueChange={(v) => { setSelectedDept(v); setSelectedUserId(""); }}>
-              <SelectTrigger className="w-52" data-testid="select-cancel-dept">
-                <SelectValue placeholder="Kies afdeling…" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Afdeling</label>
-            <div className="h-10 px-3 flex items-center text-sm border rounded-md bg-muted/50 w-52">{myDept}</div>
-          </div>
+        {!onlyMe && (
+          isAdmin ? (
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Afdeling</label>
+              <Select value={selectedDept} onValueChange={(v) => { setSelectedDept(v); setSelectedUserId(""); }}>
+                <SelectTrigger className="w-52" data-testid="select-cancel-dept">
+                  <SelectValue placeholder="Kies afdeling…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Afdeling</label>
+              <div className="h-10 px-3 flex items-center text-sm border rounded-md bg-muted/50 w-52">{myDept}</div>
+            </div>
+          )
         )}
-        {selectedDept && (
+        {!onlyMe && selectedDept && (
           <div className="space-y-1">
             <label className="text-sm font-medium">Medewerker</label>
             <Select value={selectedUserId} onValueChange={setSelectedUserId}>
@@ -954,6 +956,12 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin }: { allUsers: User[]
                 {usersInDept.map(u => <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+        )}
+        {onlyMe && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Medewerker</label>
+            <div className="h-10 px-3 flex items-center text-sm border rounded-md bg-muted/50 w-52">{currentUser.fullName}</div>
           </div>
         )}
       </div>
@@ -1888,48 +1896,42 @@ export default function VerzuimPage() {
           <ClipboardList className="h-4 w-4 inline mr-1.5 -mt-0.5" />
           Meldingen
         </button>
-        {isAdminOrManager && (
-          <button
-            onClick={() => setActiveTab("overzicht")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "overzicht"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="tab-overzicht"
-          >
-            <Eye className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-            Overzicht
-          </button>
-        )}
-        {isAdminOrManager && (
-          <button
-            onClick={() => setActiveTab("vakantiesaldo")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "vakantiesaldo"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="tab-vakantiesaldo"
-          >
-            <Palmtree className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-            Vakantiesaldo
-          </button>
-        )}
-        {(isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az") && (
-          <button
-            onClick={() => setActiveTab("cancel-verzuim")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "cancel-verzuim"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="tab-cancel-verzuim"
-          >
-            <XCircle className="h-4 w-4 inline mr-1.5 -mt-0.5" />
-            Cancel verzuim
-          </button>
-        )}
+        <button
+          onClick={() => setActiveTab("overzicht")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "overzicht"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-overzicht"
+        >
+          <Eye className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Overzicht
+        </button>
+        <button
+          onClick={() => setActiveTab("vakantiesaldo")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "vakantiesaldo"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-vakantiesaldo"
+        >
+          <Palmtree className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Vakantiesaldo
+        </button>
+        <button
+          onClick={() => setActiveTab("cancel-verzuim")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "cancel-verzuim"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          data-testid="tab-cancel-verzuim"
+        >
+          <XCircle className="h-4 w-4 inline mr-1.5 -mt-0.5" />
+          Cancel verzuim
+        </button>
       </div>
 
       {activeTab === "meldingen" && (
@@ -2277,14 +2279,16 @@ export default function VerzuimPage() {
         </DialogContent>
       </Dialog>
 
-      {activeTab === "overzicht" && isAdminOrManager && (
+      {activeTab === "overzicht" && (
         <div className="space-y-3">
           {(() => {
             const processedAbsences = deptFilteredAbsences.filter(a => a.status === "approved" || a.status === "rejected" || a.status === "cancelled");
-            const filteredDayCancels = (allDayCancellations || []).filter(c => {
-              if (isPureManager && myDept) return c.userDepartment === myDept;
-              return true;
-            });
+            const filteredDayCancels = isAdminOrManager
+              ? (allDayCancellations || []).filter(c => {
+                  if (isPureManager && myDept) return c.userDepartment === myDept;
+                  return true;
+                })
+              : [];
 
             const allRows = [
               ...processedAbsences.map(a => ({ _kind: "absence" as const, dept: (a as any).userDepartment || "Geen afdeling", row: a })),
@@ -2642,7 +2646,7 @@ export default function VerzuimPage() {
         users={deptFilteredUsers}
       />
 
-      {activeTab === "vakantiesaldo" && isAdminOrManager && (
+      {activeTab === "vakantiesaldo" && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <Palmtree className="h-4 w-4 text-muted-foreground" />
@@ -2651,6 +2655,40 @@ export default function VerzuimPage() {
           <CardContent className="p-0">
             {loadingBalances ? (
               <div className="p-4"><Skeleton className="h-32" /></div>
+            ) : !isAdminOrManager ? (
+              (() => {
+                const b = myBalance;
+                if (!b) return <div className="p-4 text-sm text-muted-foreground">Geen saldo gevonden</div>;
+                return (
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {[
+                        { label: "Vakantierecht", value: formatDays(b.recht), cls: "" },
+                        { label: "Saldo Oud", value: formatDays(b.saldoOud), cls: "" },
+                        { label: "Totaal", value: formatDays(b.totalDays), cls: "font-semibold" },
+                        { label: "Gepland", value: formatDays(b.geplandDays), cls: "text-muted-foreground" },
+                        { label: "Toegekend", value: formatDays(b.toegekendDays), cls: "" },
+                        { label: "Opgenomen", value: formatDays(b.opgenomenDays), cls: "" },
+                        { label: "Snipperdagen", value: formatDays(b.snipperdagen || 0), cls: "" },
+                        { label: "Cancel", value: formatDays(b.cancelDays || 0), cls: "text-orange-600" },
+                        { label: "Geoorloofd", value: formatDays(b.persoonlijkGeoorloofdDays || 0), cls: "text-sky-600" },
+                        { label: "Ongeoorloofd", value: formatDays(b.ongeoorloofdDays || 0), cls: "text-amber-700" },
+                      ].map(({ label, value, cls }) => (
+                        <div key={label} className="flex flex-col border rounded-md p-3">
+                          <span className="text-xs text-muted-foreground">{label}</span>
+                          <span className={`text-base font-medium ${cls}`}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between border rounded-md p-3 bg-muted/30">
+                      <span className="text-sm font-medium">Resterend saldo</span>
+                      <Badge variant={b.remainingDays <= 3 ? "destructive" : b.remainingDays <= 10 ? "outline" : "default"} className="text-sm px-3 py-1">
+                        {formatDays(b.remainingDays)} dagen
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -2759,14 +2797,14 @@ export default function VerzuimPage() {
         </Card>
       )}
 
-      {activeTab === "cancel-verzuim" && (isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az") && (
+      {activeTab === "cancel-verzuim" && (
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <XCircle className="h-4 w-4 text-muted-foreground" />
             <h3 className="font-semibold text-sm">Cancel Verzuim — Verlofkalender</h3>
           </CardHeader>
           <CardContent>
-            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} />
+            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} onlyMe={!isAdminOrManager} />
           </CardContent>
         </Card>
       )}
