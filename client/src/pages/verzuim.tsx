@@ -737,6 +737,10 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
     },
   });
 
+  const { data: snipperdagenList } = useQuery<Snipperdag[]>({
+    queryKey: ["/api/snipperdagen"],
+  });
+
   const publicHolidayMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const h of officialHolidays || []) {
@@ -744,6 +748,14 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
     }
     return map;
   }, [officialHolidays]);
+
+  const snipperdagenMap = useMemo(() => {
+    const map = new Map<string, string>(); // date → name
+    for (const s of snipperdagenList || []) {
+      if (s.year === year) map.set(s.date, s.name);
+    }
+    return map;
+  }, [snipperdagenList, year]);
 
   const cancelledDates = useMemo(() => {
     const map = new Map<string, Set<string>>(); // date → Set of absenceIds
@@ -862,6 +874,8 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
             const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
             const holidayName = publicHolidayMap.get(dateStr);
             const isHoliday = !!holidayName;
+            const snipperdagName = snipperdagenMap.get(dateStr);
+            const isSnipperdag = !!snipperdagName && !isWeekend;
 
             let cellClass = "h-6 w-6 mx-auto flex items-center justify-center rounded text-[11px] select-none relative";
 
@@ -870,6 +884,9 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
             } else if (absence) {
               cellClass += " " + getTypeCellColor(absence, false);
               if (isHoliday) cellClass += " ring-2 ring-sky-400 dark:ring-sky-400";
+              if (isSnipperdag) cellClass += " ring-2 ring-blue-800 dark:ring-blue-400";
+            } else if (isSnipperdag) {
+              cellClass += " bg-blue-900 text-white dark:bg-blue-800 dark:text-white font-semibold cursor-default";
             } else if (isHoliday && !isWeekend) {
               cellClass += " bg-sky-200 text-sky-800 dark:bg-sky-700/60 dark:text-sky-100 font-semibold cursor-default";
             } else if (isWeekend) {
@@ -887,10 +904,12 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
             const typeLabel = absence
               ? (absence.type === "persoonlijk" ? getPersoonlijkLabel(absence) : (typeLabelsCancel[absence.type] || absence.type))
               : "";
+            const snipperdagSuffix = isSnipperdag ? ` · Snipperdag: ${snipperdagName}` : "";
             const holidaySuffix = isHoliday && !isWeekend ? ` · Feestdag: ${holidayName}` : "";
             const titleText = absence && !isCancelledDay
-              ? (readOnly ? `${typeLabel}${holidaySuffix}` : `${typeLabel} — klik om deze dag te cancelen${holidaySuffix}`)
-              : isCancelledDay ? `${typeLabel} — al gecanceld${holidaySuffix}`
+              ? (readOnly ? `${typeLabel}${holidaySuffix}${snipperdagSuffix}` : `${typeLabel} — klik om deze dag te cancelen${holidaySuffix}${snipperdagSuffix}`)
+              : isCancelledDay ? `${typeLabel} — al gecanceld${holidaySuffix}${snipperdagSuffix}`
+              : isSnipperdag ? `Snipperdag: ${snipperdagName}${holidaySuffix}`
               : isHoliday && !isWeekend ? `Feestdag: ${holidayName}`
               : undefined;
 
@@ -901,7 +920,7 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
                 title={titleText}
                 onClick={!readOnly && absence && !isCancelledDay ? () => setConfirmDay({ dateStr, absence }) : undefined}
                 style={readOnly && absence && !isCancelledDay ? { cursor: "default" } : undefined}
-                data-testid={absence ? `day-cancel-${dateStr}` : isHoliday ? `day-holiday-${dateStr}` : undefined}
+                data-testid={absence ? `day-cancel-${dateStr}` : isSnipperdag ? `day-snipperdag-${dateStr}` : isHoliday ? `day-holiday-${dateStr}` : undefined}
               >
                 {date.getDate()}
                 {isHalfDay && !isCancelledDay && (
@@ -910,7 +929,10 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
                 {isCancelledDay && (
                   <span className="absolute -top-0.5 -right-0.5 text-[7px] leading-none font-bold text-slate-500">✕</span>
                 )}
-                {isHoliday && !isWeekend && !isCancelledDay && (
+                {isSnipperdag && !absence && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white/70" />
+                )}
+                {isHoliday && !isWeekend && !isCancelledDay && !isSnipperdag && (
                   <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-sky-500 dark:bg-sky-400" />
                 )}
               </div>
@@ -977,6 +999,7 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-white border border-gray-300" />Geoorloofd</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300" />Ongeoorloofd</div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-slate-300 border border-slate-400 opacity-60" />Gecanceld</div>
+          <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-blue-900 border border-blue-800" /><span>Snipperdag</span></div>
           <div className="flex items-center gap-1.5"><div className="w-4 h-4 rounded bg-sky-200 border border-sky-400" />Feestdag</div>
           {!readOnly && <span className="text-muted-foreground/60">— klik op een dag om die specifieke dag te cancelen</span>}
           {readOnly && <span className="text-blue-600 dark:text-blue-400 font-medium">— alleen weergave, geen wijzigingen mogelijk</span>}
