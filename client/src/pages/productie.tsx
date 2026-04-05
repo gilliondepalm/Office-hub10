@@ -1756,7 +1756,7 @@ function MaandelijkseProdKartografenTab() {
 
                   {/* Gemiddeld — berekend */}
                   <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Gemiddeld/kartograaf <span className="text-muted-foreground font-normal">×10</span></td>
+                    <td className="px-3 py-1.5 font-medium whitespace-nowrap">Gemiddeld/kartograaf <span className="text-muted-foreground font-normal">×10</span></td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={7}>{gemiddeld || ""}</td>
                     <td></td>
                   </tr>
@@ -1781,9 +1781,9 @@ function MaandelijkseProdKartografenTab() {
         <CardContent className="pt-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
             <div><span className="font-medium text-foreground">Prod.</span> = Mbr. + Kad. Spl. + Gr. Uitz.</div>
-            <div><span className="font-medium text-foreground">Mbr.</span> = Minuutbriefjes</div>
+            <div><span className="font-medium text-foreground">Mbr.</span> = Meetbrief</div>
             <div><span className="font-medium text-foreground">Kad. Spl.</span> = Kadastrale Splitsing</div>
-            <div><span className="font-medium text-foreground">Gr. Uitz.</span> = Grens Uitzetting</div>
+            <div><span className="font-medium text-foreground">Gr. Uitz.</span> = Grensuitzetting</div>
             <div><span className="font-medium text-foreground">Ex.pl/proj/leg</span> = Extractplan / Project / Legger</div>
             <div><span className="font-medium text-foreground">Plot/Coor</span> = Plot / Coördinaten</div>
           </div>
