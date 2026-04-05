@@ -310,41 +310,45 @@ function RechtenTab() {
               const initials = u.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "??";
               const permCount = u.permissions?.length || 0;
               return (
-                <div key={u.id} className="flex items-center gap-3 p-3 rounded-md hover-elevate" data-testid={`user-row-${u.id}`}>
-                  <Avatar className="h-9 w-9">
-                    {u.avatar && <AvatarImage src={u.avatar} alt={u.fullName || ""} className="object-cover" />}
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium" data-testid={`text-user-name-${u.id}`}>{u.fullName}</span>
-                      <Badge variant={roleBadgeVariant(u.role)} className="text-xs">{roleLabels[u.role] || u.role}</Badge>
-                      {!u.active && <Badge variant="outline" className="text-xs">Inactief</Badge>}
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-muted-foreground">{u.department || "Geen afdeling"}</span>
-                      <span className="text-xs text-muted-foreground">&middot;</span>
-                      <span className="text-xs text-muted-foreground">{permCount} module{permCount !== 1 ? "s" : ""} toegang</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="hidden sm:flex gap-1 flex-wrap">
-                      {u.permissions?.slice(0, 4).map((p) => (
-                        <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
-                      ))}
-                      {(u.permissions?.length || 0) > 4 && (
-                        <Badge variant="outline" className="text-xs">+{(u.permissions?.length || 0) - 4}</Badge>
+                <div key={u.id} className="p-3 rounded-md hover-elevate" data-testid={`user-row-${u.id}`}>
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-9 w-9 shrink-0">
+                      {u.avatar && <AvatarImage src={u.avatar} alt={u.fullName || ""} className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium" data-testid={`text-user-name-${u.id}`}>{u.fullName}</span>
+                        <Badge variant={roleBadgeVariant(u.role)} className="text-xs shrink-0">{roleLabels[u.role] || u.role}</Badge>
+                        {!u.active && <Badge variant="outline" className="text-xs shrink-0">Inactief</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-muted-foreground">{u.department || "Geen afdeling"}</span>
+                        <span className="text-xs text-muted-foreground">&middot;</span>
+                        <span className="text-xs text-muted-foreground">{permCount} module{permCount !== 1 ? "s" : ""} toegang</span>
+                      </div>
+                      {(u.permissions?.length || 0) > 0 && (
+                        <div className="flex gap-1 flex-wrap mt-1.5">
+                          {u.permissions?.slice(0, 6).map((p) => (
+                            <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
+                          ))}
+                          {(u.permissions?.length || 0) > 6 && (
+                            <Badge variant="outline" className="text-xs">+{(u.permissions?.length || 0) - 6}</Badge>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => { setPasfotoUserId(u.id); pasfotoInputRef.current?.click(); }} disabled={uploadPasfotoMutation.isPending && pasfotoUserId === u.id} data-testid={`button-pasfoto-${u.id}`}>
-                      <Camera className="h-4 w-4 mr-1" />Pasfoto
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setResetUser(u)} data-testid={`button-reset-pw-${u.id}`}>
-                      <KeyRound className="h-4 w-4 mr-1" />Wachtwoord
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setEditUser(u)} data-testid={`button-edit-perms-${u.id}`}>
-                      <Shield className="h-4 w-4 mr-1" />Rechten
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => { setPasfotoUserId(u.id); pasfotoInputRef.current?.click(); }} disabled={uploadPasfotoMutation.isPending && pasfotoUserId === u.id} data-testid={`button-pasfoto-${u.id}`}>
+                        <Camera className="h-4 w-4 mr-1" />Pasfoto
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setResetUser(u)} data-testid={`button-reset-pw-${u.id}`}>
+                        <KeyRound className="h-4 w-4 mr-1" />Wachtwoord
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditUser(u)} data-testid={`button-edit-perms-${u.id}`}>
+                        <Shield className="h-4 w-4 mr-1" />Rechten
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
