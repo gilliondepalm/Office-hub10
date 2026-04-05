@@ -1519,7 +1519,7 @@ const LEGE_RIJ = (naam: string): MpkRij => ({
 
 const STANDAARD_KARTOGRAFEN = ["E. Galeano", "J. Pieters"];
 
-function MaandelijkseProdKartografenTab() {
+function MaandelijkseProdKartografenTab({ myName }: { myName?: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [maand, setMaand] = useState(new Date().getMonth() + 1);
@@ -1609,6 +1609,8 @@ function MaandelijkseProdKartografenTab() {
   const totLosseMbr = prodRijen.reduce((s, r) => s + r.losse_mbr, 0);
   const gemiddeld   = aantalKartografen > 0 ? +((totProd / aantalKartografen) * 10).toFixed(1) : 0;
 
+  const toonRijen = myName ? rijen.filter(r => r.kartograaf === myName) : rijen;
+
   const numInput = (val: number, onChange: (n: number) => void, testId?: string) => (
     <input
       type="number"
@@ -1617,6 +1619,7 @@ function MaandelijkseProdKartografenTab() {
       placeholder="0"
       onChange={e => onChange(parseInt(e.target.value) || 0)}
       data-testid={testId}
+      readOnly={!!myName}
       className="w-full text-right bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
     />
   );
@@ -1641,15 +1644,17 @@ function MaandelijkseProdKartografenTab() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                size="sm"
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                data-testid="button-opslaan-mpk"
-                className="h-8 text-xs"
-              >
-                {saveMutation.isPending ? "Opslaan..." : opgeslagen ? "✓ Opgeslagen" : "Opslaan"}
-              </Button>
+              {!myName && (
+                <Button
+                  size="sm"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                  data-testid="button-opslaan-mpk"
+                  className="h-8 text-xs"
+                >
+                  {saveMutation.isPending ? "Opslaan..." : opgeslagen ? "✓ Opgeslagen" : "Opslaan"}
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -1673,7 +1678,7 @@ function MaandelijkseProdKartografenTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rijen.map((rij, idx) => (
+                  {toonRijen.map((rij, idx) => (
                     <tr key={idx} className={`border-b hover:bg-muted/20 ${rij.kartograaf === "afgeboekt_stukken" ? "text-muted-foreground italic" : ""}`}>
                       <td className="px-3 py-1.5 font-medium">
                         {rij.kartograaf === "afgeboekt_stukken" ? "afgeboekt stukken" : rij.kartograaf}
@@ -1688,15 +1693,15 @@ function MaandelijkseProdKartografenTab() {
                       <td className="px-1 py-1">{numInput(rij.plot_coor,v => updateRij(idx, "plot_coor",v), `input-plot-${idx}`)}</td>
                       <td className="px-1 py-1">{numInput(rij.losse_mbr,v=> updateRij(idx, "losse_mbr",v), `input-losse-${idx}`)}</td>
                       <td className="px-1 py-1 text-center">
-                        {rij.kartograaf !== "afgeboekt_stukken" && (
+                        {!myName && rij.kartograaf !== "afgeboekt_stukken" && (
                           <button onClick={() => verwijderRij(idx)} className="text-muted-foreground hover:text-destructive text-xs">✕</button>
                         )}
                       </td>
                     </tr>
                   ))}
 
-                  {/* Rij toevoegen */}
-                  {toonToevoegen ? (
+                  {/* Rij toevoegen — alleen voor beheer */}
+                  {!myName && (toonToevoegen ? (
                     <tr className="border-b bg-muted/10">
                       <td colSpan={9} className="px-3 py-2">
                         <div className="flex items-center gap-2">
@@ -1727,48 +1732,38 @@ function MaandelijkseProdKartografenTab() {
                         </button>
                       </td>
                     </tr>
-                  )}
+                  ))}
 
-                  {/* Scheidingslijn */}
-                  <tr><td colSpan={9} className="py-1"></td></tr>
-
-                  {/* Productie totaal */}
-                  <tr className="border-t bg-muted/30 font-semibold">
-                    <td className="px-3 py-1.5">Productie totaal</td>
-                    <td className="px-2 py-1.5 text-right">{totProd || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totMbr || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totKadSpl || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totGrUitz || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totExPl || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totPlotCoor || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totLosseMbr || ""}</td>
-                    <td></td>
-                  </tr>
-
-                  {/* Binnengekomen — gebruikersinvoer */}
-                  <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Binnengekomen</td>
-                    <td className="px-1 py-1" colSpan={7}>
-                      {numInput(binnengekomen, setBinnengekomen, "input-binnengekomen")}
-                    </td>
-                    <td></td>
-                  </tr>
-
-                  {/* Gemiddeld — berekend */}
-                  <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium whitespace-nowrap">Gemiddeld/kartograaf <span className="text-muted-foreground font-normal">×10</span></td>
-                    <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={7}>{gemiddeld || ""}</td>
-                    <td></td>
-                  </tr>
-
-                  {/* Aantal kartografen — gebruikersinvoer */}
-                  <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Aantal kartografen</td>
-                    <td className="px-1 py-1" colSpan={7}>
-                      {numInput(aantalKartografen, setAantalKartografen, "input-aantal-kartografen")}
-                    </td>
-                    <td></td>
-                  </tr>
+                  {/* Scheidingslijn + samenvatting — alleen voor beheer */}
+                  {!myName && (<>
+                    <tr><td colSpan={9} className="py-1"></td></tr>
+                    <tr className="border-t bg-muted/30 font-semibold">
+                      <td className="px-3 py-1.5">Productie totaal</td>
+                      <td className="px-2 py-1.5 text-right">{totProd || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totMbr || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totKadSpl || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totGrUitz || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totExPl || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totPlotCoor || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totLosseMbr || ""}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="border-t hover:bg-muted/10">
+                      <td className="px-3 py-1.5 font-medium">Binnengekomen</td>
+                      <td className="px-1 py-1" colSpan={7}>{numInput(binnengekomen, setBinnengekomen, "input-binnengekomen")}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="border-t hover:bg-muted/10">
+                      <td className="px-3 py-1.5 font-medium whitespace-nowrap">Gemiddeld/kartograaf <span className="text-muted-foreground font-normal">×10</span></td>
+                      <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={7}>{gemiddeld || ""}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="border-t hover:bg-muted/10">
+                      <td className="px-3 py-1.5 font-medium">Aantal kartografen</td>
+                      <td className="px-1 py-1" colSpan={7}>{numInput(aantalKartografen, setAantalKartografen, "input-aantal-kartografen")}</td>
+                      <td></td>
+                    </tr>
+                  </>)}
                 </tbody>
               </table>
             </div>
@@ -1811,7 +1806,7 @@ const LEGE_LM_RIJ = (naam: string): MplRij => ({
   landmeter: naam, ex_uitb: 0, meting: 0, gr_uitz: 0, l_meting: 0, plot_inzage_coord: 0,
 });
 
-function MaandelijkseProdLandmetersTab() {
+function MaandelijkseProdLandmetersTab({ myName }: { myName?: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [maand, setMaand] = useState(new Date().getMonth() + 1);
@@ -1906,6 +1901,8 @@ function MaandelijkseProdLandmetersTab() {
   const totaalPlotInz  = prodRijen.reduce((s, r) => s + r.plot_inzage_coord, 0);
   const gemiddeld      = aantalLandmeters > 0 ? +((totaalProd / aantalLandmeters) * 10).toFixed(1) : 0;
 
+  const toonRijen = myName ? rijen.filter(r => r.landmeter === myName) : rijen;
+
   const numInput = (val: number, onChange: (n: number) => void, testId?: string) => (
     <input
       type="number"
@@ -1914,6 +1911,7 @@ function MaandelijkseProdLandmetersTab() {
       placeholder="0"
       onChange={e => onChange(parseInt(e.target.value) || 0)}
       data-testid={testId}
+      readOnly={!!myName}
       className="w-full text-right bg-yellow-50 dark:bg-yellow-900/20 border-0 outline-none focus:ring-1 focus:ring-primary/40 rounded px-1 py-0.5 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
     />
   );
@@ -1938,15 +1936,17 @@ function MaandelijkseProdLandmetersTab() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                size="sm"
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                data-testid="button-opslaan-mpl"
-                className="h-8 text-xs"
-              >
-                {saveMutation.isPending ? "Opslaan..." : opgeslagen ? "✓ Opgeslagen" : "Opslaan"}
-              </Button>
+              {!myName && (
+                <Button
+                  size="sm"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending}
+                  data-testid="button-opslaan-mpl"
+                  className="h-8 text-xs"
+                >
+                  {saveMutation.isPending ? "Opslaan..." : opgeslagen ? "✓ Opgeslagen" : "Opslaan"}
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -1969,7 +1969,7 @@ function MaandelijkseProdLandmetersTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rijen.map((rij, idx) => {
+                  {toonRijen.map((rij, idx) => {
                     const isAfgeboekt = rij.landmeter === "afgeboekte_stukken";
                     return (
                       <tr key={idx} className={`border-b hover:bg-muted/20 ${isAfgeboekt ? "text-muted-foreground italic" : ""}`}>
@@ -1993,7 +1993,7 @@ function MaandelijkseProdLandmetersTab() {
                           </>
                         )}
                         <td className="px-1 py-1 text-center">
-                          {!isAfgeboekt && (
+                          {!myName && !isAfgeboekt && (
                             <button onClick={() => verwijderRij(idx)} className="text-muted-foreground hover:text-destructive text-xs">✕</button>
                           )}
                         </td>
@@ -2001,8 +2001,8 @@ function MaandelijkseProdLandmetersTab() {
                     );
                   })}
 
-                  {/* Rij toevoegen */}
-                  {toonToevoegen ? (
+                  {/* Rij toevoegen — alleen voor beheer */}
+                  {!myName && (toonToevoegen ? (
                     <tr className="border-b bg-muted/10">
                       <td colSpan={8} className="px-3 py-2">
                         <div className="flex items-center gap-2">
@@ -2033,46 +2033,37 @@ function MaandelijkseProdLandmetersTab() {
                         </button>
                       </td>
                     </tr>
-                  )}
+                  ))}
 
-                  <tr><td colSpan={8} className="py-1"></td></tr>
-
-                  {/* Productie totaal */}
-                  <tr className="border-t bg-muted/30 font-semibold">
-                    <td className="px-3 py-1.5">Productie totaal</td>
-                    <td className="px-2 py-1.5 text-right">{totaalProd || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totaalExUitb || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totaalMeting || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totaalGrUitz || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totaalLMeting || ""}</td>
-                    <td className="px-2 py-1.5 text-right">{totaalPlotInz || ""}</td>
-                    <td></td>
-                  </tr>
-
-                  {/* Binnengekomen — gebruikersinvoer */}
-                  <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Binnengekomen</td>
-                    <td className="px-1 py-1" colSpan={6}>
-                      {numInput(binnengekomen, setBinnengekomen, "input-binnengekomen-lm")}
-                    </td>
-                    <td></td>
-                  </tr>
-
-                  {/* Gemiddeld — berekend */}
-                  <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Gemiddeld/landmeter <span className="text-muted-foreground font-normal">×10</span></td>
-                    <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={6}>{gemiddeld || ""}</td>
-                    <td></td>
-                  </tr>
-
-                  {/* Aantal landmeters — gebruikersinvoer */}
-                  <tr className="border-t hover:bg-muted/10">
-                    <td className="px-3 py-1.5 font-medium">Aantal landmeters</td>
-                    <td className="px-1 py-1" colSpan={6}>
-                      {numInput(aantalLandmeters, setAantalLandmeters, "input-aantal-landmeters")}
-                    </td>
-                    <td></td>
-                  </tr>
+                  {/* Scheidingslijn + samenvatting — alleen voor beheer */}
+                  {!myName && (<>
+                    <tr><td colSpan={8} className="py-1"></td></tr>
+                    <tr className="border-t bg-muted/30 font-semibold">
+                      <td className="px-3 py-1.5">Productie totaal</td>
+                      <td className="px-2 py-1.5 text-right">{totaalProd || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totaalExUitb || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totaalMeting || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totaalGrUitz || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totaalLMeting || ""}</td>
+                      <td className="px-2 py-1.5 text-right">{totaalPlotInz || ""}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="border-t hover:bg-muted/10">
+                      <td className="px-3 py-1.5 font-medium">Binnengekomen</td>
+                      <td className="px-1 py-1" colSpan={6}>{numInput(binnengekomen, setBinnengekomen, "input-binnengekomen-lm")}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="border-t hover:bg-muted/10">
+                      <td className="px-3 py-1.5 font-medium">Gemiddeld/landmeter <span className="text-muted-foreground font-normal">×10</span></td>
+                      <td className="px-2 py-1.5 text-right text-muted-foreground" colSpan={6}>{gemiddeld || ""}</td>
+                      <td></td>
+                    </tr>
+                    <tr className="border-t hover:bg-muted/10">
+                      <td className="px-3 py-1.5 font-medium">Aantal landmeters</td>
+                      <td className="px-1 py-1" colSpan={6}>{numInput(aantalLandmeters, setAantalLandmeters, "input-aantal-landmeters")}</td>
+                      <td></td>
+                    </tr>
+                  </>)}
                 </tbody>
               </table>
             </div>
@@ -4592,6 +4583,7 @@ function KartografieTab() {
 
 
 export default function ProductiePage() {
+  const { user } = useAuth();
   const { data: productieFoto } = useQuery<{ value: string | null }>({
     queryKey: ["/api/site-settings", "productie_photo"],
     queryFn: async () => {
@@ -4600,6 +4592,51 @@ export default function ProductiePage() {
       return res.json();
     },
   });
+
+  const isEmployee = user?.role === "employee";
+  const functie = (user?.functie ?? "").toLowerCase();
+  const dept = user?.department ?? "";
+  const isKartograaf = isEmployee && (functie.includes("kartograaf") || dept === "Kadastrale Metingen");
+  const isLandmeter  = isEmployee && (functie.includes("landmeter") && !isKartograaf);
+  const myName = isEmployee ? (user?.fullName ?? undefined) : undefined;
+
+  // Medewerker — kartograaf: alleen Productie Kartografen + Trend KM Binnen
+  if (isKartograaf) {
+    return (
+      <div className="overflow-auto h-full">
+        <PageHero title="Productie" subtitle="Uw maandelijkse productie" imageSrc={productieFoto?.value || "/uploads/App_pics/rapporten.png"} imageAlt="productie" />
+        <div className="p-6 space-y-5">
+          <Tabs defaultValue="maand">
+            <TabsList className="mb-5 h-auto gap-1">
+              <TabsTrigger value="maand" data-testid="tab-prod-kartografen">Mijn productie</TabsTrigger>
+              <TabsTrigger value="trend" data-testid="tab-kartografie">Trend KM Binnen</TabsTrigger>
+            </TabsList>
+            <TabsContent value="maand"><MaandelijkseProdKartografenTab myName={myName} /></TabsContent>
+            <TabsContent value="trend"><KartografieTab /></TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    );
+  }
+
+  // Medewerker — landmeter: alleen Productie Landmeters + Trend KM Buiten
+  if (isLandmeter) {
+    return (
+      <div className="overflow-auto h-full">
+        <PageHero title="Productie" subtitle="Uw maandelijkse productie" imageSrc={productieFoto?.value || "/uploads/App_pics/rapporten.png"} imageAlt="productie" />
+        <div className="p-6 space-y-5">
+          <Tabs defaultValue="maand">
+            <TabsList className="mb-5 h-auto gap-1">
+              <TabsTrigger value="maand" data-testid="tab-prod-landmeters">Mijn productie</TabsTrigger>
+              <TabsTrigger value="trend" data-testid="tab-landmeters">Trend KM Buiten</TabsTrigger>
+            </TabsList>
+            <TabsContent value="maand"><MaandelijkseProdLandmetersTab myName={myName} /></TabsContent>
+            <TabsContent value="trend"><LandmetersTab /></TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-auto h-full">
