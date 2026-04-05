@@ -329,12 +329,9 @@ function RechtenTab() {
                       </div>
                       {(u.permissions?.length || 0) > 0 && (
                         <div className="flex gap-1 flex-wrap mt-1.5">
-                          {u.permissions?.slice(0, 6).map((p) => (
+                          {u.permissions?.map((p) => (
                             <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
                           ))}
-                          {(u.permissions?.length || 0) > 6 && (
-                            <Badge variant="outline" className="text-xs">+{(u.permissions?.length || 0) - 6}</Badge>
-                          )}
                         </div>
                       )}
                     </div>
