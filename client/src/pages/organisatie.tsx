@@ -454,7 +454,7 @@ function OrganogramTab() {
             return jf?.sortOrder ?? 9999;
           };
           const isManagerFunctie = (functie: string | null) =>
-            !!functie && /manager/i.test(functie);
+            !!functie && (/manager/i.test(functie) || /bewaarder/i.test(functie));
 
           const sortedMembers = [...rawMembers].sort((a, b) => {
             const orderDiff = getFuncSortOrder(a.functie ?? null) - getFuncSortOrder(b.functie ?? null);
