@@ -4596,8 +4596,9 @@ export default function ProductiePage() {
   const isEmployee = user?.role === "employee";
   const functie = (user?.functie ?? "").toLowerCase();
   const dept = user?.department ?? "";
-  const isKartograaf = isEmployee && (functie.includes("kartograaf") || dept === "Kadastrale Metingen");
-  const isLandmeter  = isEmployee && (functie.includes("landmeter") && !isKartograaf);
+  // Functie heeft prioriteit boven afdeling: landmeter altijd als landmeter herkennen
+  const isLandmeter  = isEmployee && functie.includes("landmeter");
+  const isKartograaf = isEmployee && !isLandmeter && (functie.includes("kartograaf") || dept === "Kadastrale Metingen");
 
   // Naam in productielijst: "E. Galeano" / "J. de Vries" — eerste letter + ". " + rest
   const toProductieNaam = (fullName: string | null | undefined): string | undefined => {
