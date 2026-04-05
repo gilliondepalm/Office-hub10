@@ -4598,7 +4598,15 @@ export default function ProductiePage() {
   const dept = user?.department ?? "";
   const isKartograaf = isEmployee && (functie.includes("kartograaf") || dept === "Kadastrale Metingen");
   const isLandmeter  = isEmployee && (functie.includes("landmeter") && !isKartograaf);
-  const myName = isEmployee ? (user?.fullName ?? undefined) : undefined;
+
+  // Naam in productielijst: "E. Galeano" / "J. de Vries" — eerste letter + ". " + rest
+  const toProductieNaam = (fullName: string | null | undefined): string | undefined => {
+    if (!fullName) return undefined;
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length < 2) return fullName;
+    return parts[0][0].toUpperCase() + ". " + parts.slice(1).join(" ");
+  };
+  const myName = isEmployee ? toProductieNaam(user?.fullName) : undefined;
 
   // Medewerker — kartograaf: alleen Productie Kartografen + Trend KM Binnen
   if (isKartograaf) {
