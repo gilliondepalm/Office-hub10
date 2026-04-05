@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Printer, Users, Cake, Award, ActivitySquare, ArrowUpDown, UserSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -557,6 +557,18 @@ export default function RapportenPage() {
       return res.json();
     },
   });
+
+  useEffect(() => {
+    const origTitle = document.title;
+    const onBefore = () => { document.title = ""; };
+    const onAfter  = () => { document.title = origTitle; };
+    window.addEventListener("beforeprint", onBefore);
+    window.addEventListener("afterprint",  onAfter);
+    return () => {
+      window.removeEventListener("beforeprint", onBefore);
+      window.removeEventListener("afterprint",  onAfter);
+    };
+  }, []);
 
   return (
     <div className="overflow-auto h-full">
