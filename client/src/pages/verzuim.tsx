@@ -104,7 +104,11 @@ const absenceFormSchema = z.object({
 }).refine((data) => {
   if (data.type === "bvvd" && !data.bvvdReason) return false;
   return true;
-}, { message: "BVVD reden is verplicht", path: ["bvvdReason"] });
+}, { message: "BVVD reden is verplicht", path: ["bvvdReason"] })
+.refine((data) => {
+  if (data.startDate && data.endDate && data.endDate < data.startDate) return false;
+  return true;
+}, { message: "Einddatum mag niet eerder zijn dan startdatum", path: ["endDate"] });
 
 type VacationBalance = {
   userId: string;
@@ -1823,14 +1827,21 @@ export default function VerzuimPage() {
                     <FormField control={form.control} name="startDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Startdatum</FormLabel>
-                        <FormControl><Input type="date" {...field} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { try { e.target.showPicker(); } catch {} }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-startdate" /></FormControl>
+                        <FormControl><Input type="date" {...field} onChange={(e) => {
+                          field.onChange(e);
+                          const newStart = e.target.value;
+                          const curEnd = form.getValues("endDate");
+                          if (curEnd && newStart && curEnd < newStart) {
+                            form.setValue("endDate", newStart, { shouldValidate: true });
+                          }
+                        }} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { try { e.target.showPicker(); } catch {} }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-startdate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="endDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Einddatum</FormLabel>
-                        <FormControl><Input type="date" {...field} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { try { e.target.showPicker(); } catch {} }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-enddate" /></FormControl>
+                        <FormControl><Input type="date" {...field} min={watchStartDate || undefined} onClick={(e) => { try { (e.target as HTMLInputElement).showPicker(); } catch {} }} onFocus={(e) => { try { e.target.showPicker(); } catch {} }} className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer" data-testid="input-absence-enddate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
