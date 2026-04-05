@@ -3290,6 +3290,193 @@ const LM_MAANDEN_KORT = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","
 type LmTrendRow = { id: number; jaar: number; maand: number; landmeter: string; ex_uitb: number; meting: number; gr_uitz: number; l_meting: number; plot_inzage_coord: number };
 type LmSamRow = { id: number; jaar: number; maand: number; binnengekomen: number; aantal_landmeters: number; eilandgebied: number; particulier: number; grensuitzetting: number };
 
+type LmImportRij = { jaar: number; maand: number; landmeter: string; ex_uitb: number; meting: number; gr_uitz: number; l_meting: number; plot_inzage_coord: number };
+
+function parseLandmeterCSV(csv: string): { rows: LmImportRij[]; errors: string[] } {
+  const rows: LmImportRij[] = [];
+  const errors: string[] = [];
+  const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) { errors.push("CSV is leeg of heeft geen datarijen."); return { rows, errors }; }
+  const header = lines[0].toLowerCase().replace(/\s/g, "");
+  if (!header.includes("jaar") || !header.includes("maand") || !header.includes("landmeter")) {
+    errors.push("Eerste rij moet kolommen bevatten: jaar,maand,landmeter,ex_uitb,meting,gr_uitz,l_meting,plot_inzage_coord");
+    return { rows, errors };
+  }
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(/[,;]/).map(c => c.trim());
+    if (cols.length < 8) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 8)`); continue; }
+    const jaar = parseInt(cols[0]);
+    const maand = parseInt(cols[1]);
+    const landmeter = cols[2];
+    const ex_uitb = parseInt(cols[3]) || 0;
+    const meting  = parseInt(cols[4]) || 0;
+    const gr_uitz = parseInt(cols[5]) || 0;
+    const l_meting = parseInt(cols[6]) || 0;
+    const plot_inzage_coord = parseInt(cols[7]) || 0;
+    if (isNaN(jaar) || jaar < 1990 || jaar > 2100) { errors.push(`Rij ${i + 1}: ongeldig jaar "${cols[0]}"`); continue; }
+    if (isNaN(maand) || maand < 1 || maand > 12)  { errors.push(`Rij ${i + 1}: ongeldige maand "${cols[1]}" (gebruik 1–12)`); continue; }
+    if (!landmeter) { errors.push(`Rij ${i + 1}: lege naam landmeter`); continue; }
+    rows.push({ jaar, maand, landmeter, ex_uitb, meting, gr_uitz, l_meting, plot_inzage_coord });
+  }
+  return { rows, errors };
+}
+
+const LM_CSV_FORMAAT = `Kolomvolgorde (komma- of puntkomma-gescheiden):
+jaar  – 4-cijferig jaar (bijv. 2026)
+maand – maandnummer 1–12
+landmeter – volledige naam (bijv. H. Balootje)
+ex_uitb – externe uitbesteding (getal)
+meting – metingen (getal)
+gr_uitz – grensuitzettingen (getal)
+l_meting – L-metingen (getal)
+plot_inzage_coord – plot/inzage/coördinaten (getal)`;
+
+const LM_CSV_VOORBEELD = `jaar,maand,landmeter,ex_uitb,meting,gr_uitz,l_meting,plot_inzage_coord
+2026,1,H. Balootje,0,45,23,12,5
+2026,1,R. Conradus,0,38,19,8,3
+2026,2,H. Balootje,0,52,28,14,6
+2026,2,R. Conradus,0,44,22,10,4`;
+
+function TrendLandmetersImportButton() {
+  const [open, setOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [preview, setPreview] = useState<{ rows: LmImportRij[]; errors: string[] } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const handleParse = () => setPreview(parseLandmeterCSV(csvText));
+
+  const handleImport = async () => {
+    if (!preview || preview.rows.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await apiRequest("POST", "/api/maand-prod-landmeter/import", { rows: preview.rows });
+      const data = await res.json();
+      qc.invalidateQueries({ queryKey: ['/api/maand-prod-landmeter/alle'] });
+      toast({ title: "Import geslaagd", description: `${data.inserted ?? preview.rows.length} rijen geïmporteerd.` });
+      setOpen(false);
+      setCsvText("");
+      setPreview(null);
+    } catch (e: any) {
+      toast({ title: "Import mislukt", description: e?.message ?? "Onbekende fout", variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const reset = () => { setCsvText(""); setPreview(null); };
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => { setOpen(true); reset(); }} data-testid="button-lm-csv-import">
+        <Upload className="h-3.5 w-3.5" /> CSV importeren
+      </Button>
+      <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) reset(); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>CSV importeren — Trend Landmeters</DialogTitle>
+            <DialogDescription>
+              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar/maand worden vervangen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Formaat uitleg */}
+            <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-2">
+              <p className="font-semibold text-foreground">CSV-formaat:</p>
+              <pre className="whitespace-pre-wrap text-muted-foreground">{LM_CSV_FORMAAT}</pre>
+              <p className="font-semibold text-foreground mt-2">Voorbeeld:</p>
+              <pre className="whitespace-pre-wrap font-mono text-[11px] bg-background rounded p-2 border">{LM_CSV_VOORBEELD}</pre>
+            </div>
+            {/* Bestand kiezen */}
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileRef.current?.click()} data-testid="button-lm-import-file">
+                <Upload className="h-3.5 w-3.5" /> Bestand kiezen
+              </Button>
+              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => { setCsvText(ev.target?.result as string ?? ""); setPreview(null); };
+                reader.readAsText(file); e.target.value = "";
+              }} />
+            </div>
+            <Textarea
+              placeholder="Plak hier de CSV-inhoud..."
+              className="font-mono text-xs min-h-[160px]"
+              value={csvText}
+              onChange={e => { setCsvText(e.target.value); setPreview(null); }}
+              data-testid="textarea-lm-csv"
+            />
+            {/* Valideer knop */}
+            <Button size="sm" variant="secondary" disabled={!csvText.trim()} onClick={handleParse} data-testid="button-lm-csv-valideer">
+              Valideren &amp; preview
+            </Button>
+            {/* Preview resultaat */}
+            {preview && (
+              <div className="space-y-2">
+                {preview.errors.length > 0 && (
+                  <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-red-700 dark:text-red-400">Fouten ({preview.errors.length}):</p>
+                    {preview.errors.map((e, i) => <p key={i} className="text-red-600 dark:text-red-400">{e}</p>)}
+                  </div>
+                )}
+                {preview.rows.length > 0 && (
+                  <div className="rounded-md border bg-green-50 dark:bg-green-900/20 p-3 text-xs">
+                    <p className="font-semibold text-green-700 dark:text-green-400">
+                      {preview.rows.length} rijen gereed voor import
+                      {preview.errors.length > 0 && ` (${preview.errors.length} rijen overgeslagen)`}
+                    </p>
+                    <div className="overflow-x-auto mt-2 max-h-40 overflow-y-auto">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="border-b">
+                            {["jaar","maand","landmeter","ex_uitb","meting","gr_uitz","l_meting","plot_inzage_coord"].map(k => (
+                              <th key={k} className="px-2 py-1 text-left font-semibold whitespace-nowrap">{k}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.rows.slice(0, 10).map((r, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="px-2 py-0.5">{r.jaar}</td>
+                              <td className="px-2 py-0.5">{r.maand}</td>
+                              <td className="px-2 py-0.5 whitespace-nowrap">{r.landmeter}</td>
+                              <td className="px-2 py-0.5 text-right">{r.ex_uitb}</td>
+                              <td className="px-2 py-0.5 text-right">{r.meting}</td>
+                              <td className="px-2 py-0.5 text-right">{r.gr_uitz}</td>
+                              <td className="px-2 py-0.5 text-right">{r.l_meting}</td>
+                              <td className="px-2 py-0.5 text-right">{r.plot_inzage_coord}</td>
+                            </tr>
+                          ))}
+                          {preview.rows.length > 10 && (
+                            <tr><td colSpan={8} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Annuleren</Button>
+            <Button
+              size="sm"
+              disabled={!preview || preview.rows.length === 0 || importing}
+              onClick={handleImport}
+              data-testid="button-lm-import-submit"
+            >
+              {importing ? "Importeren..." : `Importeren${preview && preview.rows.length > 0 ? ` (${preview.rows.length} rijen)` : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function TrendLandmetersTab() {
   const [geselecteerdJaar, setGeselecteerdJaar] = useState(String(new Date().getFullYear()));
   const [selected, setSelected] = useState<Set<string>>(new Set(STANDAARD_LANDMETERS));
@@ -3421,7 +3608,9 @@ function TrendLandmetersTab() {
                 <span style={{ color: kleurVoor(naam) }} className="font-medium">{naam}</span>
               </label>
             ))}
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex items-center gap-2">
+              <TrendLandmetersImportButton />
+              <span className="text-xs text-muted-foreground">|</span>
               <button onClick={setAlle} className="text-xs text-primary hover:underline" data-testid="button-lm-alles-aan">Alles aan</button>
               <span className="text-xs text-muted-foreground">|</span>
               <button onClick={setGeenEen} className="text-xs text-muted-foreground hover:underline" data-testid="button-lm-alles-uit">Alles uit</button>
@@ -3644,7 +3833,7 @@ function LandmetersTab() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-4">
-        <TrendImportButton label="Trend Landmeters" queryKey="/api/trend-km-buiten" endpoint="/api/trend-km-buiten/import" />
+        <TrendLandmetersImportButton />
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Periode t/m:</span>
           <Select value={maand} onValueChange={setMaand}>
