@@ -51,7 +51,10 @@ const userFormSchema = z.object({
   telefoonnr: z.string().optional(),
   mobielnr: z.string().optional(),
   adres: z.string().optional(),
-});
+}).refine((data) => {
+  if (data.birthDate && data.startDate && data.birthDate > data.startDate) return false;
+  return true;
+}, { message: "Geboortedatum mag niet na datum in dienst zijn", path: ["birthDate"] });
 
 const editFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
@@ -71,7 +74,10 @@ const editFormSchema = z.object({
   telefoonnr: z.string().optional(),
   mobielnr: z.string().optional(),
   adres: z.string().optional(),
-});
+}).refine((data) => {
+  if (data.birthDate && data.startDate && data.birthDate > data.startDate) return false;
+  return true;
+}, { message: "Geboortedatum mag niet na datum in dienst zijn", path: ["birthDate"] });
 
 const deactivateFormSchema = z.object({
   endDate: z.string().min(1, "Datum uit dienst is verplicht"),
@@ -112,6 +118,7 @@ function EditDialog({
       adres: (user as any).adres || "",
     },
   });
+  const watchEditStartDate = form.watch("startDate");
 
   const mutation = useMutation({
     mutationFn: async (data: z.infer<typeof editFormSchema>) => {
@@ -258,7 +265,7 @@ function EditDialog({
               <FormField control={form.control} name="birthDate" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Geboortedatum</FormLabel>
-                  <FormControl><Input {...field} type="date" data-testid="input-edit-birthdate" /></FormControl>
+                  <FormControl><Input {...field} type="date" max={watchEditStartDate || undefined} data-testid="input-edit-birthdate" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -1052,6 +1059,7 @@ export default function PersonaliaPage() {
       kadasterId: "", cedulaNr: "", telefoonnr: "", mobielnr: "", adres: "",
     },
   });
+  const watchCreateStartDate = createForm.watch("startDate");
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof userFormSchema>) => {
@@ -1250,7 +1258,7 @@ export default function PersonaliaPage() {
                     <FormField control={createForm.control} name="birthDate" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Geboortedatum</FormLabel>
-                        <FormControl><Input {...field} type="date" data-testid="input-user-birthdate" /></FormControl>
+                        <FormControl><Input {...field} type="date" max={watchCreateStartDate || undefined} data-testid="input-user-birthdate" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
