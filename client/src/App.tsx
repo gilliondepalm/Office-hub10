@@ -443,6 +443,27 @@ SYSTEEM
 \u25ba help_content \u2014 Help-teksten per paginaroute (bewerkbaar via Help-knop)
   Velden: id, page_route (uniek, bijv. /beheer), title, content.`,
   },
+  "/productie": {
+    title: "Productie",
+    content: `De Productie module toont maandelijkse productiecijfers en trendgrafieken per afdeling.
+
+Wat ziet u als Kartograaf:
+\u2022 Tab \u201cMijn productie\u201d \u2014 uitsluitend uw eigen productierij (alleen-lezen). De kolommen tonen uw ingevoerde aantallen per productsoort voor de geselecteerde maand en jaar.
+\u2022 Tab \u201cTrend KM Binnen\u201d \u2014 het afdelingsoverzicht van KM Binnen (kartografie): totalen binnengekomen en afgehandeld per jaar, gemiddeld aantal kartografen en de jaarlijkse trendgrafiek.
+\u2022 U kunt geen gegevens bewerken of opslaan; productiedata wordt door de beheerder of manager ingevoerd.
+
+Wat ziet u als Landmeter:
+\u2022 Tab \u201cMijn productie\u201d \u2014 uitsluitend uw eigen productierij (alleen-lezen). De kolommen tonen uw aantallen per productsoort (Ext. Uitbesteding, Meting, Grensuitzetting, L-Meting, Plot/Inzage/Coörd.) voor de geselecteerde maand en jaar.
+\u2022 Tab \u201cTrend KM Buiten\u201d \u2014 het afdelingsoverzicht van KM Buiten (landmeten): totalen binnengekomen en afgehandeld per jaar, inclusief uitbesteding en gemiddeld aantal landmeters.
+\u2022 U kunt geen gegevens bewerken of opslaan; productiedata wordt door de beheerder of manager ingevoerd.
+
+Naam-koppeling:
+\u2022 Uw productierij wordt herkend op basis van uw naam in het formaat: eerste letter van voornaam + punt + spatie + achternaam (bijv. \u201cL. Francisca\u201d of \u201cJ. de Vries\u201d). Zorg dat uw naam in de productielijst exact dit formaat heeft.
+
+Navigatie:
+\u2022 Gebruik de \u201cPeriode t/m\u201d en \u201cJaarbereik\u201d selectors om een andere maand of periode te bekijken.
+\u2022 Uw eigen productierij is altijd zichtbaar; rijen van collega\u2019s zijn verborgen.`,
+  },
   "/profiel": {
     title: "Mijn Profiel",
     content: `Op de profielpagina vindt u uw persoonlijke gegevens en overzichten.
