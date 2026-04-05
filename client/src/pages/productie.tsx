@@ -2123,7 +2123,7 @@ function MaandelijkseProdLandmetersTab() {
             <div><span className="font-medium text-foreground">Totaal</span> = Meting + Gr. uitz.</div>
             <div><span className="font-medium text-foreground">Ex. Uitb.</span> = Extern uitbesteed (niet in totaal)</div>
             <div><span className="font-medium text-foreground">Meting</span> = Veldmeting</div>
-            <div><span className="font-medium text-foreground">Gr. uitz.</span> = Grens uitzetting</div>
+            <div><span className="font-medium text-foreground">Gr. uitz.</span> = Grensuitzetting</div>
             <div><span className="font-medium text-foreground">L_meting</span> = Landmeting (niet in totaal)</div>
             <div><span className="font-medium text-foreground">Plot/Inzage Coord.</span> = Plotwerk / Inzage / Coördinaten (niet in totaal)</div>
           </div>
