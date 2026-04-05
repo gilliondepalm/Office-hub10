@@ -538,7 +538,7 @@ function BalieMedewerkerTab() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maandLabel} — {periode.label}</CardTitle>
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maandLabel} — {startJaar}–{eindJaar}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -786,7 +786,7 @@ function BalieM3Tab() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maandLabel} — {periode.label}</CardTitle>
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maandLabel} — {startJaar}–{eindJaar}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -4087,7 +4087,7 @@ function LandmetersTab() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maand} — {periode.label}</CardTitle>
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maand} — {startJaar}–{eindJaar}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -4480,7 +4480,7 @@ function KartografieTab() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maand} — {periode.label}</CardTitle>
+          <CardTitle className="text-sm font-medium">Detailoverzicht t/m {maand} — {startJaar}–{eindJaar}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
