@@ -2947,6 +2947,186 @@ const kgNaamNaarKey = (naam: string): keyof typeof KG_COLORS | null => {
 
 type MpkRow = { id: number; jaar: number; maand: number; kartograaf: string; mbr: number; kad_spl: number; gr_uitz: number; ex_pl: number; plot_coor: number; losse_mbr: number };
 
+type KgHistImportRij = { jaar: number; maand: number; egaleano: number; jpieters: number; nsambo: number; binnengekomen: number; afgehandeld: number };
+
+function parseTrendKartografenHistCSV(csv: string): { rows: KgHistImportRij[]; errors: string[] } {
+  const rows: KgHistImportRij[] = [];
+  const errors: string[] = [];
+  const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) { errors.push("CSV is leeg of heeft geen datarijen."); return { rows, errors }; }
+  const header = lines[0].toLowerCase().replace(/\s/g, "");
+  if (!header.includes("jaar") || !header.includes("maand")) {
+    errors.push("Eerste rij moet kolommen bevatten: jaar,maand,egaleano,jpieters,nsambo,binnengekomen,afgehandeld");
+    return { rows, errors };
+  }
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(/[,;]/).map(c => c.trim());
+    if (cols.length < 7) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 7)`); continue; }
+    const jaar = parseInt(cols[0]);
+    const maand = parseInt(cols[1]);
+    const egaleano = parseInt(cols[2]) || 0;
+    const jpieters = parseInt(cols[3]) || 0;
+    const nsambo   = parseInt(cols[4]) || 0;
+    const binnengekomen = parseInt(cols[5]) || 0;
+    const afgehandeld   = parseInt(cols[6]) || 0;
+    if (isNaN(jaar) || jaar < 1990 || jaar > 2100) { errors.push(`Rij ${i + 1}: ongeldig jaar "${cols[0]}"`); continue; }
+    if (isNaN(maand) || maand < 1 || maand > 12)  { errors.push(`Rij ${i + 1}: ongeldige maand "${cols[1]}" (gebruik 1–12)`); continue; }
+    rows.push({ jaar, maand, egaleano, jpieters, nsambo, binnengekomen, afgehandeld });
+  }
+  return { rows, errors };
+}
+
+const KG_CSV_FORMAAT = `Kolomvolgorde (komma- of puntkomma-gescheiden):
+jaar        – 4-cijferig jaar (bijv. 2024)
+maand       – maandnummer 1–12
+egaleano    – productie E. Galeano (getal)
+jpieters    – productie J. Pieters (getal)
+nsambo      – productie N. Sambo (getal)
+binnengekomen – totaal binnengekomen opdrachten (getal)
+afgehandeld – totaal afgehandelde opdrachten (getal)`;
+
+const KG_CSV_VOORBEELD = `jaar,maand,egaleano,jpieters,nsambo,binnengekomen,afgehandeld
+2024,1,42,35,29,150,143
+2024,2,51,40,33,170,165
+2024,3,48,38,31,160,158`;
+
+function TrendKartografenImportButton() {
+  const [open, setOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [preview, setPreview] = useState<{ rows: KgHistImportRij[]; errors: string[] } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const handleParse = () => setPreview(parseTrendKartografenHistCSV(csvText));
+
+  const handleImport = async () => {
+    if (!preview || preview.rows.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await apiRequest("POST", "/api/trend-kartografen-hist/import", { rows: preview.rows });
+      const data = await res.json();
+      qc.invalidateQueries({ queryKey: ['/api/trend-kartografen-hist'] });
+      toast({ title: "Import geslaagd", description: `${data.imported ?? preview.rows.length} rijen geïmporteerd.` });
+      setOpen(false);
+      setCsvText("");
+      setPreview(null);
+    } catch (e: any) {
+      toast({ title: "Import mislukt", description: e?.message ?? "Onbekende fout", variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const reset = () => { setCsvText(""); setPreview(null); };
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="gap-1.5 h-8" onClick={() => { setOpen(true); reset(); }} data-testid="button-kg-hist-csv-import">
+        <Upload className="h-3.5 w-3.5" /> CSV importeren
+      </Button>
+      <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) reset(); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>CSV importeren — Trend Kartografen (historisch)</DialogTitle>
+            <DialogDescription>
+              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar/maand worden vervangen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Formaat uitleg */}
+            <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-2">
+              <p className="font-semibold text-foreground">CSV-formaat:</p>
+              <pre className="whitespace-pre-wrap text-muted-foreground">{KG_CSV_FORMAAT}</pre>
+              <p className="font-semibold text-foreground mt-2">Voorbeeld:</p>
+              <pre className="whitespace-pre-wrap font-mono text-[11px] bg-background rounded p-2 border">{KG_CSV_VOORBEELD}</pre>
+            </div>
+            {/* Bestand kiezen */}
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fileRef.current?.click()} data-testid="button-kg-hist-import-file">
+                <Upload className="h-3.5 w-3.5" /> Bestand kiezen
+              </Button>
+              <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={e => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => { setCsvText(ev.target?.result as string ?? ""); setPreview(null); };
+                reader.readAsText(file); e.target.value = "";
+              }} />
+            </div>
+            <Textarea
+              placeholder="Plak hier de CSV-inhoud..."
+              className="font-mono text-xs min-h-[160px]"
+              value={csvText}
+              onChange={e => { setCsvText(e.target.value); setPreview(null); }}
+              data-testid="textarea-kg-hist-csv"
+            />
+            <Button size="sm" variant="secondary" disabled={!csvText.trim()} onClick={handleParse} data-testid="button-kg-hist-csv-valideer">
+              Valideren &amp; preview
+            </Button>
+            {preview && (
+              <div className="space-y-2">
+                {preview.errors.length > 0 && (
+                  <div className="rounded-md border border-red-200 bg-red-50 dark:bg-red-900/20 p-3 text-xs space-y-1">
+                    <p className="font-semibold text-red-700 dark:text-red-400">Fouten ({preview.errors.length}):</p>
+                    {preview.errors.map((e, i) => <p key={i} className="text-red-600 dark:text-red-400">{e}</p>)}
+                  </div>
+                )}
+                {preview.rows.length > 0 && (
+                  <div className="rounded-md border bg-green-50 dark:bg-green-900/20 p-3 text-xs">
+                    <p className="font-semibold text-green-700 dark:text-green-400">
+                      {preview.rows.length} rijen gereed voor import
+                      {preview.errors.length > 0 && ` (${preview.errors.length} rijen overgeslagen)`}
+                    </p>
+                    <div className="overflow-x-auto mt-2 max-h-40 overflow-y-auto">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="border-b">
+                            {["jaar","maand","egaleano","jpieters","nsambo","binnengekomen","afgehandeld"].map(k => (
+                              <th key={k} className="px-2 py-1 text-left font-semibold whitespace-nowrap">{k}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.rows.slice(0, 10).map((r, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="px-2 py-0.5">{r.jaar}</td>
+                              <td className="px-2 py-0.5">{r.maand}</td>
+                              <td className="px-2 py-0.5 text-right">{r.egaleano}</td>
+                              <td className="px-2 py-0.5 text-right">{r.jpieters}</td>
+                              <td className="px-2 py-0.5 text-right">{r.nsambo}</td>
+                              <td className="px-2 py-0.5 text-right">{r.binnengekomen}</td>
+                              <td className="px-2 py-0.5 text-right">{r.afgehandeld}</td>
+                            </tr>
+                          ))}
+                          {preview.rows.length > 10 && (
+                            <tr><td colSpan={7} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Annuleren</Button>
+            <Button
+              size="sm"
+              disabled={!preview || preview.rows.length === 0 || importing}
+              onClick={handleImport}
+              data-testid="button-kg-hist-import-submit"
+            >
+              {importing ? "Importeren..." : `Importeren${preview && preview.rows.length > 0 ? ` (${preview.rows.length} rijen)` : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function TrendKartografenTab() {
   const [geselecteerdJaar, setGeselecteerdJaar] = useState("2025");
   const [toonTotalen, setToonTotalen] = useState(true);
@@ -3064,8 +3244,6 @@ function TrendKartografenTab() {
 
   return (
     <div className="space-y-6">
-      <TrendImportButton label="Trend Kartografen" queryKey="/api/trend-kartografen-hist" endpoint="/api/trend-kartografen-hist/import" />
-
       {/* Kartograaf toggle */}
       <Card>
         <CardContent className="pt-4">
@@ -3084,7 +3262,9 @@ function TrendKartografenTab() {
                 <span style={{ color: kleurVoor(naam) }} className="font-medium">{naam}</span>
               </label>
             ))}
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex items-center gap-2">
+              <TrendKartografenImportButton />
+              <span className="text-xs text-muted-foreground">|</span>
               <button onClick={setAlle} className="text-xs text-primary hover:underline" data-testid="button-kg-alles-aan">Alles aan</button>
               <span className="text-xs text-muted-foreground">|</span>
               <button onClick={setGeenEen} className="text-xs text-muted-foreground hover:underline" data-testid="button-kg-alles-uit">Alles uit</button>
