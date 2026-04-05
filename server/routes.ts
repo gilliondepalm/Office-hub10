@@ -2489,6 +2489,19 @@ export async function registerRoutes(
   }
 
   // ── Maandelijkse productie Landmeters ─────────────────────────────────────
+  app.get("/api/maand-prod-landmeter/alle", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    try {
+      const [rijen, samenvatting] = await Promise.all([
+        storage.getAllMaandProdLandmeter(),
+        storage.getAllMaandProdSamenvattingLm(),
+      ]);
+      res.json({ rijen, samenvatting });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
   app.get("/api/maand-prod-landmeter", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     const jaar = parseInt(req.query.jaar as string) || new Date().getFullYear();

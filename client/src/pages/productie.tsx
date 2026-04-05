@@ -3281,6 +3281,327 @@ function TrendKartografenTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Trend Landmeters
+const LM_PALETTE = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4","#84cc16","#f97316","#64748b"];
+const LM_KLEUR_BINN = "#6366f1";
+const LM_KLEUR_AFG  = "#ef4444";
+const LM_MAANDEN_KORT = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+type LmTrendRow = { id: number; jaar: number; maand: number; landmeter: string; ex_uitb: number; meting: number; gr_uitz: number; l_meting: number; plot_inzage_coord: number };
+type LmSamRow = { id: number; jaar: number; maand: number; binnengekomen: number; aantal_landmeters: number; eilandgebied: number; particulier: number; grensuitzetting: number };
+
+function TrendLandmetersTab() {
+  const [geselecteerdJaar, setGeselecteerdJaar] = useState(String(new Date().getFullYear()));
+  const [selected, setSelected] = useState<Set<string>>(new Set(STANDAARD_LANDMETERS));
+  const [geinitialiseerd, setGeinitialiseerd] = useState(false);
+
+  const { data: alleLmData } = useQuery<{ rijen: LmTrendRow[]; samenvatting: LmSamRow[] }>({
+    queryKey: ['/api/maand-prod-landmeter/alle'],
+  });
+  const alleLmRijen = alleLmData?.rijen ?? [];
+  const alleLmSam   = alleLmData?.samenvatting ?? [];
+
+  // Per landmeter naam → jaar → [12 maanden prod] (prod = meting + gr_uitz)
+  const lmDataMap = useMemo(() => {
+    const result: Record<string, Record<string, number[]>> = {};
+    for (const r of alleLmRijen) {
+      if (r.landmeter === "afgeboekte_stukken") continue;
+      const naam = r.landmeter;
+      const jaar = String(r.jaar);
+      const maandIdx = r.maand - 1;
+      const prod = r.meting + r.gr_uitz;
+      if (!result[naam]) result[naam] = {};
+      if (!result[naam][jaar]) result[naam][jaar] = Array(12).fill(0);
+      result[naam][jaar][maandIdx] = prod;
+    }
+    return result;
+  }, [alleLmRijen]);
+
+  // Binnengekomen per jaar per maand (uit samenvatting)
+  const binnengekomenMap = useMemo(() => {
+    const result: Record<string, number[]> = {};
+    for (const s of alleLmSam) {
+      const jaar = String(s.jaar);
+      if (!result[jaar]) result[jaar] = Array(12).fill(0);
+      result[jaar][s.maand - 1] = s.binnengekomen;
+    }
+    return result;
+  }, [alleLmSam]);
+
+  // Afgehandeld per jaar per maand (som van alle actieve landmeters)
+  const afgehandeldMap = useMemo(() => {
+    const result: Record<string, number[]> = {};
+    for (const r of alleLmRijen) {
+      if (r.landmeter === "afgeboekte_stukken") continue;
+      const jaar = String(r.jaar);
+      if (!result[jaar]) result[jaar] = Array(12).fill(0);
+      result[jaar][r.maand - 1] += r.meting + r.gr_uitz;
+    }
+    return result;
+  }, [alleLmRijen]);
+
+  // Unieke landmeter namen uit DB
+  const alleLandmeterNamen = useMemo(() => {
+    if (alleLmRijen.length === 0) return [...STANDAARD_LANDMETERS];
+    return [...new Set(alleLmRijen.filter(r => r.landmeter !== "afgeboekte_stukken").map(r => r.landmeter))].sort();
+  }, [alleLmRijen]);
+
+  // Initialiseer selected als alle landmeters zodra DB-data beschikbaar is
+  useEffect(() => {
+    if (!geinitialiseerd && alleLmRijen.length > 0) {
+      setSelected(new Set(alleLandmeterNamen));
+      setGeinitialiseerd(true);
+    }
+  }, [alleLandmeterNamen, alleLmRijen, geinitialiseerd]);
+
+  const kleurVoor = (naam: string): string =>
+    LM_PALETTE[alleLandmeterNamen.indexOf(naam) % LM_PALETTE.length];
+
+  // Alle jaren in de data
+  const alleJaren = useMemo(() => {
+    const s = new Set([
+      ...alleLmRijen.map(r => String(r.jaar)),
+      ...alleLmSam.map(s => String(s.jaar)),
+    ]);
+    return [...s].sort();
+  }, [alleLmRijen, alleLmSam]);
+
+  const lmSum = (arr: number[]) => arr.reduce((s, v) => s + v, 0);
+
+  const toggleLandmeter = (naam: string) =>
+    setSelected(prev => { const s = new Set(prev); s.has(naam) ? s.delete(naam) : s.add(naam); return s; });
+  const setAlle    = () => setSelected(new Set(alleLandmeterNamen));
+  const setGeenEen = () => setSelected(new Set());
+
+  // Jaarlijkse totalen voor trendgrafieken
+  const jaarTotaalData = useMemo(() => alleJaren.map(jaar => {
+    const row: Record<string, string | number> = { jaar };
+    for (const naam of alleLandmeterNamen) {
+      row[naam] = lmSum(lmDataMap[naam]?.[jaar] ?? Array(12).fill(0));
+    }
+    row["Binnengekomen"] = lmSum(binnengekomenMap[jaar] ?? Array(12).fill(0));
+    row["Afgehandeld"]   = lmSum(afgehandeldMap[jaar]   ?? Array(12).fill(0));
+    return row;
+  }), [alleJaren, alleLandmeterNamen, lmDataMap, binnengekomenMap, afgehandeldMap]);
+
+  const selectedNamen = alleLandmeterNamen.filter(n => selected.has(n));
+
+  // Maandelijkse data voor geselecteerd jaar
+  const binnengekomenJaar = binnengekomenMap[geselecteerdJaar] ?? Array(12).fill(0);
+  const afgehandeldJaar   = afgehandeldMap[geselecteerdJaar]   ?? Array(12).fill(0);
+  const totBinnengekomen  = lmSum(binnengekomenJaar);
+  const totAfgehandeld    = lmSum(afgehandeldJaar);
+  const verschil          = totAfgehandeld - totBinnengekomen;
+
+  const maandChartData = LM_MAANDEN_KORT.map((m, i) => {
+    const row: Record<string, string | number> = { maand: m };
+    for (const naam of selectedNamen) {
+      row[naam] = lmDataMap[naam]?.[geselecteerdJaar]?.[i] ?? 0;
+    }
+    return row;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Landmeter toggle */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-foreground">Landmeters:</span>
+            {alleLandmeterNamen.map(naam => (
+              <label key={naam} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                <input
+                  type="checkbox"
+                  checked={selected.has(naam)}
+                  onChange={() => toggleLandmeter(naam)}
+                  data-testid={`checkbox-landmeter-${naam.replace(/[\s.]+/g, "-").toLowerCase()}`}
+                  className="rounded"
+                  style={{ accentColor: kleurVoor(naam) }}
+                />
+                <span style={{ color: kleurVoor(naam) }} className="font-medium">{naam}</span>
+              </label>
+            ))}
+            <div className="ml-auto flex gap-2">
+              <button onClick={setAlle} className="text-xs text-primary hover:underline" data-testid="button-lm-alles-aan">Alles aan</button>
+              <span className="text-xs text-muted-foreground">|</span>
+              <button onClick={setGeenEen} className="text-xs text-muted-foreground hover:underline" data-testid="button-lm-alles-uit">Alles uit</button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedNamen.length === 0 ? (
+        <div className="text-center text-muted-foreground py-12 text-sm">Selecteer ten minste één landmeter om grafieken te tonen.</div>
+      ) : alleJaren.length === 0 ? (
+        <div className="text-center text-muted-foreground py-12 text-sm">Nog geen productiedata beschikbaar. Voer eerst data in via "Productie Landmeters".</div>
+      ) : (
+        <>
+          {/* Jaarlijkse trendgrafiek */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Jaarlijkse trend per landmeter</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Totale productie per landmeter per jaar (meting + grensuitzetting)</p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {selectedNamen.map(naam => (
+                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
+                  ))}
+                  <Line type="monotone" dataKey="Binnengekomen" name="Binnengekomen" stroke={LM_KLEUR_BINN} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Afgehandeld"   name="Afgehandeld"   stroke={LM_KLEUR_AFG}  strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Lijndiagram */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Lijndiagram jaarlijkse productie per landmeter</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {selectedNamen.map(naam => (
+                    <Line key={naam} type="monotone" dataKey={naam} stroke={kleurVoor(naam)} strokeWidth={2} dot={{ r: 4 }} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Maandelijkse detail voor geselecteerd jaar */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-semibold">Maandelijkse productie per landmeter</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Selecteer een jaar voor het maandoverzicht</p>
+                </div>
+                <Select value={geselecteerdJaar} onValueChange={setGeselecteerdJaar}>
+                  <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-trend-landmeters">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[...alleJaren].reverse().map((j) => (
+                      <SelectItem key={j} value={j} className="text-xs">{j}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* KPI kaarten */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {selectedNamen.map(naam => {
+                  const tot = lmSum(lmDataMap[naam]?.[geselecteerdJaar] ?? Array(12).fill(0));
+                  if (tot === 0) return null;
+                  return (
+                    <div key={naam} className="rounded-lg border bg-card p-3 text-center" data-testid={`kpi-lm-${naam.replace(/[\s.]+/g, "-").toLowerCase()}`}>
+                      <div className="text-2xl font-bold" style={{ color: kleurVoor(naam) }}>{tot.toLocaleString("nl-NL")}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{naam}</div>
+                    </div>
+                  );
+                })}
+                <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-lm-binnengekomen">
+                  <div className="text-2xl font-bold" style={{ color: LM_KLEUR_BINN }}>{totBinnengekomen.toLocaleString("nl-NL")}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Binnengekomen</div>
+                </div>
+                <div className="rounded-lg border bg-card p-3 text-center" data-testid="kpi-lm-saldo">
+                  <div className="text-2xl font-bold" style={{ color: verschil >= 0 ? "#10b981" : "#ef4444" }}>
+                    {verschil >= 0 ? "+" : ""}{verschil.toLocaleString("nl-NL")}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Saldo (afg − binn)</div>
+                </div>
+              </div>
+
+              {/* Maandelijks staafdiagram */}
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={maandChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="maand" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {selectedNamen.map(naam => (
+                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Detailtabel */}
+              <div className="overflow-x-auto rounded-md border text-xs">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="px-3 py-2 text-left font-semibold">Landmeter</th>
+                      {LM_MAANDEN_KORT.map(m => (
+                        <th key={m} className="px-2 py-2 text-right font-semibold">{m}</th>
+                      ))}
+                      <th className="px-3 py-2 text-right font-semibold">Totaal</th>
+                      <th className="px-3 py-2 text-right font-semibold">Gem.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedNamen.map(naam => {
+                      const maandArr = lmDataMap[naam]?.[geselecteerdJaar] ?? Array(12).fill(0);
+                      const tot = lmSum(maandArr);
+                      if (tot === 0) return null;
+                      const actieveMaanden = maandArr.filter(v => v > 0).length || 1;
+                      return (
+                        <tr key={naam} className="border-t">
+                          <td className="px-3 py-1.5 font-medium" style={{ color: kleurVoor(naam) }}>{naam}</td>
+                          {maandArr.map((v, i) => (
+                            <td key={i} className="px-2 py-1.5 text-right">{v > 0 ? v : "-"}</td>
+                          ))}
+                          <td className="px-3 py-1.5 text-right font-semibold">{tot}</td>
+                          <td className="px-3 py-1.5 text-right text-muted-foreground">{(tot / actieveMaanden).toFixed(1)}</td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t bg-muted/30">
+                      <td className="px-3 py-1.5 font-semibold" style={{ color: LM_KLEUR_BINN }}>Binnengekomen</td>
+                      {binnengekomenJaar.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                      ))}
+                      <td className="px-3 py-1.5 text-right font-bold">{totBinnengekomen}</td>
+                      <td className="px-3 py-1.5 text-right text-muted-foreground">
+                        {(totBinnengekomen / (binnengekomenJaar.filter(v => v > 0).length || 1)).toFixed(1)}
+                      </td>
+                    </tr>
+                    <tr className="border-t bg-muted/30">
+                      <td className="px-3 py-1.5 font-semibold" style={{ color: LM_KLEUR_AFG }}>Afgehandeld</td>
+                      {afgehandeldJaar.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right font-medium">{v > 0 ? v : "-"}</td>
+                      ))}
+                      <td className="px-3 py-1.5 text-right font-bold">{totAfgehandeld}</td>
+                      <td className="px-3 py-1.5 text-right text-muted-foreground">
+                        {(totAfgehandeld / (afgehandeldJaar.filter(v => v > 0).length || 1)).toFixed(1)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
   const [periodeIdx, setPeriodeIdx] = useState(0);
@@ -3938,6 +4259,9 @@ export default function ProductiePage() {
                 <TabsTrigger value="kartografen" data-testid="tab-kartografen">
                   Trend Kartografen
                 </TabsTrigger>
+                <TabsTrigger value="trend-landmeters" data-testid="tab-trend-landmeters">
+                  Trend Landmeters
+                </TabsTrigger>
                 <TabsTrigger value="kartografie" data-testid="tab-kartografie">
                   Trend KM Binnen
                 </TabsTrigger>
@@ -3960,6 +4284,10 @@ export default function ProductiePage() {
 
               <TabsContent value="kartografen">
                 <TrendKartografenTab />
+              </TabsContent>
+
+              <TabsContent value="trend-landmeters">
+                <TrendLandmetersTab />
               </TabsContent>
 
               <TabsContent value="kartografie">
