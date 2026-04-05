@@ -357,7 +357,8 @@ function TrendImportButton({ label, queryKey, endpoint }: { label: string; query
 
 function BalieMedewerkerTab() {
   const [maandIdx, setMaandIdx] = useState(11);
-  const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [startJaar, setStartJaar] = useState("2008");
+  const [eindJaar,  setEindJaar]  = useState("2025");
 
   const { data: dbKmInfoRows } = useQuery<{ jaar: number; maand: number; kkp: number; db: number; sa: number; rm: number; re: number; km: number; ik: number }[]>({ queryKey: ['/api/trend-km-info'] });
   const dbKmInfoMap = useMemo(() => {
@@ -372,14 +373,7 @@ function BalieMedewerkerTab() {
   }, [dbKmInfoRows]);
   const activeBalieData = dbKmInfoMap ?? BALIE_DATA;
 
-  const allePeriodes: { label: string; range: [number, number] }[] = [
-    { label: "Alle jaren (2008–2025)", range: [0, 18] },
-    { label: "2008–2015",             range: [0, 8]  },
-    { label: "2016–2025",             range: [8, 18] },
-  ];
-
-  const periode  = allePeriodes[periodeIdx];
-  const jaren    = BALIE_JAREN_ASC.slice(periode.range[0], periode.range[1]);
+  const jaren    = BALIE_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
@@ -420,16 +414,11 @@ function BalieMedewerkerTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-52" data-testid="select-balie-periode">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {allePeriodes.map((p, i) => (
-                <SelectItem key={i} value={String(i)} data-testid={`option-balie-periode-${i}`}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <input type="number" min="2008" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie-startjaar" />
+          <span className="text-sm text-muted-foreground">t/m</span>
+          <input type="number" min="2008" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie-eindjaar" />
         </div>
       </div>
 
@@ -625,7 +614,8 @@ const BALIE3_PRODUCTEN: { key: keyof Balie3Rij; label: string; kleur: string }[]
 
 function BalieM3Tab() {
   const [maandIdx, setMaandIdx]   = useState(11);
-  const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [startJaar, setStartJaar] = useState("2008");
+  const [eindJaar,  setEindJaar]  = useState("2025");
 
   const { data: dbOrInfoRows } = useQuery<{ jaar: number; maand: number; inzagen: number; her_inzage: number; na_inzage: number; kadastaal_legger: number; verklaring: number; getuigschrift: number }[]>({ queryKey: ['/api/trend-or-info'] });
   const dbOrInfoMap = useMemo(() => {
@@ -640,14 +630,7 @@ function BalieM3Tab() {
   }, [dbOrInfoRows]);
   const activeB3Data = dbOrInfoMap ?? BALIE3_DATA;
 
-  const allePeriodes: { label: string; range: [number, number] }[] = [
-    { label: "Alle jaren (2008–2025)", range: [0, 18] },
-    { label: "2008–2015",             range: [0, 8]  },
-    { label: "2016–2025",             range: [8, 18] },
-  ];
-
-  const periode    = allePeriodes[periodeIdx];
-  const jaren      = BALIE3_JAREN_ASC.slice(periode.range[0], periode.range[1]);
+  const jaren      = BALIE3_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
@@ -679,16 +662,11 @@ function BalieM3Tab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-52" data-testid="select-balie3-periode">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {allePeriodes.map((p, i) => (
-                <SelectItem key={i} value={String(i)} data-testid={`option-balie3-periode-${i}`}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <input type="number" min="2008" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie3-startjaar" />
+          <span className="text-sm text-muted-foreground">t/m</span>
+          <input type="number" min="2008" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie3-eindjaar" />
         </div>
       </div>
 
@@ -884,7 +862,8 @@ const ORA_PERIODES = [
 
 function TrendOrAlgemeenTab() {
   const [maand, setMaand]           = useState("Dec");
-  const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [startJaar, setStartJaar]   = useState("2001");
+  const [eindJaar,  setEindJaar]    = useState("2025");
 
   const { data: dbOraRows } = useQuery<{ jaar: number; maand: number; aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number }[]>({ queryKey: ['/api/trend-or-algemeen'] });
   const dbOraMap = useMemo(() => {
@@ -906,8 +885,8 @@ function TrendOrAlgemeenTab() {
   };
 
   const maandIdx = ORA_MAANDEN.indexOf(maand);
-  const { jaren } = ORA_PERIODES[periodeIdx];
-  const data      = buildOraDataActive(maandIdx, jaren);
+  const jaren    = ORA_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
+  const data     = buildOraDataActive(maandIdx, jaren);
 
   const chartData = jaren.map((j, i) => ({
     jaar: j,
@@ -935,16 +914,13 @@ function TrendOrAlgemeenTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground font-medium">Jarenreeks</span>
-          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-52 h-8 text-sm" data-testid="select-ora-periode">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ORA_PERIODES.map((p, i) => <SelectItem key={i} value={String(i)}>{p.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-medium">Jarenreeks:</span>
+          <input type="number" min="2001" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+            className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-ora-startjaar" />
+          <span className="text-xs text-muted-foreground">t/m</span>
+          <input type="number" min="2001" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+            className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-ora-eindjaar" />
         </div>
       </div>
 
@@ -1315,7 +1291,8 @@ const ORN_PERIODES = [
 
 function TrendOrNotarisTab() {
   const [maand, setMaand]           = useState("Dec");
-  const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [startJaar, setStartJaar]   = useState("2001");
+  const [eindJaar,  setEindJaar]    = useState("2025");
   const [selected, setSelected]     = useState<Set<string>>(
     new Set(ORN_NOTARISSEN.filter(n => n.actief).map(n => n.key))
   );
@@ -1339,7 +1316,7 @@ function TrendOrNotarisTab() {
   };
 
   const maandIdx = ORN_MAANDEN.indexOf(maand);
-  const { jaren } = ORN_PERIODES[periodeIdx];
+  const jaren    = ORN_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
 
   const toggleN = (key: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s; });
@@ -1375,12 +1352,13 @@ function TrendOrNotarisTab() {
             <SelectContent>{ORN_MAANDEN.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground font-medium">Jarenreeks</span>
-          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-52 h-8 text-sm" data-testid="select-orn-periode"><SelectValue /></SelectTrigger>
-            <SelectContent>{ORN_PERIODES.map((p,i) => <SelectItem key={i} value={String(i)}>{p.label}</SelectItem>)}</SelectContent>
-          </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-medium">Jarenreeks:</span>
+          <input type="number" min="2001" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+            className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-orn-startjaar" />
+          <span className="text-xs text-muted-foreground">t/m</span>
+          <input type="number" min="2001" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+            className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-orn-eindjaar" />
         </div>
       </div>
 
@@ -3964,7 +3942,8 @@ function TrendLandmetersTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
-  const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [startJaar, setStartJaar] = useState("1995");
+  const [eindJaar,  setEindJaar]  = useState("2025");
 
   const { data: dbKmBuitenRows } = useQuery<{ jaar: number; maand: number; binnengekomen: number; afgehandeld: number; uitbesteding: number; gemiddeld: number; landmeters: number }[]>({ queryKey: ['/api/trend-km-buiten'] });
   const dbLandmetersMap = useMemo(() => {
@@ -3984,16 +3963,8 @@ function LandmetersTab() {
   }, [dbKmBuitenRows]);
   const activeLandmetersData = dbLandmetersMap ?? LANDMETERS_DATA;
 
-  const allePeriodes: { label: string; range: [number, number] }[] = [
-    { label: "Alle jaren (1995–2025)", range: [0, 31] },
-    { label: "1995–2004", range: [0, 10] },
-    { label: "2005–2014", range: [10, 20] },
-    { label: "2015–2025", range: [20, 31] },
-  ];
-
-  const periode = allePeriodes[periodeIdx];
   const volledigeData = activeLandmetersData[maand] || [];
-  const data = volledigeData.slice(periode.range[0], periode.range[1]);
+  const data = volledigeData.filter(d => Number(d.jaar) >= Number(startJaar) && Number(d.jaar) <= Number(eindJaar));
 
   const totBinnengekomen = data.reduce((s, d) => s + d.binnengekomen, 0);
   const totAfgehandeld   = data.reduce((s, d) => s + d.afgehandeld, 0);
@@ -4020,16 +3991,11 @@ function LandmetersTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-52" data-testid="select-periode-landmeters">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {allePeriodes.map((p, i) => (
-                <SelectItem key={i} value={String(i)} data-testid={`option-lm-periode-${i}`}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <input type="number" min="1995" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-lm-startjaar" />
+          <span className="text-sm text-muted-foreground">t/m</span>
+          <input type="number" min="1995" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-lm-eindjaar" />
         </div>
       </div>
 
@@ -4219,7 +4185,8 @@ function KartografieTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [maand, setMaand] = useState("Feb");
-  const [periodeIdx, setPeriodeIdx] = useState(0);
+  const [startJaar, setStartJaar] = useState("1996");
+  const [eindJaar,  setEindJaar]  = useState("2025");
   const [importOpen, setImportOpen] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [preview, setPreview] = useState<{ rows: ReturnType<typeof parseKartografieCSV>["rows"]; errors: string[] } | null>(null);
@@ -4262,16 +4229,7 @@ function KartografieTab() {
     return volledigeDataBase.find(r => r.jaar === jaar) ?? { jaar, binnengekomen: 0, afgehandeld: 0, gemiddeld: 0, kartografen: 0 };
   });
 
-  const extendedPeriodes = [
-    { label: `Alle jaren (1996–${alleJaren[alleJaren.length - 1] ?? 2025})`, range: [0, alleJaren.length] as [number, number] },
-    { label: "1996–2005", range: [0, 10] as [number, number] },
-    { label: "2006–2015", range: [10, 20] as [number, number] },
-    { label: "2016–2025", range: [20, 30] as [number, number] },
-    ...apiJaren.length > 0 ? [{ label: `Nieuw (${apiJaren[0]}–${apiJaren[apiJaren.length - 1]})`, range: [30, alleJaren.length] as [number, number] }] : [],
-  ];
-
-  const periode = extendedPeriodes[Math.min(periodeIdx, extendedPeriodes.length - 1)];
-  const data = volledigeData.slice(periode.range[0], periode.range[1]);
+  const data = volledigeData.filter(d => Number(d.jaar) >= Number(startJaar) && Number(d.jaar) <= Number(eindJaar));
 
   const totBinnengekomen = data.reduce((s, d) => s + d.binnengekomen, 0);
   const totAfgehandeld   = data.reduce((s, d) => s + d.afgehandeld, 0);
@@ -4296,16 +4254,11 @@ function KartografieTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <Select value={String(periodeIdx)} onValueChange={v => setPeriodeIdx(Number(v))}>
-            <SelectTrigger className="w-56" data-testid="select-periode-kartografie">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {extendedPeriodes.map((p, i) => (
-                <SelectItem key={i} value={String(i)} data-testid={`option-periode-${i}`}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <input type="number" min="1996" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-kart-startjaar" />
+          <span className="text-sm text-muted-foreground">t/m</span>
+          <input type="number" min="1996" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+            className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-kart-eindjaar" />
         </div>
         {isAdmin && (
           <Button size="sm" variant="outline" className="ml-auto gap-1.5" onClick={() => setImportOpen(true)} data-testid="button-import-kartografie">
