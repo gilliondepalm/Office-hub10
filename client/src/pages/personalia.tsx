@@ -280,21 +280,17 @@ function EditDialog({
             <FormField control={form.control} name="functie" render={({ field }) => (
               <FormItem>
                 <FormLabel>Functie</FormLabel>
-                {editFunctions.length > 0 ? (
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger data-testid="input-edit-functie"><SelectValue placeholder="Selecteer functie" /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">— Geen functie —</SelectItem>
-                      {editFunctions.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((f) => (
-                        <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <FormControl><Input {...field} placeholder="bijv. Landmeter, Administratief Medewerker" data-testid="input-edit-functie" /></FormControl>
-                )}
+                <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <FormControl>
+                    <SelectTrigger data-testid="input-edit-functie"><SelectValue placeholder="Selecteer functie" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">— Geen functie —</SelectItem>
+                    {editFunctions.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((f) => (
+                      <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )} />
@@ -1273,21 +1269,17 @@ export default function PersonaliaPage() {
                   <FormField control={createForm.control} name="functie" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Functie</FormLabel>
-                      {createFunctions.length > 0 ? (
-                        <Select onValueChange={field.onChange} value={field.value || ""}>
-                          <FormControl>
-                            <SelectTrigger data-testid="input-user-functie"><SelectValue placeholder="Selecteer functie" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">— Geen functie —</SelectItem>
-                            {createFunctions.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((f) => (
-                              <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <FormControl><Input {...field} placeholder="bijv. Landmeter, Administratief Medewerker" data-testid="input-user-functie" /></FormControl>
-                      )}
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger data-testid="input-user-functie"><SelectValue placeholder="Selecteer functie" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">— Geen functie —</SelectItem>
+                          {createFunctions.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((f) => (
+                            <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )} />
