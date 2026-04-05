@@ -560,12 +560,14 @@ export default function RapportenPage() {
 
   return (
     <div className="overflow-auto h-full">
-      <PageHero
-        title="Rapporten"
-        subtitle="Overzichten en afdrukbare rapporten van medewerkergegevens"
-        imageSrc={rapportenPhoto?.value || "/uploads/App_pics/rapporten.png"}
-        imageAlt="rapporten"
-      />
+      <div className="print:hidden">
+        <PageHero
+          title="Rapporten"
+          subtitle="Overzichten en afdrukbare rapporten van medewerkergegevens"
+          imageSrc={rapportenPhoto?.value || "/uploads/App_pics/rapporten.png"}
+          imageAlt="rapporten"
+        />
+      </div>
       <div className="p-6">
         {isLoading ? (
           <div className="space-y-3">
