@@ -380,7 +380,13 @@ function BalieMedewerkerTab() {
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    const rij = activeBalieData[jaar]?.[maandIdx];
+    if (dbKmInfoMap) {
+      const rows = dbKmInfoMap[jaar] ?? [];
+      const acc = (key: keyof BalieRij) =>
+        rows.slice(0, maandIdx + 1).reduce((s, r) => s + ((r as any)?.[key] ?? 0), 0);
+      return { jaar, kkp: acc("kkp"), db: acc("db"), sa: acc("sa"), rm: acc("rm"), re: acc("re"), km: acc("km"), ik: acc("ik") };
+    }
+    const rij = BALIE_DATA[jaar]?.[maandIdx];
     return {
       jaar,
       kkp: rij?.kkp ?? 0,
@@ -637,7 +643,13 @@ function BalieM3Tab() {
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    const rij = activeB3Data[jaar]?.[maandIdx];
+    if (dbOrInfoMap) {
+      const rows = dbOrInfoMap[jaar] ?? [];
+      const acc = (key: keyof Balie3Rij) =>
+        rows.slice(0, maandIdx + 1).reduce((s, r) => s + ((r as any)?.[key] ?? 0), 0);
+      return { jaar, inzagen: acc("inzagen"), herInzage: acc("herInzage"), naInzage: acc("naInzage"), kadastraalLegger: acc("kadastraalLegger"), verklaring: acc("verklaring"), getuigschrift: acc("getuigschrift") };
+    }
+    const rij = BALIE3_DATA[jaar]?.[maandIdx];
     return { jaar, ...(rij ?? { inzagen:0, herInzage:0, naInzage:0, kadastraalLegger:0, verklaring:0, getuigschrift:0 }) };
   });
 
@@ -882,7 +894,15 @@ function TrendOrAlgemeenTab() {
 
   const buildOraDataActive = (maandIdxLocal: number, jarenFilter: string[]): OrAlgemRij[] => {
     if (dbOraMap) {
-      return jarenFilter.map(j => dbOraMap[j]?.[maandIdxLocal + 1] ?? { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 });
+      return jarenFilter.map(j => {
+        const jData = dbOraMap[j] ?? {};
+        let aktes=0, inschrijvingen=0, doorhalingen=0, opheffingen=0, beslagen=0, cessies=0;
+        for (let m = 1; m <= maandIdxLocal + 1; m++) {
+          const r = jData[m];
+          if (r) { aktes+=r.aktes; inschrijvingen+=r.inschrijvingen; doorhalingen+=r.doorhalingen; opheffingen+=r.opheffingen; beslagen+=r.beslagen; cessies+=r.cessies; }
+        }
+        return { aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies };
+      });
     }
     return buildOraData(maandIdxLocal, jarenFilter);
   };
@@ -1314,7 +1334,13 @@ function TrendOrNotarisTab() {
   }, [dbOrnRows]);
 
   const getOrnValue = (key: string, maandIdxLocal: number, ji: number): number => {
-    if (dbOrnData) return dbOrnData[key]?.[maandIdxLocal + 1]?.[ji] ?? 0;
+    if (dbOrnData) {
+      let total = 0;
+      for (let m = 1; m <= maandIdxLocal + 1; m++) {
+        total += dbOrnData[key]?.[m]?.[ji] ?? 0;
+      }
+      return total;
+    }
     return ORN_DATA[key]?.[maandIdxLocal]?.[ji] ?? 0;
   };
 
