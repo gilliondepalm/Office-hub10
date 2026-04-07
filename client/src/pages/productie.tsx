@@ -3099,10 +3099,12 @@ function TrendKartografenImportButton() {
 }
 
 function TrendKartografenTab() {
-  const [geselecteerdJaar, setGeselecteerdJaar] = useState("2025");
+  const [geselecteerdJaar, setGeselecteerdJaar] = useState(HUIDIG_JAAR_S);
   const [toonTotalen, setToonTotalen] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(["E. Galeano", "J. Pieters"]));
   const [geinitialiseerd, setGeinitialiseerd] = useState(false);
+  const [startJaar, setStartJaar] = useState("2016");
+  const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
 
   const { data: dbKgRows } = useQuery<{ jaar: number; maand: number; egaleano: number; jpieters: number; nsambo: number; binnengekomen: number; afgehandeld: number }[]>({ queryKey: ['/api/trend-kartografen-hist'] });
   const { data: alleMpkRows } = useQuery<MpkRow[]>({ queryKey: ['/api/maand-prod-kartograaf/alle'] });
@@ -3196,6 +3198,10 @@ function TrendKartografenTab() {
     return row;
   }), [alleKgJaren, alleKartografenNamen, mpkDataMap, activeKgData]);
 
+  const gefilterdeTrendDataKg = jaarTotaalData.filter(
+    d => Number(d.jaar) >= Number(startJaar) && Number(d.jaar) <= Number(eindJaar)
+  );
+
   // Maandelijkse data voor geselecteerd jaar
   const KG_LEEG_JAAR: KgJaarData = { egaleano: Array(12).fill(0), jpieters: Array(12).fill(0), nsambo: Array(12).fill(0), binnengekomen: Array(12).fill(0), afgehandeld: Array(12).fill(0) };
   const jaarData = activeKgData[geselecteerdJaar] ?? KG_MAANDDATA[geselecteerdJaar] ?? KG_LEEG_JAAR;
@@ -3256,21 +3262,45 @@ function TrendKartografenTab() {
                   <CardTitle className="text-base font-semibold">Jaarlijkse trend per kartograaf</CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">Totale productie per kartograaf per jaar</p>
                 </div>
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={toonTotalen}
-                    onChange={(e) => setToonTotalen(e.target.checked)}
-                    data-testid="checkbox-toon-totalen"
-                    className="rounded"
-                  />
-                  <span>Toon binnengekomen / afgehandeld</span>
-                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={toonTotalen}
+                      onChange={(e) => setToonTotalen(e.target.checked)}
+                      data-testid="checkbox-toon-totalen"
+                      className="rounded"
+                    />
+                    <span>Toon binnengekomen / afgehandeld</span>
+                  </label>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground font-medium">Jaarbereik:</span>
+                    <input
+                      type="number"
+                      value={startJaar}
+                      onChange={e => setStartJaar(e.target.value)}
+                      min="2016"
+                      max={eindJaar}
+                      data-testid="input-kg-trend-start-jaar"
+                      className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
+                    />
+                    <span className="text-muted-foreground">t/m</span>
+                    <input
+                      type="number"
+                      value={eindJaar}
+                      onChange={e => setEindJaar(e.target.value)}
+                      min={startJaar}
+                      max={HUIDIG_JAAR_S}
+                      data-testid="input-kg-trend-eind-jaar"
+                      className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
+                    />
+                  </div>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <ComposedChart data={gefilterdeTrendDataKg} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -3297,7 +3327,7 @@ function TrendKartografenTab() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <LineChart data={gefilterdeTrendDataKg} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -3629,9 +3659,11 @@ function TrendLandmetersImportButton() {
 }
 
 function TrendLandmetersTab() {
-  const [geselecteerdJaar, setGeselecteerdJaar] = useState(String(new Date().getFullYear()));
+  const [geselecteerdJaar, setGeselecteerdJaar] = useState(HUIDIG_JAAR_S);
   const [selected, setSelected] = useState<Set<string>>(new Set(STANDAARD_LANDMETERS));
   const [geinitialiseerd, setGeinitialiseerd] = useState(false);
+  const [startJaar, setStartJaar] = useState("2012");
+  const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
 
   const { data: alleLmData } = useQuery<{ rijen: LmTrendRow[]; samenvatting: LmSamRow[] }>({
     queryKey: ['/api/maand-prod-landmeter/alle'],
@@ -3722,6 +3754,10 @@ function TrendLandmetersTab() {
     return row;
   }), [alleJaren, alleLandmeterNamen, lmDataMap, binnengekomenMap, afgehandeldMap]);
 
+  const gefilterdeTrendDataLm = jaarTotaalData.filter(
+    d => Number(d.jaar) >= Number(startJaar) && Number(d.jaar) <= Number(eindJaar)
+  );
+
   const selectedNamen = alleLandmeterNamen.filter(n => selected.has(n));
 
   // Maandelijkse data voor geselecteerd jaar
@@ -3779,12 +3815,38 @@ function TrendLandmetersTab() {
           {/* Jaarlijkse trendgrafiek */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">Jaarlijkse trend per landmeter</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Totale productie per landmeter per jaar (meting + grensuitzetting)</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-semibold">Jaarlijkse trend per landmeter</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Totale productie per landmeter per jaar (meting + grensuitzetting)</p>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-muted-foreground font-medium">Jaarbereik:</span>
+                  <input
+                    type="number"
+                    value={startJaar}
+                    onChange={e => setStartJaar(e.target.value)}
+                    min="2012"
+                    max={eindJaar}
+                    data-testid="input-lm-trend-start-jaar"
+                    className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
+                  />
+                  <span className="text-muted-foreground">t/m</span>
+                  <input
+                    type="number"
+                    value={eindJaar}
+                    onChange={e => setEindJaar(e.target.value)}
+                    min={startJaar}
+                    max={HUIDIG_JAAR_S}
+                    data-testid="input-lm-trend-eind-jaar"
+                    className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <ComposedChart data={gefilterdeTrendDataLm} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -3807,7 +3869,7 @@ function TrendLandmetersTab() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={jaarTotaalData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <LineChart data={gefilterdeTrendDataLm} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
