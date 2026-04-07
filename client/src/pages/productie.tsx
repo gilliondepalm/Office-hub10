@@ -4644,7 +4644,7 @@ export default function ProductiePage() {
   if (isKartograaf) {
     return (
       <div className="overflow-auto h-full">
-        <PageHero title="Productie" subtitle="Uw maandelijkse productie" imageSrc={productieFoto?.value || "/uploads/App_pics/rapporten.png"} imageAlt="productie" />
+        <PageHero title="Productie" subtitle="Uw maandelijkse productie" imageSrc={productieFoto?.value || "/uploads/App_pics/productie.png"} imageAlt="productie" />
         <div className="p-6 space-y-5">
           <Tabs defaultValue="maand">
             <TabsList className="mb-5 h-auto gap-1">
@@ -4663,7 +4663,7 @@ export default function ProductiePage() {
   if (isLandmeter) {
     return (
       <div className="overflow-auto h-full">
-        <PageHero title="Productie" subtitle="Uw maandelijkse productie" imageSrc={productieFoto?.value || "/uploads/App_pics/rapporten.png"} imageAlt="productie" />
+        <PageHero title="Productie" subtitle="Uw maandelijkse productie" imageSrc={productieFoto?.value || "/uploads/App_pics/productie.png"} imageAlt="productie" />
         <div className="p-6 space-y-5">
           <Tabs defaultValue="maand">
             <TabsList className="mb-5 h-auto gap-1">
@@ -4683,7 +4683,7 @@ export default function ProductiePage() {
       <PageHero
         title="Productie"
         subtitle="Productiecijfers en grafieken per afdeling"
-        imageSrc={productieFoto?.value || "/uploads/App_pics/rapporten.png"}
+        imageSrc={productieFoto?.value || "/uploads/App_pics/productie.png"}
         imageAlt="productie"
       />
       <div className="p-6 space-y-5">
