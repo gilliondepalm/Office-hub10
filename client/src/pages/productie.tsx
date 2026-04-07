@@ -3859,18 +3859,19 @@ function TrendLandmetersTab() {
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={gefilterdeTrendDataLm} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={gefilterdeTrendDataLm} margin={{ top: 5, right: 50, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="bars" orientation="left" tick={{ fontSize: 11 }} label={{ value: "Prod./landmeter", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 10 } }} />
+                  <YAxis yAxisId="lines" orientation="right" tick={{ fontSize: 11 }} label={{ value: "Totaal", angle: 90, position: "insideRight", offset: 10, style: { fontSize: 10 } }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {selectedNamen.map(naam => (
-                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
+                    <Bar key={naam} yAxisId="bars" dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
                   ))}
-                  <Line type="monotone" dataKey="Binnengekomen" name="Binnengekomen" stroke={LM_KLEUR_BINN} strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="Afgehandeld"   name="Afgehandeld"   stroke={LM_KLEUR_AFG}  strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                  <Line yAxisId="lines" type="monotone" dataKey="Binnengekomen" name="Binnengekomen" stroke={LM_KLEUR_BINN} strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="lines" type="monotone" dataKey="Afgehandeld"   name="Afgehandeld"   stroke={LM_KLEUR_AFG}  strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
