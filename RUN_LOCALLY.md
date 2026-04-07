@@ -125,7 +125,7 @@ Bevat afbeeldingen en PDF's die direct in de frontend worden gebruikt (bijv. voo
 
 ## Replit-specifieke onderdelen
 
-De `vite.config.ts` laadt drie Replit-plugins (`cartographer`, `dev-banner`, `runtime-error-modal`). Deze worden **automatisch overgeslagen** als de omgevingsvariabele `REPL_ID` niet aanwezig is — er hoeft niets aan de configuratie te worden gewijzigd voor lokaal gebruik.
+De `vite.config.ts` bevat drie Replit-plugins. Twee daarvan (`cartographer` en `dev-banner`) worden **automatisch overgeslagen** lokaal: ze laden alleen als de omgevingsvariabele `REPL_ID` aanwezig is én `NODE_ENV` niet `production` is. De derde plugin (`runtime-error-modal`) wordt altijd geladen maar heeft geen nadelig effect op lokaal gebruik. Er hoeft niets aan de configuratie te worden gewijzigd.
 
 ---
 
