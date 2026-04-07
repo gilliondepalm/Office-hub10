@@ -4301,10 +4301,26 @@ function KartografieTab() {
   const apiJaren = [...new Set(apiData.map(r => String(r.jaar)))].sort();
   const alleJaren = [...new Set([...JAREN, ...apiJaren])].sort((a, b) => Number(a) - Number(b));
 
+  const maandIdx = KARTOGRAFIE_MAANDEN.indexOf(maand);
+  const maandenTotEnMet = KARTOGRAFIE_MAANDEN.slice(0, maandIdx + 1);
+
   const volledigeDataBase = KARTOGRAFIE_DATA[maand] || [];
   const volledigeData: KartografieRij[] = alleJaren.map(jaar => {
-    const apiRij = apiData.find(r => String(r.jaar) === jaar && r.maand === maand);
-    if (apiRij) return { jaar, binnengekomen: apiRij.binnengekomen, afgehandeld: apiRij.afgehandeld, gemiddeld: apiRij.gemiddeld, kartografen: apiRij.kartografen };
+    const heeftApiData = apiData.some(r => String(r.jaar) === jaar);
+    if (heeftApiData) {
+      // Cumulatief optellen: som van Jan t/m geselecteerde maand
+      let binnengekomen = 0, afgehandeld = 0, gemiddeld = 0, kartografen = 0;
+      for (const m of maandenTotEnMet) {
+        const rij = apiData.find(r => String(r.jaar) === jaar && r.maand === m);
+        if (rij) {
+          binnengekomen += rij.binnengekomen;
+          afgehandeld   += rij.afgehandeld;
+          gemiddeld      = rij.gemiddeld;
+          kartografen    = rij.kartografen;
+        }
+      }
+      return { jaar, binnengekomen, afgehandeld, gemiddeld, kartografen };
+    }
     return volledigeDataBase.find(r => r.jaar === jaar) ?? { jaar, binnengekomen: 0, afgehandeld: 0, gemiddeld: 0, kartografen: 0 };
   });
 
