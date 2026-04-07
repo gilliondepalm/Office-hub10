@@ -4316,7 +4316,7 @@ function KartografieTab() {
           binnengekomen += rij.binnengekomen;
           afgehandeld   += rij.afgehandeld;
           gemiddeld      = rij.gemiddeld;
-          kartografen    = rij.kartografen;
+          kartografen   += rij.kartografen;
         }
       }
       return { jaar, binnengekomen, afgehandeld, gemiddeld, kartografen };
@@ -4554,7 +4554,7 @@ function KartografieTab() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Aantal kartografen per jaar</CardTitle>
+          <CardTitle className="text-sm font-medium">Aantal kartografen per maand gesommeerd per jaar</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
