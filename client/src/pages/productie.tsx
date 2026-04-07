@@ -374,21 +374,23 @@ function BalieMedewerkerTab() {
     }
     return map;
   }, [dbKmInfoRows]);
+  const activeBalieData = dbKmInfoMap ?? BALIE_DATA;
+
   const jaren    = BALIE_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    if (dbKmInfoMap && dbKmInfoMap[jaar]) {
-      // Cumulatief optellen: som van maand 0 t/m geselecteerde maandIdx
-      let kkp=0, db=0, sa=0, rm=0, re=0, km=0, ik=0;
-      for (let m = 0; m <= maandIdx; m++) {
-        const rij = dbKmInfoMap[jaar]?.[m];
-        if (rij) { kkp+=rij.kkp; db+=rij.db; sa+=rij.sa; rm+=rij.rm; re+=rij.re; km+=rij.km; ik+=rij.ik; }
-      }
-      return { jaar, kkp, db, sa, rm, re, km, ik };
-    }
-    const rij = (dbKmInfoMap ?? BALIE_DATA)[jaar]?.[maandIdx];
-    return { jaar, kkp: rij?.kkp ?? 0, db: rij?.db ?? 0, sa: rij?.sa ?? 0, rm: rij?.rm ?? 0, re: rij?.re ?? 0, km: rij?.km ?? 0, ik: rij?.ik ?? 0 };
+    const rij = activeBalieData[jaar]?.[maandIdx];
+    return {
+      jaar,
+      kkp: rij?.kkp ?? 0,
+      db:  rij?.db  ?? 0,
+      sa:  rij?.sa  ?? 0,
+      rm:  rij?.rm  ?? 0,
+      re:  rij?.re  ?? 0,
+      km:  rij?.km  ?? 0,
+      ik:  rij?.ik  ?? 0,
+    };
   });
 
   const maxSA  = data.length ? Math.max(...data.map(d => d.sa))  : 0;
@@ -629,20 +631,13 @@ function BalieM3Tab() {
     }
     return map;
   }, [dbOrInfoRows]);
+  const activeB3Data = dbOrInfoMap ?? BALIE3_DATA;
+
   const jaren      = BALIE3_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    if (dbOrInfoMap && dbOrInfoMap[jaar]) {
-      // Cumulatief optellen: som van maand 0 t/m geselecteerde maandIdx
-      let inzagen=0, herInzage=0, naInzage=0, kadastraalLegger=0, verklaring=0, getuigschrift=0;
-      for (let m = 0; m <= maandIdx; m++) {
-        const rij = dbOrInfoMap[jaar]?.[m];
-        if (rij) { inzagen+=rij.inzagen; herInzage+=rij.herInzage; naInzage+=rij.naInzage; kadastraalLegger+=rij.kadastraalLegger; verklaring+=rij.verklaring; getuigschrift+=rij.getuigschrift; }
-      }
-      return { jaar, inzagen, herInzage, naInzage, kadastraalLegger, verklaring, getuigschrift };
-    }
-    const rij = (dbOrInfoMap ?? BALIE3_DATA)[jaar]?.[maandIdx];
+    const rij = activeB3Data[jaar]?.[maandIdx];
     return { jaar, ...(rij ?? { inzagen:0, herInzage:0, naInzage:0, kadastraalLegger:0, verklaring:0, getuigschrift:0 }) };
   });
 
@@ -887,18 +882,7 @@ function TrendOrAlgemeenTab() {
 
   const buildOraDataActive = (maandIdxLocal: number, jarenFilter: string[]): OrAlgemRij[] => {
     if (dbOraMap) {
-      return jarenFilter.map(j => {
-        if (dbOraMap[j]) {
-          // Cumulatief optellen: som van maand 1 t/m geselecteerde maand (1-indexed)
-          let aktes=0, inschrijvingen=0, doorhalingen=0, opheffingen=0, beslagen=0, cessies=0;
-          for (let m = 1; m <= maandIdxLocal + 1; m++) {
-            const rij = dbOraMap[j]?.[m];
-            if (rij) { aktes+=rij.aktes; inschrijvingen+=rij.inschrijvingen; doorhalingen+=rij.doorhalingen; opheffingen+=rij.opheffingen; beslagen+=rij.beslagen; cessies+=rij.cessies; }
-          }
-          return { aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies };
-        }
-        return { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 };
-      });
+      return jarenFilter.map(j => dbOraMap[j]?.[maandIdxLocal + 1] ?? { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 });
     }
     return buildOraData(maandIdxLocal, jarenFilter);
   };
@@ -1330,14 +1314,7 @@ function TrendOrNotarisTab() {
   }, [dbOrnRows]);
 
   const getOrnValue = (key: string, maandIdxLocal: number, ji: number): number => {
-    if (dbOrnData && dbOrnData[key]) {
-      // Cumulatief optellen: som van maand 1 t/m geselecteerde maand (1-indexed)
-      let totaal = 0;
-      for (let m = 1; m <= maandIdxLocal + 1; m++) {
-        totaal += dbOrnData[key]?.[m]?.[ji] ?? 0;
-      }
-      return totaal;
-    }
+    if (dbOrnData) return dbOrnData[key]?.[maandIdxLocal + 1]?.[ji] ?? 0;
     return ORN_DATA[key]?.[maandIdxLocal]?.[ji] ?? 0;
   };
 
