@@ -595,12 +595,12 @@ const BALIE3_DATA: Record<string, Balie3Rij[]> = (() => {
   const out: Record<string, Balie3Rij[]> = {};
   BALIE3_JAREN_ASC.forEach((jaar, j) => {
     out[jaar] = BALIE_MAANDEN.map((_, i) => ({
-      inzagen:          B3_IZ[i][j],
-      herInzage:        B3_HI[i][j],
-      naInzage:         B3_NI[i][j],
-      kadastraalLegger: B3_KL[i][j],
-      verklaring:       B3_VK[i][j],
-      getuigschrift:    B3_GT[i][j],
+      inzagen:          B3_IZ[i]?.[j] ?? 0,
+      herInzage:        B3_HI[i]?.[j] ?? 0,
+      naInzage:         B3_NI[i]?.[j] ?? 0,
+      kadastraalLegger: B3_KL[i]?.[j] ?? 0,
+      verklaring:       B3_VK[i]?.[j] ?? 0,
+      getuigschrift:    B3_GT[i]?.[j] ?? 0,
     }));
   });
   return out;
@@ -683,7 +683,7 @@ function BalieM3Tab() {
           <Card key={k.label}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground font-medium mb-1 leading-tight">{k.label}</p>
-              <p className="text-2xl font-bold" style={{ color: k.kleur }}>{k.value.toLocaleString("nl")}</p>
+              <p className="text-2xl font-bold" style={{ color: k.kleur }}>{isFinite(k.value) ? k.value.toLocaleString("nl") : "—"}</p>
               <p className="text-xs text-muted-foreground mt-1">hoogste t/m {maandLabel}</p>
             </CardContent>
           </Card>
@@ -704,7 +704,7 @@ function BalieM3Tab() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: any, name: string) => [typeof v === "number" && isFinite(v) ? v.toLocaleString("nl") : v, name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Line type="monotone" dataKey="inzagen" name="Inzagen" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
@@ -727,7 +727,7 @@ function BalieM3Tab() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number) => [v.toLocaleString("nl"), "Inzagen"]} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: any) => [typeof v === "number" && isFinite(v) ? v.toLocaleString("nl") : v, "Inzagen"]} />
                   <Bar dataKey="inzagen" name="Inzagen" fill="#6366f1" />
                 </BarChart>
               </ResponsiveContainer>
@@ -750,7 +750,7 @@ function BalieM3Tab() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: any, name: string) => [typeof v === "number" && isFinite(v) ? v.toLocaleString("nl") : v, name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {BALIE3_PRODUCTEN.filter(p => p.key !== "inzagen").map(p => (
                     <Line key={p.key} type="monotone" dataKey={p.key} name={p.label} stroke={p.kleur} strokeWidth={2} dot={{ r: 3 }} />
@@ -775,7 +775,7 @@ function BalieM3Tab() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={48} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: number, name: string) => [v.toLocaleString("nl"), name]} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} formatter={(v: any, name: string) => [typeof v === "number" && isFinite(v) ? v.toLocaleString("nl") : v, name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {BALIE3_PRODUCTEN.filter(p => p.key !== "inzagen").map(p => (
                     <Bar key={p.key} dataKey={p.key} name={p.label} fill={p.kleur} stackId="a" />
@@ -810,9 +810,9 @@ function BalieM3Tab() {
                     <TableRow key={rij.jaar} data-testid={`row-balie3-${rij.jaar}-${maandLabel}`}>
                       <TableCell className="font-semibold">{rij.jaar}</TableCell>
                       {BALIE3_PRODUCTEN.map(p => (
-                        <TableCell key={p.key} className="text-right">{rij[p.key].toLocaleString("nl")}</TableCell>
+                        <TableCell key={p.key} className="text-right">{(rij[p.key] ?? 0).toLocaleString("nl")}</TableCell>
                       ))}
-                      <TableCell className="text-right font-semibold">{totaal.toLocaleString("nl")}</TableCell>
+                      <TableCell className="text-right font-semibold">{(totaal ?? 0).toLocaleString("nl")}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -1049,7 +1049,7 @@ function TrendOrAlgemeenTab() {
 const ORN_JAREN_ASC = Array.from({ length: HUIDIG_JAAR - 2000 }, (_, i) => String(2001 + i));
 const ORN_MAANDEN   = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 
-const _p = (arr: number[]): number[] => { const r=[...arr]; while(r.length<25)r.push(0); return r.slice(0,25); };
+const _p = (arr: number[]): number[] => { const n = HUIDIG_JAAR - 2000; const r=[...arr]; while(r.length<n)r.push(0); return r.slice(0,n); };
 
 // Data per notaris: [maandIdx 0-11][jaarIdx 0-24] cumulatief t/m maand
 const ORN_DATA: Record<string, number[][]> = {
@@ -1398,9 +1398,9 @@ function TrendOrNotarisTab() {
                 <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={50} tickFormatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <YAxis tick={{ fontSize: 11 }} width={50} tickFormatter={(v: any) => typeof v === "number" && isFinite(v) ? v.toLocaleString("nl-NL") : ""} />
                   <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }}
-                    formatter={(val: number, name: string) => [val.toLocaleString("nl-NL"), ORN_NOTARISSEN.find(n=>n.key===name)?.naam ?? name]} />
+                    formatter={(val: any, name: string) => [typeof val === "number" && isFinite(val) ? val.toLocaleString("nl-NL") : val, ORN_NOTARISSEN.find(n=>n.key===name)?.naam ?? name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v: string) => ORN_NOTARISSEN.find(n=>n.key===v)?.naam ?? v} />
                   {visibleN.map(n => (
                     <Line key={n.key} type="monotone" dataKey={n.key} stroke={n.kleur} strokeWidth={2} dot={false} name={n.key} />
@@ -1420,9 +1420,9 @@ function TrendOrNotarisTab() {
                 <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} width={50} tickFormatter={(v: number) => v.toLocaleString("nl-NL")} />
+                  <YAxis tick={{ fontSize: 11 }} width={50} tickFormatter={(v: any) => typeof v === "number" && isFinite(v) ? v.toLocaleString("nl-NL") : ""} />
                   <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }}
-                    formatter={(val: number, name: string) => [val.toLocaleString("nl-NL"), ORN_NOTARISSEN.find(n=>n.key===name)?.naam ?? name]} />
+                    formatter={(val: any, name: string) => [typeof val === "number" && isFinite(val) ? val.toLocaleString("nl-NL") : val, ORN_NOTARISSEN.find(n=>n.key===name)?.naam ?? name]} />
                   <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v: string) => ORN_NOTARISSEN.find(n=>n.key===v)?.naam ?? v} />
                   {visibleN.map(n => (
                     <Bar key={n.key} dataKey={n.key} fill={n.kleur} name={n.key} radius={[2,2,0,0]} />
@@ -1459,7 +1459,7 @@ function TrendOrNotarisTab() {
                           <span className="font-medium text-sm" style={{ color: n.kleur }}>■</span>
                           <span className="ml-1.5 text-sm">{n.naam}</span>
                         </TableCell>
-                        <TableCell className="text-right font-medium">{n.waarde.toLocaleString("nl-NL")}</TableCell>
+                        <TableCell className="text-right font-medium">{(n.waarde ?? 0).toLocaleString("nl-NL")}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="h-2 rounded-full flex-1 bg-muted overflow-hidden">
