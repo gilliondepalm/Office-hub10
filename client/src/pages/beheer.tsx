@@ -452,7 +452,7 @@ function RechtenTab() {
           <div className="flex items-center gap-4">
             <div className="relative w-48 h-28 rounded-lg overflow-hidden border border-border bg-muted shrink-0">
               <img
-                src={productiePhoto?.value || "/uploads/App_pics/productie.png"}
+                src={productiePhoto?.value || "/uploads/App_pics/rapporten.png"}
                 alt="Productie achtergrond"
                 className="w-full h-full object-cover"
                 data-testid="img-productie-photo-preview"
