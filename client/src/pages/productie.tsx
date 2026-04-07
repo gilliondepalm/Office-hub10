@@ -2834,8 +2834,8 @@ const KG_MAANDDATA: Record<string, KgJaarData> = {
     afgehandeld:  [82,68,124,110,138,132,93,137,107,107,121,59],
   },
   "2019": {
-    egaleano:     [0,0,0,0,0,0,0,0,0,0,0,0],
-    jpieters:     [37,53,47,36,76,43,57,55,49,63,62,63],
+    egaleano:     [34,43,62,72,55,50,47,52,38,65,60,63],
+    jpieters:     [31,44,39,30,62,36,47,45,41,52,52,16],
     nsambo:       [0,0,0,0,0,0,0,0,0,0,0,0],
     binnengekomen:[44,79,116,84,108,78,98,132,65,87,96,77],
     afgehandeld:  [89,99,89,124,81,92,129,73,83,109,81,87],
@@ -3103,7 +3103,7 @@ function TrendKartografenTab() {
   const [toonTotalen, setToonTotalen] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(["E. Galeano", "J. Pieters"]));
   const [geinitialiseerd, setGeinitialiseerd] = useState(false);
-  const [startJaar, setStartJaar] = useState("2016");
+  const [startJaar, setStartJaar] = useState("2019");
   const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
 
   const { data: dbKgRows } = useQuery<{ jaar: number; maand: number; egaleano: number; jpieters: number; nsambo: number; binnengekomen: number; afgehandeld: number }[]>({ queryKey: ['/api/trend-kartografen-hist'] });
