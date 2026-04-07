@@ -40,7 +40,7 @@ const ALL_MODULES = [
   { key: "aankondigingen", label: "Aankondigingen" },
   { key: "organisatie", label: "Organisatie" },
   { key: "personalia", label: "Personalia" },
-  { key: "verzuim", label: "Verzuim" },
+  { key: "verzuim", label: "Verlof" },
   { key: "beloningen", label: "Beloningen" },
   { key: "applicaties", label: "Applicaties" },
   { key: "productie", label: "Productie" },

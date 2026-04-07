@@ -1443,7 +1443,7 @@ export default function VerzuimPage() {
   return (
     <div className="overflow-auto h-full">
       <PageHero
-        title="Verzuim"
+        title="Verlof"
         subtitle="Beheer verlof- en ziekmeldingen"
         imageSrc="/uploads/App_pics/verzuim.png"
         imageAlt="verzuim"

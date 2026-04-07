@@ -40,7 +40,7 @@ const menuItems = [
   { title: "Aankondigingen", url: "/aankondigingen", icon: Megaphone, key: "aankondigingen" },
   { title: "Organisatie", url: "/organisatie", icon: Building2, key: "organisatie" },
   { title: "Personalia", url: "/personalia", icon: Users, key: "personalia" },
-  { title: "Verzuim", url: "/verzuim", icon: Clock, key: "verzuim" },
+  { title: "Verlof", url: "/verzuim", icon: Clock, key: "verzuim" },
   { title: "Beloningen", url: "/beloningen", icon: Star, key: "beloningen" },
   { title: "Applicaties", url: "/applicaties", icon: AppWindow, key: "applicaties" },
   { title: "Productie", url: "/productie", icon: BarChart3, key: "productie" },
