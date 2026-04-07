@@ -3142,11 +3142,25 @@ function TrendKartografenTab() {
     return result;
   }, [alleMpkRows]);
 
-  // Unieke kartograaf namen uit DB
+  // Legacy kartografen met data in KG_MAANDDATA maar mogelijk niet in DB
+  const KG_LEGACY_NAMEN = ["E. Galeano", "J. Pieters", "N. Sambo"];
+
+  // Unieke kartograaf namen: DB + legacy namen met daadwerkelijke KG_MAANDDATA
   const alleKartografenNamen = useMemo(() => {
-    if (!alleMpkRows || alleMpkRows.length === 0) return ["E. Galeano", "J. Pieters"];
-    return [...new Set(alleMpkRows.filter(r => r.kartograaf !== "afgeboekt_stukken").map(r => r.kartograaf))].sort();
-  }, [alleMpkRows]);
+    const dbNamen = alleMpkRows && alleMpkRows.length > 0
+      ? alleMpkRows.filter(r => r.kartograaf !== "afgeboekt_stukken").map(r => r.kartograaf)
+      : ["E. Galeano", "J. Pieters"];
+    // Voeg legacy namen toe die data hebben in KG_MAANDDATA maar ontbreken in DB
+    const legacyMetData = KG_LEGACY_NAMEN.filter(naam => {
+      const key = kgNaamNaarKey(naam);
+      if (!key) return false;
+      return Object.values(activeKgData).some(jaarData => {
+        const arr = (jaarData as any)[key] as number[];
+        return arr && arr.some((v: number) => v > 0);
+      });
+    });
+    return [...new Set([...dbNamen, ...legacyMetData])].sort();
+  }, [alleMpkRows, activeKgData]);
 
   // Initialiseer selected als alle kartografen zodra DB-data beschikbaar is
   useEffect(() => {
