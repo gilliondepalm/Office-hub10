@@ -2181,7 +2181,7 @@ export async function registerRoutes(
   });
 
   const publicSettingKeys = ["login_photo"];
-  const authSettingKeys = ["dashboard_photo", "rapporten_photo"];
+  const authSettingKeys = ["dashboard_photo", "rapporten_photo", "productie_photo"];
 
   app.get("/api/site-settings/public/:key", async (req, res) => {
     if (!publicSettingKeys.includes(req.params.key)) {
@@ -2248,6 +2248,36 @@ export async function registerRoutes(
       }
       const photoUrl = `/uploads/App_pics/${req.file.filename}`;
       await storage.setSiteSetting("rapporten_photo", photoUrl);
+      res.json({ value: photoUrl });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Upload mislukt" });
+    }
+  });
+
+  const uploadProductiePhoto = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, appPicsDir),
+      filename: (_req, _file, cb) => cb(null, "productie.png"),
+    }),
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype.startsWith("image/")) cb(null, true);
+      else cb(new Error("Alleen afbeeldingen zijn toegestaan"));
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
+  });
+
+  app.post("/api/site-settings/productie-photo", requireAuth, uploadProductiePhoto.single("photo"), async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || !isAdminRole(user.role)) {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "Geen afbeelding geüpload" });
+      }
+      const photoUrl = `/uploads/App_pics/productie.png`;
+      await storage.setSiteSetting("productie_photo", photoUrl);
       res.json({ value: photoUrl });
     } catch (err: any) {
       res.status(400).json({ message: err.message || "Upload mislukt" });

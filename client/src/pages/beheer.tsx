@@ -187,6 +187,7 @@ function RechtenTab() {
   const [resetUser, setResetUser] = useState<SafeUser | null>(null);
   const loginPhotoInputRef = useRef<HTMLInputElement>(null);
   const rapportenPhotoInputRef = useRef<HTMLInputElement>(null);
+  const productiePhotoInputRef = useRef<HTMLInputElement>(null);
   const pasfotoInputRef = useRef<HTMLInputElement>(null);
   const [pasfotoUserId, setPasfotoUserId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -257,6 +258,30 @@ function RechtenTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/site-settings", "rapporten_photo"] });
       toast({ title: "Rapportenfoto bijgewerkt", description: "De achtergrondafbeelding van de Rapporten pagina is gewijzigd." });
+    },
+    onError: () => { toast({ title: "Fout", description: "Het uploaden van de foto is mislukt.", variant: "destructive" }); },
+  });
+
+  const { data: productiePhoto } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/site-settings", "productie_photo"],
+    queryFn: async () => {
+      const res = await fetch("/api/site-settings/productie_photo", { credentials: "include" });
+      if (!res.ok) return { value: null };
+      return res.json();
+    },
+  });
+
+  const uploadProductiePhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await fetch("/api/site-settings/productie-photo", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) throw new Error("Upload mislukt");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/site-settings", "productie_photo"] });
+      toast({ title: "Productiefoto bijgewerkt", description: "De achtergrondafbeelding van de Productie pagina is gewijzigd." });
     },
     onError: () => { toast({ title: "Fout", description: "Het uploaden van de foto is mislukt.", variant: "destructive" }); },
   });
@@ -412,6 +437,48 @@ function RechtenTab() {
               >
                 <Camera className="h-4 w-4" />
                 {uploadRapportenPhotoMutation.isPending ? "Uploaden..." : "Foto wijzigen"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 pb-3">
+          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-semibold text-sm">Productie Pagina Achtergrondafbeelding</h3>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex items-center gap-4">
+            <div className="relative w-48 h-28 rounded-lg overflow-hidden border border-border bg-muted shrink-0">
+              <img
+                src={productiePhoto?.value || "/uploads/App_pics/productie.png"}
+                alt="Productie achtergrond"
+                className="w-full h-full object-cover"
+                data-testid="img-productie-photo-preview"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Deze afbeelding wordt getoond als hero-achtergrond op de Productie pagina. Wordt opgeslagen als <code className="text-xs bg-muted px-1 rounded">uploads/App_pics/productie.png</code>.</p>
+              <input
+                ref={productiePhotoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadProductiePhotoMutation.mutate(f); }}
+                data-testid="input-productie-photo"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => productiePhotoInputRef.current?.click()}
+                disabled={uploadProductiePhotoMutation.isPending}
+                data-testid="button-change-productie-photo"
+              >
+                <Camera className="h-4 w-4" />
+                {uploadProductiePhotoMutation.isPending ? "Uploaden..." : "Foto wijzigen"}
               </Button>
             </div>
           </div>
