@@ -19,6 +19,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { Upload, Download, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { KartografieProductie } from "@shared/schema";
 
+const HUIDIG_JAAR = new Date().getFullYear();
+const HUIDIG_JAAR_S = String(HUIDIG_JAAR);
+
 const JAREN = Array.from({ length: 30 }, (_, i) => String(1996 + i));
 const LANDMETERS_JAREN = Array.from({ length: 31 }, (_, i) => String(1995 + i));
 
@@ -113,10 +116,10 @@ const KARTOGRAFIE_DATA: Record<string, KartografieRij[]> = {
 };
 
 const PERIODES: { label: string; range: [number, number] }[] = [
-  { label: "Alle jaren (1996–2025)", range: [0, 30] },
+  { label: `Alle jaren (1996–${HUIDIG_JAAR_S})`, range: [0, HUIDIG_JAAR - 1995] },
   { label: "1996–2005", range: [0, 10] },
   { label: "2006–2015", range: [10, 20] },
-  { label: "2016–2025", range: [20, 30] },
+  { label: `2016–${HUIDIG_JAAR_S}`, range: [20, HUIDIG_JAAR - 1995] },
 ];
 
 const LANDMETERS_DATA: Record<string, LandmetersRij[]> = {
@@ -358,7 +361,7 @@ function TrendImportButton({ label, queryKey, endpoint }: { label: string; query
 function BalieMedewerkerTab() {
   const [maandIdx, setMaandIdx] = useState(11);
   const [startJaar, setStartJaar] = useState("2008");
-  const [eindJaar,  setEindJaar]  = useState("2025");
+  const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
 
   const { data: dbKmInfoRows } = useQuery<{ jaar: number; maand: number; kkp: number; db: number; sa: number; rm: number; re: number; km: number; ik: number }[]>({ queryKey: ['/api/trend-km-info'] });
   const dbKmInfoMap = useMemo(() => {
@@ -414,10 +417,10 @@ function BalieMedewerkerTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <input type="number" min="2008" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+          <input type="number" min="2008" max={HUIDIG_JAAR_S} value={startJaar} onChange={e => setStartJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie-startjaar" />
           <span className="text-sm text-muted-foreground">t/m</span>
-          <input type="number" min="2008" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+          <input type="number" min="2008" max={HUIDIG_JAAR_S} value={eindJaar} onChange={e => setEindJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie-eindjaar" />
         </div>
       </div>
@@ -576,7 +579,7 @@ function BalieMedewerkerTab() {
 
 // ── Balie Medewerker III ─────────────────────────────────────────────────────
 
-const BALIE3_JAREN_ASC = ["2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
+const BALIE3_JAREN_ASC = Array.from({ length: HUIDIG_JAAR - 2007 }, (_, i) => String(2008 + i));
 
 type Balie3Rij = { inzagen: number; herInzage: number; naInzage: number; kadastraalLegger: number; verklaring: number; getuigschrift: number };
 
@@ -615,7 +618,7 @@ const BALIE3_PRODUCTEN: { key: keyof Balie3Rij; label: string; kleur: string }[]
 function BalieM3Tab() {
   const [maandIdx, setMaandIdx]   = useState(11);
   const [startJaar, setStartJaar] = useState("2008");
-  const [eindJaar,  setEindJaar]  = useState("2025");
+  const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
 
   const { data: dbOrInfoRows } = useQuery<{ jaar: number; maand: number; inzagen: number; her_inzage: number; na_inzage: number; kadastaal_legger: number; verklaring: number; getuigschrift: number }[]>({ queryKey: ['/api/trend-or-info'] });
   const dbOrInfoMap = useMemo(() => {
@@ -662,10 +665,10 @@ function BalieM3Tab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <input type="number" min="2008" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+          <input type="number" min="2008" max={HUIDIG_JAAR_S} value={startJaar} onChange={e => setStartJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie3-startjaar" />
           <span className="text-sm text-muted-foreground">t/m</span>
-          <input type="number" min="2008" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+          <input type="number" min="2008" max={HUIDIG_JAAR_S} value={eindJaar} onChange={e => setEindJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-balie3-eindjaar" />
         </div>
       </div>
@@ -824,7 +827,7 @@ function BalieM3Tab() {
 
 // ── Trend OR Algemeen ─────────────────────────────────────────────────────────
 
-const ORA_JAREN_ASC = ["2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
+const ORA_JAREN_ASC = Array.from({ length: HUIDIG_JAAR - 2000 }, (_, i) => String(2001 + i));
 const ORA_MAANDEN   = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 
 type OrAlgemRij = { aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number };
@@ -855,15 +858,15 @@ function buildOraData(maandIdx: number, jarenFilter: string[]): OrAlgemRij[] {
 }
 
 const ORA_PERIODES = [
-  { label: "Alle jaren (2001–2025)", jaren: ORA_JAREN_ASC },
+  { label: `Alle jaren (2001–${HUIDIG_JAAR_S})`, jaren: ORA_JAREN_ASC },
   { label: "2001–2010", jaren: ORA_JAREN_ASC.slice(0, 10) },
-  { label: "2011–2025", jaren: ORA_JAREN_ASC.slice(10) },
+  { label: `2011–${HUIDIG_JAAR_S}`, jaren: ORA_JAREN_ASC.slice(10) },
 ];
 
 function TrendOrAlgemeenTab() {
   const [maand, setMaand]           = useState("Dec");
   const [startJaar, setStartJaar]   = useState("2001");
-  const [eindJaar,  setEindJaar]    = useState("2025");
+  const [eindJaar,  setEindJaar]    = useState(HUIDIG_JAAR_S);
 
   const { data: dbOraRows } = useQuery<{ jaar: number; maand: number; aktes: number; inschrijvingen: number; doorhalingen: number; opheffingen: number; beslagen: number; cessies: number }[]>({ queryKey: ['/api/trend-or-algemeen'] });
   const dbOraMap = useMemo(() => {
@@ -916,10 +919,10 @@ function TrendOrAlgemeenTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">Jarenreeks:</span>
-          <input type="number" min="2001" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+          <input type="number" min="2001" max={HUIDIG_JAAR_S} value={startJaar} onChange={e => setStartJaar(e.target.value)}
             className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-ora-startjaar" />
           <span className="text-xs text-muted-foreground">t/m</span>
-          <input type="number" min="2001" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+          <input type="number" min="2001" max={HUIDIG_JAAR_S} value={eindJaar} onChange={e => setEindJaar(e.target.value)}
             className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-ora-eindjaar" />
         </div>
       </div>
@@ -1043,7 +1046,7 @@ function TrendOrAlgemeenTab() {
 
 // ── Trend OR Notaris ──────────────────────────────────────────────────────────
 
-const ORN_JAREN_ASC = ["2001","2002","2003","2004","2005","2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025"];
+const ORN_JAREN_ASC = Array.from({ length: HUIDIG_JAAR - 2000 }, (_, i) => String(2001 + i));
 const ORN_MAANDEN   = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 
 const _p = (arr: number[]): number[] => { const r=[...arr]; while(r.length<25)r.push(0); return r.slice(0,25); };
@@ -1284,15 +1287,15 @@ const ORN_NOTARISSEN: { key: string; naam: string; actief: boolean; kleur: strin
 ];
 
 const ORN_PERIODES = [
-  { label:"Alle jaren (2001–2025)", jaren: ORN_JAREN_ASC },
-  { label:"2001–2010",             jaren: ORN_JAREN_ASC.slice(0,10) },
-  { label:"2011–2025",             jaren: ORN_JAREN_ASC.slice(10) },
+  { label:`Alle jaren (2001–${HUIDIG_JAAR_S})`, jaren: ORN_JAREN_ASC },
+  { label:"2001–2010",                           jaren: ORN_JAREN_ASC.slice(0,10) },
+  { label:`2011–${HUIDIG_JAAR_S}`,               jaren: ORN_JAREN_ASC.slice(10) },
 ];
 
 function TrendOrNotarisTab() {
   const [maand, setMaand]           = useState("Dec");
   const [startJaar, setStartJaar]   = useState("2001");
-  const [eindJaar,  setEindJaar]    = useState("2025");
+  const [eindJaar,  setEindJaar]    = useState(HUIDIG_JAAR_S);
   const [selected, setSelected]     = useState<Set<string>>(
     new Set(ORN_NOTARISSEN.filter(n => n.actief).map(n => n.key))
   );
@@ -1354,10 +1357,10 @@ function TrendOrNotarisTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">Jarenreeks:</span>
-          <input type="number" min="2001" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+          <input type="number" min="2001" max={HUIDIG_JAAR_S} value={startJaar} onChange={e => setStartJaar(e.target.value)}
             className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-orn-startjaar" />
           <span className="text-xs text-muted-foreground">t/m</span>
-          <input type="number" min="2001" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+          <input type="number" min="2001" max={HUIDIG_JAAR_S} value={eindJaar} onChange={e => setEindJaar(e.target.value)}
             className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-orn-eindjaar" />
         </div>
       </div>
@@ -1483,7 +1486,6 @@ function TrendOrNotarisTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Maandelijkse Productie Kartografen
 const MAAND_NAMEN = ["Januari","Februari","Maart","April","Mei","Juni","Juli","Augustus","September","Oktober","November","December"];
-const HUIDIG_JAAR = new Date().getFullYear();
 
 type MpkRij = {
   kartograaf: string;
@@ -3943,7 +3945,7 @@ function TrendLandmetersTab() {
 function LandmetersTab() {
   const [maand, setMaand] = useState("Feb");
   const [startJaar, setStartJaar] = useState("1995");
-  const [eindJaar,  setEindJaar]  = useState("2025");
+  const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
 
   const { data: dbKmBuitenRows } = useQuery<{ jaar: number; maand: number; binnengekomen: number; afgehandeld: number; uitbesteding: number; gemiddeld: number; landmeters: number }[]>({ queryKey: ['/api/trend-km-buiten'] });
   const dbLandmetersMap = useMemo(() => {
@@ -3991,10 +3993,10 @@ function LandmetersTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <input type="number" min="1995" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+          <input type="number" min="1995" max={HUIDIG_JAAR_S} value={startJaar} onChange={e => setStartJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-lm-startjaar" />
           <span className="text-sm text-muted-foreground">t/m</span>
-          <input type="number" min="1995" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+          <input type="number" min="1995" max={HUIDIG_JAAR_S} value={eindJaar} onChange={e => setEindJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-lm-eindjaar" />
         </div>
       </div>
@@ -4186,7 +4188,7 @@ function KartografieTab() {
 
   const [maand, setMaand] = useState("Feb");
   const [startJaar, setStartJaar] = useState("1996");
-  const [eindJaar,  setEindJaar]  = useState("2025");
+  const [eindJaar,  setEindJaar]  = useState(HUIDIG_JAAR_S);
   const [importOpen, setImportOpen] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [preview, setPreview] = useState<{ rows: ReturnType<typeof parseKartografieCSV>["rows"]; errors: string[] } | null>(null);
@@ -4254,10 +4256,10 @@ function KartografieTab() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-muted-foreground">Jaarbereik:</span>
-          <input type="number" min="1996" max="2025" value={startJaar} onChange={e => setStartJaar(e.target.value)}
+          <input type="number" min="1996" max={HUIDIG_JAAR_S} value={startJaar} onChange={e => setStartJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-kart-startjaar" />
           <span className="text-sm text-muted-foreground">t/m</span>
-          <input type="number" min="1996" max="2025" value={eindJaar} onChange={e => setEindJaar(e.target.value)}
+          <input type="number" min="1996" max={HUIDIG_JAAR_S} value={eindJaar} onChange={e => setEindJaar(e.target.value)}
             className="w-20 h-9 rounded-md border border-input bg-background px-2 text-sm text-center" data-testid="input-kart-eindjaar" />
         </div>
         {isAdmin && (
