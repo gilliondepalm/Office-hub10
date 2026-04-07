@@ -4674,13 +4674,13 @@ export default function ProductiePage() {
       />
       <div className="p-6 space-y-5">
         {/* Buitenste tabs: Trends / Maandelijkse productie */}
-        <Tabs defaultValue="trends">
+        <Tabs defaultValue="maandelijks">
           <TabsList className="mb-5 h-auto gap-1">
-            <TabsTrigger value="trends" data-testid="tab-outer-trends">
-              Trends
-            </TabsTrigger>
             <TabsTrigger value="maandelijks" data-testid="tab-outer-maandelijks">
               Maandelijkse productie
+            </TabsTrigger>
+            <TabsTrigger value="trends" data-testid="tab-outer-trends">
+              Trends
             </TabsTrigger>
           </TabsList>
 
