@@ -374,16 +374,16 @@ function BalieMedewerkerTab() {
     }
     return map;
   }, [dbKmInfoRows]);
-  // Voeg DB-jaren (bijv. 2026) samen met statische jaren
-  const dbJarenKmInfo = dbKmInfoMap ? Object.keys(dbKmInfoMap) : [];
-  const alleJarenKmInfo = [...new Set([...BALIE_JAREN_ASC, ...dbJarenKmInfo])].sort((a, b) => Number(a) - Number(b));
+  // Voeg huidig jaar toe aan de jarenlijst
+  const alleJarenKmInfo = [...new Set([...BALIE_JAREN_ASC, HUIDIG_JAAR_S])].sort((a, b) => Number(a) - Number(b));
+  const activeBalieData = dbKmInfoMap ?? BALIE_DATA;
 
   const jaren    = alleJarenKmInfo.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
   const data = jaren.map(jaar => {
-    if (dbKmInfoMap && dbKmInfoMap[jaar]) {
-      // DB-jaar: cumulatief optellen maand 0 t/m maandIdx
+    // Alleen huidig jaar (2026): cumulatief optellen vanuit maandelijkse productiedata
+    if (jaar === HUIDIG_JAAR_S && dbKmInfoMap && dbKmInfoMap[jaar]) {
       let kkp=0, db=0, sa=0, rm=0, re=0, km=0, ik=0;
       for (let m = 0; m <= maandIdx; m++) {
         const rij = dbKmInfoMap[jaar]?.[m];
@@ -391,8 +391,8 @@ function BalieMedewerkerTab() {
       }
       return { jaar, kkp, db, sa, rm, re, km, ik };
     }
-    // Statische fallback voor historische jaren
-    const rij = BALIE_DATA[jaar]?.[maandIdx];
+    // Alle andere jaren: originele gedrag (DB of statisch)
+    const rij = activeBalieData[jaar]?.[maandIdx];
     return { jaar, kkp: rij?.kkp ?? 0, db: rij?.db ?? 0, sa: rij?.sa ?? 0, rm: rij?.rm ?? 0, re: rij?.re ?? 0, km: rij?.km ?? 0, ik: rij?.ik ?? 0 };
   });
 
@@ -637,9 +637,11 @@ function BalieM3Tab() {
   const jaren      = BALIE3_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
+  const activeB3Data = dbOrInfoMap ?? BALIE3_DATA;
+
   const data = jaren.map(jaar => {
-    if (dbOrInfoMap && dbOrInfoMap[jaar]) {
-      // DB-jaar: cumulatief optellen maand 0 t/m maandIdx
+    // Alleen huidig jaar (2026): cumulatief optellen vanuit maandelijkse productiedata
+    if (jaar === HUIDIG_JAAR_S && dbOrInfoMap && dbOrInfoMap[jaar]) {
       let inzagen=0, herInzage=0, naInzage=0, kadastraalLegger=0, verklaring=0, getuigschrift=0;
       for (let m = 0; m <= maandIdx; m++) {
         const rij = dbOrInfoMap[jaar]?.[m];
@@ -647,8 +649,8 @@ function BalieM3Tab() {
       }
       return { jaar, inzagen, herInzage, naInzage, kadastraalLegger, verklaring, getuigschrift };
     }
-    // Statische fallback voor historische jaren
-    const rij = BALIE3_DATA[jaar]?.[maandIdx];
+    // Alle andere jaren: originele gedrag (DB of statisch)
+    const rij = activeB3Data[jaar]?.[maandIdx];
     return { jaar, ...(rij ?? { inzagen:0, herInzage:0, naInzage:0, kadastraalLegger:0, verklaring:0, getuigschrift:0 }) };
   });
 
@@ -894,8 +896,8 @@ function TrendOrAlgemeenTab() {
   const buildOraDataActive = (maandIdxLocal: number, jarenFilter: string[]): OrAlgemRij[] => {
     if (dbOraMap) {
       return jarenFilter.map(j => {
-        if (dbOraMap[j]) {
-          // DB-jaar: cumulatief optellen maand 1 t/m maandIdxLocal+1
+        // Alleen huidig jaar (2026): cumulatief optellen vanuit maandelijkse productiedata
+        if (j === HUIDIG_JAAR_S && dbOraMap[j]) {
           let aktes=0, inschrijvingen=0, doorhalingen=0, opheffingen=0, beslagen=0, cessies=0;
           for (let m = 1; m <= maandIdxLocal + 1; m++) {
             const rij = dbOraMap[j]?.[m];
@@ -903,8 +905,8 @@ function TrendOrAlgemeenTab() {
           }
           return { aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies };
         }
-        // Statische fallback voor historische jaren zonder DB-data
-        return buildOraData(maandIdxLocal, [j])[0];
+        // Alle andere jaren: originele gedrag (single-month DB lookup)
+        return dbOraMap[j]?.[maandIdxLocal + 1] ?? { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 };
       });
     }
     return buildOraData(maandIdxLocal, jarenFilter);
@@ -1336,12 +1338,13 @@ function TrendOrNotarisTab() {
     return map;
   }, [dbOrnRows]);
 
+  const huidigeJi = ORN_JAREN_ASC.indexOf(HUIDIG_JAAR_S);
+
   const getOrnValue = (key: string, maandIdxLocal: number, ji: number): number => {
-    if (dbOrnData && dbOrnData[key]) {
-      // Controleer of dit jaar (ji) DB-data heeft voor deze notaris
+    // Alleen huidig jaar (2026): cumulatief optellen vanuit maandelijkse productiedata
+    if (ji === huidigeJi && dbOrnData && dbOrnData[key]) {
       const heeftJaarData = Object.values(dbOrnData[key]).some(maandMap => ji in maandMap);
       if (heeftJaarData) {
-        // Cumulatief optellen: maand 1 t/m maandIdxLocal+1
         let totaal = 0;
         for (let m = 1; m <= maandIdxLocal + 1; m++) {
           totaal += dbOrnData[key]?.[m]?.[ji] ?? 0;
@@ -1349,7 +1352,8 @@ function TrendOrNotarisTab() {
         return totaal;
       }
     }
-    // Statische fallback voor historische jaren zonder DB-data
+    // Alle andere jaren: originele gedrag (single-month DB lookup of statisch)
+    if (dbOrnData) return dbOrnData[key]?.[maandIdxLocal + 1]?.[ji] ?? 0;
     return ORN_DATA[key]?.[maandIdxLocal]?.[ji] ?? 0;
   };
 
