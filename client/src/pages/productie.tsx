@@ -847,12 +847,12 @@ function buildOraData(maandIdx: number, jarenFilter: string[]): OrAlgemRij[] {
   return jarenFilter.map((_j, i) => {
     const ji = ORA_JAREN_ASC.indexOf(jarenFilter[i]);
     return {
-      aktes:          ORA_AK[maandIdx][ji],
-      inschrijvingen: ORA_IS[maandIdx][ji],
-      doorhalingen:   ORA_DH[maandIdx][ji],
-      opheffingen:    ORA_OP[maandIdx][ji],
-      beslagen:       ORA_BS[maandIdx][ji],
-      cessies:        ORA_CS[maandIdx][ji],
+      aktes:          ORA_AK[maandIdx]?.[ji] ?? 0,
+      inschrijvingen: ORA_IS[maandIdx]?.[ji] ?? 0,
+      doorhalingen:   ORA_DH[maandIdx]?.[ji] ?? 0,
+      opheffingen:    ORA_OP[maandIdx]?.[ji] ?? 0,
+      beslagen:       ORA_BS[maandIdx]?.[ji] ?? 0,
+      cessies:        ORA_CS[maandIdx]?.[ji] ?? 0,
     };
   });
 }
@@ -1018,12 +1018,12 @@ function TrendOrAlgemeenTab() {
                 {chartData.map(r => (
                   <TableRow key={r.jaar} data-testid={`row-ora-${r.jaar}`}>
                     <TableCell className="font-medium">{r.jaar}</TableCell>
-                    <TableCell className="text-right">{r.aktes.toLocaleString("nl-NL")}</TableCell>
-                    <TableCell className="text-right">{r.inschrijvingen.toLocaleString("nl-NL")}</TableCell>
-                    <TableCell className="text-right">{r.doorhalingen.toLocaleString("nl-NL")}</TableCell>
-                    <TableCell className="text-right">{r.opheffingen.toLocaleString("nl-NL")}</TableCell>
-                    <TableCell className="text-right">{r.beslagen.toLocaleString("nl-NL")}</TableCell>
-                    <TableCell className="text-right">{r.cessies.toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{(r.aktes ?? 0).toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{(r.inschrijvingen ?? 0).toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{(r.doorhalingen ?? 0).toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{(r.opheffingen ?? 0).toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{(r.beslagen ?? 0).toLocaleString("nl-NL")}</TableCell>
+                    <TableCell className="text-right">{(r.cessies ?? 0).toLocaleString("nl-NL")}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/40 font-semibold">
