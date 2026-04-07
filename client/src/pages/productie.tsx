@@ -937,7 +937,7 @@ function TrendOrAlgemeenTab() {
         ].map(k => (
           <Card key={k.label} className="p-4">
             <p className="text-xs text-muted-foreground">{k.label}</p>
-            <p className="text-2xl font-bold" style={{ color: k.color }}>{k.value.toLocaleString("nl-NL")}</p>
+            <p className="text-2xl font-bold" style={{ color: k.color }}>{isFinite(k.value) ? k.value.toLocaleString("nl-NL") : "—"}</p>
             <p className="text-xs text-muted-foreground">t/m {maand}</p>
           </Card>
         ))}
@@ -954,9 +954,9 @@ function TrendOrAlgemeenTab() {
             <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} width={55} tickFormatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <YAxis tick={{ fontSize: 11 }} width={55} tickFormatter={(v: any) => typeof v === "number" && isFinite(v) ? v.toLocaleString("nl-NL") : ""} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                formatter={(val: number, name: string) => [val.toLocaleString("nl-NL"), ORA_LABELS[name] ?? name]} />
+                formatter={(val: any, name: string) => [typeof val === "number" && isFinite(val) ? val.toLocaleString("nl-NL") : val, ORA_LABELS[name] ?? name]} />
               <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => ORA_LABELS[v] ?? v} />
               <Line type="monotone" dataKey="aktes"          stroke={ORA_COLORS.aktes}          strokeWidth={2} dot={false} name="aktes" />
               <Line type="monotone" dataKey="inschrijvingen" stroke={ORA_COLORS.inschrijvingen} strokeWidth={2} dot={false} name="inschrijvingen" />
@@ -980,9 +980,9 @@ function TrendOrAlgemeenTab() {
             <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} width={55} tickFormatter={(v: number) => v.toLocaleString("nl-NL")} />
+              <YAxis tick={{ fontSize: 11 }} width={55} tickFormatter={(v: any) => typeof v === "number" && isFinite(v) ? v.toLocaleString("nl-NL") : ""} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                formatter={(val: number, name: string) => [val.toLocaleString("nl-NL"), ORA_LABELS[name] ?? name]} />
+                formatter={(val: any, name: string) => [typeof val === "number" && isFinite(val) ? val.toLocaleString("nl-NL") : val, ORA_LABELS[name] ?? name]} />
               <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => ORA_LABELS[v] ?? v} />
               <Bar dataKey="aktes"          stackId="a" fill={ORA_COLORS.aktes}          name="aktes"          radius={[0,0,0,0]} />
               <Bar dataKey="inschrijvingen" stackId="a" fill={ORA_COLORS.inschrijvingen} name="inschrijvingen" />
