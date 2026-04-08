@@ -46,6 +46,12 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+function isWithinDir(dir: string, filePath: string): boolean {
+  const resolvedDir = path.resolve(dir);
+  const resolvedFile = path.resolve(filePath);
+  return resolvedFile === resolvedDir || resolvedFile.startsWith(resolvedDir + path.sep);
+}
+
 const aankondigingenDir = path.join(uploadsDir, "Aankondigingen");
 if (!fs.existsSync(aankondigingenDir)) {
   fs.mkdirSync(aankondigingenDir, { recursive: true });
@@ -283,7 +289,7 @@ export async function registerRoutes(
   app.get("/uploads/public/:filename", (req, res) => {
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, "");
     const filePath = path.join(uploadsDir, filename);
-    if (!fs.existsSync(filePath)) {
+    if (!isWithinDir(uploadsDir, filePath) || !fs.existsSync(filePath)) {
       return res.status(404).json({ message: "Bestand niet gevonden" });
     }
     res.sendFile(filePath);
@@ -292,7 +298,7 @@ export async function registerRoutes(
   app.use("/uploads", requireAuth, (req, res, next) => {
     if (req.path.endsWith(".pdf")) {
       const filePath = path.join(uploadsDir, req.path);
-      if (fs.existsSync(filePath)) {
+      if (isWithinDir(uploadsDir, filePath) && fs.existsSync(filePath)) {
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", "inline");
         res.setHeader("X-Frame-Options", "SAMEORIGIN");
@@ -420,6 +426,7 @@ export async function registerRoutes(
     }
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(caoDir, filename);
+    if (!isWithinDir(caoDir, filePath)) return res.status(400).json({ message: "Ongeldig bestandspad" });
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       res.json({ message: "Verwijderd" });
@@ -436,6 +443,7 @@ export async function registerRoutes(
     }
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(wetgevingDir, filename);
+    if (!isWithinDir(wetgevingDir, filePath)) return res.status(400).json({ message: "Ongeldig bestandspad" });
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       res.json({ message: "Verwijderd" });
@@ -490,6 +498,7 @@ export async function registerRoutes(
     }
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(huishoudelijkDir, filename);
+    if (!isWithinDir(huishoudelijkDir, filePath)) return res.status(400).json({ message: "Ongeldig bestandspad" });
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       res.json({ message: "Verwijderd" });
@@ -549,6 +558,7 @@ export async function registerRoutes(
     }
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(nieuwsbriefDir, filename);
+    if (!isWithinDir(nieuwsbriefDir, filePath)) return res.status(400).json({ message: "Ongeldig bestandspad" });
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       res.json({ message: "Verwijderd" });
@@ -603,8 +613,9 @@ export async function registerRoutes(
   const instructiesUpload = multer({
     storage: multer.diskStorage({
       destination: (req: any, _file: any, cb: any) => {
-        const dept = req.params.department;
+        const dept = req.params.department.replace(/[^a-zA-Z0-9 _-]/g, "");
         const deptPath = path.join(instructiesDir, dept);
+        if (!isWithinDir(instructiesDir, deptPath)) return cb(new Error("Ongeldig pad"));
         if (!fs.existsSync(deptPath)) fs.mkdirSync(deptPath, { recursive: true });
         cb(null, deptPath);
       },
@@ -625,7 +636,7 @@ export async function registerRoutes(
     if (!req.file) {
       return res.status(400).json({ message: "Geen PDF-bestand ontvangen" });
     }
-    const dept = req.params.department;
+    const dept = req.params.department.replace(/[^a-zA-Z0-9 _-]/g, "");
     res.json({ name: req.file.originalname, path: `/uploads/Instructies/${dept}/${req.file.originalname}` });
   });
 
@@ -635,9 +646,10 @@ export async function registerRoutes(
     if (!user || !isAdminRole(user.role)) {
       return res.status(403).json({ message: "Alleen beheerders" });
     }
-    const dept = req.params.department;
+    const dept = req.params.department.replace(/[^a-zA-Z0-9 _-]/g, "");
     const filename = req.params.filename.replace(/[^a-zA-Z0-9._\- ]/g, "");
     const filePath = path.join(instructiesDir, dept, filename);
+    if (!isWithinDir(instructiesDir, filePath)) return res.status(400).json({ message: "Ongeldig bestandspad" });
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       res.json({ message: "Verwijderd" });

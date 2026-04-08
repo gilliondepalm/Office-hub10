@@ -430,6 +430,7 @@ function AbsenceReportDialog({
   const totalDays = filtered.reduce((sum, a) => sum + countBusinessDays(a.startDate, a.endDate, a.halfDay), 0);
 
   const handlePrint = () => {
+    const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     const typeLabelsLocal: Record<string, string> = { sick: "Ziekte", vacation: "Vakantie", personal: "Geoorloofd", other: "Ongeoorloofd", bvvd: "BVVD", persoonlijk: "Persoonlijk" };
     const statusLabelsLocal: Record<string, string> = { pending: "In afwachting", approved: "Goedgekeurd", rejected: "Afgewezen", cancelled: "Gecanceld" };
 
@@ -453,15 +454,15 @@ function AbsenceReportDialog({
           const halfDayLabel = a.halfDay === "am" ? " (Ochtend)" : a.halfDay === "pm" ? " (Middag)" : "";
           const statusColor = a.status === "approved" ? "#16a34a" : a.status === "rejected" ? "#dc2626" : a.status === "cancelled" ? "#ea580c" : "#6b7280";
           return `<tr>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;padding-left:20px">${(a as any).userName || "Medewerker"}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${typeLabelsLocal[a.type] || a.type}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;padding-left:20px">${escHtml((a as any).userName || "Medewerker")}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb">${escHtml(typeLabelsLocal[a.type] || a.type)}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap">${formatDateShort(a.startDate)} – ${formatDate(a.endDate)}${halfDayLabel}</td>
             <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${days}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;max-width:220px;word-wrap:break-word">${reason}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:${statusColor};font-weight:600">${statusLabelsLocal[a.status] || a.status}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;max-width:220px;word-wrap:break-word">${escHtml(reason)}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e5e7eb;color:${statusColor};font-weight:600">${escHtml(statusLabelsLocal[a.status] || a.status)}</td>
           </tr>`;
         }).join("");
-      return `<tr><td colspan="6" style="padding:6px 8px;background:#f3f4f6;font-weight:700;font-size:13px;border-bottom:1px solid #d1d5db">${dept} (${grouped[dept].length} meldingen)</td></tr>${deptRows}`;
+      return `<tr><td colspan="6" style="padding:6px 8px;background:#f3f4f6;font-weight:700;font-size:13px;border-bottom:1px solid #d1d5db">${escHtml(dept)} (${grouped[dept].length} meldingen)</td></tr>${deptRows}`;
     }).join("");
 
     const html = `<!DOCTYPE html>
