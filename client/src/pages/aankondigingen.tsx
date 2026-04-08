@@ -1007,9 +1007,10 @@ export default function AankondigingenPage() {
                             {isSent ? `Aan: ${msg.toUserName}` : `Van: ${msg.fromUserName}`}
                           </p>
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{msg.content}</p>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {formatDateTime(msg.createdAt)}
-                          </p>
+                        </div>
+                        <div className="shrink-0 text-right ml-2" data-testid={`text-message-date-${msg.id}`}>
+                          <p className="text-xs font-medium text-muted-foreground whitespace-nowrap">Ingediend op</p>
+                          <p className="text-xs text-foreground mt-0.5 whitespace-nowrap">{formatDateTime(msg.createdAt)}</p>
                         </div>
                       </div>
                     </CardContent>
