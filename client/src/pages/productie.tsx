@@ -376,7 +376,7 @@ function BalieMedewerkerTab() {
   }, [dbKmInfoRows]);
   // Voeg huidig jaar toe aan de jarenlijst
   const alleJarenKmInfo = [...new Set([...BALIE_JAREN_ASC, HUIDIG_JAAR_S])].sort((a, b) => Number(a) - Number(b));
-  const activeBalieData = dbKmInfoMap ?? BALIE_DATA;
+  const activeBalieData = useMemo(() => ({ ...BALIE_DATA, ...(dbKmInfoMap ?? {}) }), [dbKmInfoMap]);
 
   const jaren    = alleJarenKmInfo.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
@@ -637,7 +637,7 @@ function BalieM3Tab() {
   const jaren      = BALIE3_JAREN_ASC.filter(j => Number(j) >= Number(startJaar) && Number(j) <= Number(eindJaar));
   const maandLabel = BALIE_MAANDEN[maandIdx];
 
-  const activeB3Data = dbOrInfoMap ?? BALIE3_DATA;
+  const activeB3Data = useMemo(() => ({ ...BALIE3_DATA, ...(dbOrInfoMap ?? {}) }), [dbOrInfoMap]);
 
   const data = jaren.map(jaar => {
     // Alleen huidig jaar (2026): cumulatief optellen vanuit maandelijkse productiedata
@@ -905,8 +905,11 @@ function TrendOrAlgemeenTab() {
           }
           return { aktes, inschrijvingen, doorhalingen, opheffingen, beslagen, cessies };
         }
-        // Alle andere jaren: originele gedrag (single-month DB lookup)
-        return dbOraMap[j]?.[maandIdxLocal + 1] ?? { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 };
+        // Jaar aanwezig in DB: gebruik DB waarde
+        if (dbOraMap[j]) return dbOraMap[j][maandIdxLocal + 1] ?? { aktes:0, inschrijvingen:0, doorhalingen:0, opheffingen:0, beslagen:0, cessies:0 };
+        // Jaar NIET in DB: terugvallen op historische hardcoded data
+        const [hardcoded] = buildOraData(maandIdxLocal, [j]);
+        return hardcoded;
       });
     }
     return buildOraData(maandIdxLocal, jarenFilter);
@@ -1352,8 +1355,11 @@ function TrendOrNotarisTab() {
         return totaal;
       }
     }
-    // Alle andere jaren: originele gedrag (single-month DB lookup of statisch)
-    if (dbOrnData) return dbOrnData[key]?.[maandIdxLocal + 1]?.[ji] ?? 0;
+    // Alle andere jaren: DB lookup met fallback naar historische hardcoded data
+    if (dbOrnData) {
+      const dbVal = dbOrnData[key]?.[maandIdxLocal + 1]?.[ji];
+      if (dbVal !== undefined) return dbVal;
+    }
     return ORN_DATA[key]?.[maandIdxLocal]?.[ji] ?? 0;
   };
 
