@@ -3162,7 +3162,7 @@ function TrendKartografenTab() {
     }
     return map;
   }, [dbKgRows]);
-  const activeKgData = dbKgMap ?? KG_MAANDDATA;
+  const activeKgData = useMemo(() => ({ ...KG_MAANDDATA, ...(dbKgMap ?? {}) }), [dbKgMap]);
 
   // Per kartograaf naam → jaar → [12 maanden prod]
   const mpkDataMap = useMemo(() => {
