@@ -486,9 +486,9 @@ function AbsenceReportDialog({
 <body>
   <h1>Afwezigheidsrapport</h1>
   <div class="meta">
-    <span><b>Periode:</b> ${periodLabel}</span>
-    <span><b>Afdeling:</b> ${deptLabel}</span>
-    <span><b>Medewerker:</b> ${empLabel}</span>
+    <span><b>Periode:</b> ${escHtml(periodLabel)}</span>
+    <span><b>Afdeling:</b> ${escHtml(deptLabel)}</span>
+    <span><b>Medewerker:</b> ${escHtml(empLabel)}</span>
     <span><b>Afgedrukt:</b> ${format(new Date(), "dd-MM-yyyy HH:mm")}</span>
   </div>
   <table>
