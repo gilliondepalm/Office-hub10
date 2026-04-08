@@ -2972,22 +2972,21 @@ function parseTrendKartografenHistCSV(csv: string): { rows: KgHistImportRij[]; e
   if (lines.length < 2) { errors.push("CSV is leeg of heeft geen datarijen."); return { rows, errors }; }
   const header = lines[0].toLowerCase().replace(/\s/g, "");
   if (!header.includes("jaar") || !header.includes("maand")) {
-    errors.push("Eerste rij moet kolommen bevatten: jaar,maand,egaleano,jpieters,nsambo,binnengekomen,afgehandeld");
+    errors.push("Eerste rij moet kolommen bevatten: jaar,maand,egaleano,jpieters,binnengekomen,afgehandeld");
     return { rows, errors };
   }
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(/[,;]/).map(c => c.trim());
-    if (cols.length < 7) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 7)`); continue; }
+    if (cols.length < 6) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 6)`); continue; }
     const jaar = parseInt(cols[0]);
     const maand = parseInt(cols[1]);
     const egaleano = parseInt(cols[2]) || 0;
     const jpieters = parseInt(cols[3]) || 0;
-    const nsambo   = parseInt(cols[4]) || 0;
-    const binnengekomen = parseInt(cols[5]) || 0;
-    const afgehandeld   = parseInt(cols[6]) || 0;
+    const binnengekomen = parseInt(cols[4]) || 0;
+    const afgehandeld   = parseInt(cols[5]) || 0;
     if (isNaN(jaar) || jaar < 1990 || jaar > 2100) { errors.push(`Rij ${i + 1}: ongeldig jaar "${cols[0]}"`); continue; }
     if (isNaN(maand) || maand < 1 || maand > 12)  { errors.push(`Rij ${i + 1}: ongeldige maand "${cols[1]}" (gebruik 1–12)`); continue; }
-    rows.push({ jaar, maand, egaleano, jpieters, nsambo, binnengekomen, afgehandeld });
+    rows.push({ jaar, maand, egaleano, jpieters, nsambo: 0, binnengekomen, afgehandeld });
   }
   return { rows, errors };
 }
@@ -2997,14 +2996,13 @@ jaar        – 4-cijferig jaar (bijv. 2024)
 maand       – maandnummer 1–12
 egaleano    – productie E. Galeano (getal)
 jpieters    – productie J. Pieters (getal)
-nsambo      – productie N. Sambo (getal)
 binnengekomen – totaal binnengekomen opdrachten (getal)
 afgehandeld – totaal afgehandelde opdrachten (getal)`;
 
-const KG_CSV_VOORBEELD = `jaar,maand,egaleano,jpieters,nsambo,binnengekomen,afgehandeld
-2024,1,42,35,29,150,143
-2024,2,51,40,33,170,165
-2024,3,48,38,31,160,158`;
+const KG_CSV_VOORBEELD = `jaar,maand,egaleano,jpieters,binnengekomen,afgehandeld
+2024,1,42,35,150,143
+2024,2,51,40,170,165
+2024,3,48,38,160,158`;
 
 function TrendKartografenImportButton() {
   const [open, setOpen] = useState(false);
@@ -3098,7 +3096,7 @@ function TrendKartografenImportButton() {
                       <table className="w-full text-[11px]">
                         <thead>
                           <tr className="border-b">
-                            {["jaar","maand","egaleano","jpieters","nsambo","binnengekomen","afgehandeld"].map(k => (
+                            {["jaar","maand","egaleano","jpieters","binnengekomen","afgehandeld"].map(k => (
                               <th key={k} className="px-2 py-1 text-left font-semibold whitespace-nowrap">{k}</th>
                             ))}
                           </tr>
@@ -3110,13 +3108,12 @@ function TrendKartografenImportButton() {
                               <td className="px-2 py-0.5">{r.maand}</td>
                               <td className="px-2 py-0.5 text-right">{r.egaleano}</td>
                               <td className="px-2 py-0.5 text-right">{r.jpieters}</td>
-                              <td className="px-2 py-0.5 text-right">{r.nsambo}</td>
                               <td className="px-2 py-0.5 text-right">{r.binnengekomen}</td>
                               <td className="px-2 py-0.5 text-right">{r.afgehandeld}</td>
                             </tr>
                           ))}
                           {preview.rows.length > 10 && (
-                            <tr><td colSpan={7} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
+                            <tr><td colSpan={6} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
                           )}
                         </tbody>
                       </table>
