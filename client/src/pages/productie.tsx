@@ -4079,7 +4079,19 @@ function LandmetersTab() {
     }
     return map;
   }, [dbKmBuitenRows]);
-  const activeLandmetersData = dbLandmetersMap ?? LANDMETERS_DATA;
+  const activeLandmetersData = useMemo(() => {
+    if (!dbLandmetersMap) return LANDMETERS_DATA;
+    const maandNamen = ["Jan","Feb","Mrt","Apr","Mei","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+    const merged: Record<string, LandmetersRij[]> = {};
+    for (const m of maandNamen) {
+      const historisch = LANDMETERS_DATA[m] || [];
+      const db = dbLandmetersMap[m] || [];
+      const dbJaren = new Set(db.map(r => r.jaar));
+      merged[m] = [...historisch.filter(r => !dbJaren.has(r.jaar)), ...db]
+        .sort((a, b) => Number(a.jaar) - Number(b.jaar));
+    }
+    return merged;
+  }, [dbLandmetersMap]);
 
   const volledigeData = activeLandmetersData[maand] || [];
   const data = volledigeData.filter(d => Number(d.jaar) >= Number(startJaar) && Number(d.jaar) <= Number(eindJaar));
