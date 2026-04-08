@@ -31,7 +31,7 @@ import { nl } from "date-fns/locale";
 import type { Absence, User, Snipperdag } from "@shared/schema";
 import { isAdminRole, canManageVacation } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { formatDate, formatDateShort } from "@/lib/dateUtils";
+import { formatDate, formatDateShort, formatDateTime } from "@/lib/dateUtils";
 
 function getOverlapDates(startA: string, endA: string, startB: string, endB: string): string[] {
   const overlapStart = startA > startB ? startA : startB;
@@ -2056,6 +2056,7 @@ export default function VerzuimPage() {
                           <TableHead>Type</TableHead>
                           <TableHead>Periode gepland</TableHead>
                           <TableHead>Reden</TableHead>
+                          <TableHead>Ingediend op</TableHead>
                           <TableHead>Status</TableHead>
                           {isAdminOrManager && (
                             <TableHead>
@@ -2104,7 +2105,7 @@ export default function VerzuimPage() {
                           ).sort((a, b) =>
                             ((a as any).userName || "").localeCompare((b as any).userName || "", "nl")
                           );
-                          const colCount = isAdminOrManager ? 6 : 5;
+                          const colCount = isAdminOrManager ? 7 : 6;
                           const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
                           return depts.map(dept => (
                             <>{isAdminOrManager && (
@@ -2178,6 +2179,9 @@ export default function VerzuimPage() {
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
                                     {displayReason}
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap" data-testid={`text-absence-date-${absence.id}`}>
+                                    {isSnipperdagRow ? "–" : formatDateTime((absence as any).createdAt)}
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant={sc.variant} className={`text-xs gap-1 ${sc.className || ""}`}>
