@@ -2397,7 +2397,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/kartografie-productie/import", async (req, res) => {
+  app.post("/api/kartografie-productie/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || (!isAdminRole(user.role) && user.role !== "manager")) return res.status(403).json({ message: "Alleen beheerders of managers" });
     try {
@@ -2413,7 +2413,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/kartografie-productie/:jaar", async (req, res) => {
+  app.delete("/api/kartografie-productie/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || (!isAdminRole(user.role) && user.role !== "manager")) return res.status(403).json({ message: "Alleen beheerders of managers" });
     const jaar = parseInt(req.params.jaar);
@@ -2640,7 +2640,7 @@ export async function registerRoutes(
       res.json([...trendRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : a.maand - b.maand));
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
-  app.post("/api/trend-km-buiten/import", async (req, res) => {
+  app.post("/api/trend-km-buiten/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
@@ -2651,7 +2651,7 @@ export async function registerRoutes(
       res.json({ imported: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
-  app.delete("/api/trend-km-buiten/:jaar", async (req, res) => {
+  app.delete("/api/trend-km-buiten/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     const jaar = parseInt(req.params.jaar);
@@ -2694,7 +2694,7 @@ export async function registerRoutes(
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try { res.json(await storage.getTrendKmInfo()); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
-  app.post("/api/trend-km-info/import", async (req, res) => {
+  app.post("/api/trend-km-info/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
@@ -2705,7 +2705,7 @@ export async function registerRoutes(
       res.json({ imported: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
-  app.delete("/api/trend-km-info/:jaar", async (req, res) => {
+  app.delete("/api/trend-km-info/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     const jaar = parseInt(req.params.jaar);
@@ -2775,7 +2775,7 @@ export async function registerRoutes(
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try { res.json(await storage.getTrendOrInfo()); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
-  app.post("/api/trend-or-info/import", async (req, res) => {
+  app.post("/api/trend-or-info/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
@@ -2786,7 +2786,7 @@ export async function registerRoutes(
       res.json({ imported: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
-  app.delete("/api/trend-or-info/:jaar", async (req, res) => {
+  app.delete("/api/trend-or-info/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     const jaar = parseInt(req.params.jaar);
@@ -2799,7 +2799,7 @@ export async function registerRoutes(
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try { res.json(await storage.getTrendOrAlgemeen()); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
-  app.post("/api/trend-or-algemeen/import", async (req, res) => {
+  app.post("/api/trend-or-algemeen/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
@@ -2810,7 +2810,7 @@ export async function registerRoutes(
       res.json({ imported: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
-  app.delete("/api/trend-or-algemeen/:jaar", async (req, res) => {
+  app.delete("/api/trend-or-algemeen/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     const jaar = parseInt(req.params.jaar);
@@ -2823,7 +2823,7 @@ export async function registerRoutes(
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try { res.json(await storage.getTrendOrNotaris()); } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
-  app.post("/api/trend-or-notaris/import", async (req, res) => {
+  app.post("/api/trend-or-notaris/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
@@ -2834,7 +2834,7 @@ export async function registerRoutes(
       res.json({ imported: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
-  app.delete("/api/trend-or-notaris/:jaar", async (req, res) => {
+  app.delete("/api/trend-or-notaris/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     const jaar = parseInt(req.params.jaar);
@@ -2872,7 +2872,7 @@ export async function registerRoutes(
       res.json([...trendRows, ...extraRows].sort((a, b) => a.jaar !== b.jaar ? a.jaar - b.jaar : a.maand - b.maand));
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
-  app.post("/api/trend-kartografen-hist/import", async (req, res) => {
+  app.post("/api/trend-kartografen-hist/import", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
@@ -2883,7 +2883,7 @@ export async function registerRoutes(
       res.json({ imported: parsed.length });
     } catch (err: any) { res.status(400).json({ message: err.message }); }
   });
-  app.delete("/api/trend-kartografen-hist/:jaar", async (req, res) => {
+  app.delete("/api/trend-kartografen-hist/:jaar", requireAuth, async (req, res) => {
     const user = (req as any).user;
     if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     const jaar = parseInt(req.params.jaar);
