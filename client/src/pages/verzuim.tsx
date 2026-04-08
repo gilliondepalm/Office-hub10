@@ -2887,7 +2887,7 @@ export default function VerzuimPage() {
             <h3 className="font-semibold text-sm">{isAdminOrManager ? "Cancel Verzuim — Verlofkalender" : "Verlofkalender"}</h3>
           </CardHeader>
           <CardContent>
-            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdmin} onlyMe={!isAdminOrManager} readOnly={!isAdminOrManager} />
+            <CancelVerzuimTab allUsers={allUsers || []} currentUser={user!} isAdmin={isAdminOrManager} onlyMe={!isAdminOrManager} readOnly={!isAdminOrManager} />
           </CardContent>
         </Card>
       )}
