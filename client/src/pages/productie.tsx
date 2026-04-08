@@ -3188,7 +3188,7 @@ function TrendKartografenTab() {
   }, [alleMpkRows]);
 
   // Legacy kartografen met data in KG_MAANDDATA maar mogelijk niet in DB
-  const KG_LEGACY_NAMEN = ["E. Galeano", "J. Pieters", "N. Sambo"];
+  const KG_LEGACY_NAMEN = ["E. Galeano", "J. Pieters"];
 
   // Unieke kartograaf namen: DB + legacy namen met daadwerkelijke KG_MAANDDATA
   const alleKartografenNamen = useMemo(() => {
