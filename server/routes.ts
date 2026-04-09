@@ -2572,23 +2572,15 @@ export async function registerRoutes(
   }
 
   // ── Maandelijkse productie Landmeters ─────────────────────────────────────
-  app.post("/api/maand-prod-landmeter/import", async (req, res) => {
-    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+  app.post("/api/maand-prod-landmeter/import", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    if (!user || !isAdminOrManager(user)) return res.status(403).json({ message: "Geen toegang" });
     try {
       const { rows } = req.body;
       if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "Geen geldige rijen" });
       const parsed = rows.map((r: unknown) => insertMaandProdLandmeterSchema.parse(r));
-      // Groepeer per jaar+maand en sla op
-      const groups = new Map<string, typeof parsed>();
-      for (const r of parsed) {
-        const key = `${r.jaar}-${r.maand}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push(r);
-      }
-      for (const [, groep] of groups) {
-        await storage.saveMaandProdLandmeter(groep);
-      }
-      res.json({ inserted: parsed.length });
+      await storage.bulkUpsertMaandProdLandmeter(parsed);
+      res.json({ imported: parsed.length });
     } catch (err: any) {
       res.status(400).json({ message: err.message });
     }

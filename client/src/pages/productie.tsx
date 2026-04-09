@@ -3592,7 +3592,7 @@ function TrendLandmetersImportButton() {
       const res = await apiRequest("POST", "/api/maand-prod-landmeter/import", { rows: preview.rows });
       const data = await res.json();
       qc.invalidateQueries({ queryKey: ['/api/maand-prod-landmeter/alle'] });
-      toast({ title: "Import geslaagd", description: `${data.inserted ?? preview.rows.length} rijen geïmporteerd.` });
+      toast({ title: "Import geslaagd", description: `${data.imported ?? preview.rows.length} rijen geïmporteerd.` });
       setOpen(false);
       setCsvText("");
       setPreview(null);
@@ -3716,6 +3716,7 @@ function TrendLandmetersImportButton() {
 
 function TrendLandmetersTab() {
   const [geselecteerdJaar, setGeselecteerdJaar] = useState(HUIDIG_JAAR_S);
+  const [toonTotalen, setToonTotalen] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(STANDAARD_LANDMETERS));
   const [geinitialiseerd, setGeinitialiseerd] = useState(false);
   const [startJaar, setStartJaar] = useState("2012");
@@ -3876,44 +3877,59 @@ function TrendLandmetersTab() {
                   <CardTitle className="text-base font-semibold">Jaarlijkse trend per landmeter</CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">Totale productie per landmeter per jaar (meting + grensuitzetting)</p>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-muted-foreground font-medium">Jaarbereik:</span>
-                  <input
-                    type="number"
-                    value={startJaar}
-                    onChange={e => setStartJaar(e.target.value)}
-                    min="2012"
-                    max={eindJaar}
-                    data-testid="input-lm-trend-start-jaar"
-                    className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
-                  />
-                  <span className="text-muted-foreground">t/m</span>
-                  <input
-                    type="number"
-                    value={eindJaar}
-                    onChange={e => setEindJaar(e.target.value)}
-                    min={startJaar}
-                    max={HUIDIG_JAAR_S}
-                    data-testid="input-lm-trend-eind-jaar"
-                    className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
-                  />
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={toonTotalen}
+                      onChange={(e) => setToonTotalen(e.target.checked)}
+                      data-testid="checkbox-lm-toon-totalen"
+                      className="rounded"
+                    />
+                    <span>Toon binnengekomen / afgehandeld</span>
+                  </label>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground font-medium">Jaarbereik:</span>
+                    <input
+                      type="number"
+                      value={startJaar}
+                      onChange={e => setStartJaar(e.target.value)}
+                      min="2012"
+                      max={eindJaar}
+                      data-testid="input-lm-trend-start-jaar"
+                      className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
+                    />
+                    <span className="text-muted-foreground">t/m</span>
+                    <input
+                      type="number"
+                      value={eindJaar}
+                      onChange={e => setEindJaar(e.target.value)}
+                      min={startJaar}
+                      max={HUIDIG_JAAR_S}
+                      data-testid="input-lm-trend-eind-jaar"
+                      className="w-16 h-7 rounded border border-input bg-background px-1.5 text-xs text-center"
+                    />
+                  </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <ComposedChart data={gefilterdeTrendDataLm} margin={{ top: 5, right: 50, left: 0, bottom: 5 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={gefilterdeTrendDataLm} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="jaar" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="bars" orientation="left" tick={{ fontSize: 11 }} label={{ value: "Prod./landmeter", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 10 } }} />
-                  <YAxis yAxisId="lines" orientation="right" tick={{ fontSize: 11 }} label={{ value: "Totaal", angle: 90, position: "insideRight", offset: 10, style: { fontSize: 10 } }} />
+                  <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {selectedNamen.map(naam => (
-                    <Bar key={naam} yAxisId="bars" dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
+                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
                   ))}
-                  <Line yAxisId="lines" type="monotone" dataKey="Binnengekomen" name="Binnengekomen" stroke={LM_KLEUR_BINN} strokeWidth={2} dot={{ r: 3 }} />
-                  <Line yAxisId="lines" type="monotone" dataKey="Afgehandeld"   name="Afgehandeld"   stroke={LM_KLEUR_AFG}  strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                  {toonTotalen && (
+                    <>
+                      <Line type="monotone" dataKey="Binnengekomen" name="Binnengekomen" stroke={LM_KLEUR_BINN} strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="Afgehandeld"   name="Afgehandeld"   stroke={LM_KLEUR_AFG}  strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 3" />
+                    </>
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
