@@ -1982,6 +1982,7 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
   onDelete: () => void;
 }) {
   const { toast } = useToast();
+  const [showActies, setShowActies] = useState(false);
   const [showActieForm, setShowActieForm] = useState(false);
   const [newActieDatum, setNewActieDatum] = useState(new Date().toISOString().slice(0, 10));
   const [newActieTekst, setNewActieTekst] = useState("");
@@ -2043,8 +2044,15 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
 
       <div className="mt-2 border-t pt-2 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground">Acties ({acties.length})</span>
-          {canEdit && (
+          <button
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => { setShowActies(v => !v); if (showActies) setShowActieForm(false); }}
+            data-testid={`button-toggle-acties-${item.id}`}
+          >
+            {showActies ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            Acties ({acties.length})
+          </button>
+          {canEdit && showActies && (
             <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setShowActieForm(v => !v)} data-testid={`button-add-actie-${item.id}`}>
               <Plus className="h-3 w-3 mr-1" />
               Actie toevoegen
@@ -2052,7 +2060,7 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
           )}
         </div>
 
-        {showActieForm && canEdit && (
+        {showActies && showActieForm && canEdit && (
           <div className="bg-muted/40 rounded-md p-2 space-y-2">
             <div className="flex items-center gap-2">
               <Input
@@ -2090,7 +2098,7 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
           </div>
         )}
 
-        {acties.length > 0 && (
+        {showActies && acties.length > 0 && (
           <div className="space-y-0">
             {acties.map((actie, idx) => (
               <div
@@ -2115,7 +2123,7 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
             ))}
           </div>
         )}
-        {acties.length === 0 && !showActieForm && (
+        {showActies && acties.length === 0 && !showActieForm && (
           <p className="text-xs text-muted-foreground italic">Nog geen acties geregistreerd</p>
         )}
       </div>

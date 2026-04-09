@@ -2303,7 +2303,7 @@ export async function registerRoutes(
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const user = (req as any).user;
     let afdeling: string | undefined;
-    if (isAdminRole(user.role) || user.role === "manager_az") {
+    if (isAdminRole(user.role) || user.role === "manager_az" || user.role === "manager") {
       afdeling = req.query.afdeling as string | undefined;
     } else {
       afdeling = user.department || undefined;
