@@ -20,7 +20,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Award, Star, TrendingUp, ClipboardCheck, UserCheck, Gift, Printer, Save, ChevronLeft, ChevronRight, Eye, FileText, Trash2, Settings, PlusCircle, X, Pencil, Building2 } from "lucide-react";
+import { Plus, Award, Star, TrendingUp, ClipboardCheck, UserCheck, Gift, Printer, Save, ChevronLeft, ChevronRight, ChevronDown, Eye, FileText, Trash2, Settings, PlusCircle, X, Pencil, Building2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
