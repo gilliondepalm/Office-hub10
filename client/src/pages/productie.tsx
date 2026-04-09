@@ -3921,8 +3921,8 @@ function TrendLandmetersTab() {
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString("nl-NL")} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {selectedNamen.map(naam => (
-                    <Bar key={naam} dataKey={naam} fill={kleurVoor(naam)} radius={[3,3,0,0]} />
+                  {selectedNamen.map((naam, i) => (
+                    <Bar key={naam} dataKey={naam} stackId="a" fill={kleurVoor(naam)} radius={i === selectedNamen.length - 1 ? [3,3,0,0] : [0,0,0,0]} />
                   ))}
                   {toonTotalen && (
                     <>
