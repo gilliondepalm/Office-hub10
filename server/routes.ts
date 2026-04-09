@@ -2305,7 +2305,7 @@ export async function registerRoutes(
     let afdeling: string | undefined;
     if (isAdminRole(user.role) || user.role === "manager_az") {
       afdeling = req.query.afdeling as string | undefined;
-    } else if (user.role === "manager") {
+    } else {
       afdeling = user.department || undefined;
     }
     const items = await storage.getJaarplanItemsByYear(year, afdeling);
