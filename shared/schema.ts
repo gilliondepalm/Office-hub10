@@ -284,12 +284,11 @@ export const insertBeoordelingScoreSchema = createInsertSchema(beoordelingScores
 
 export const jaarplanItems = pgTable("jaarplan_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  afdeling: varchar("afdeling").notNull(),
   year: integer("year").notNull(),
   afspraken: text("afspraken").notNull(),
   startDatum: date("start_datum"),
   eindDatum: date("eind_datum"),
-  voortgang: text("voortgang"),
   status: text("status").default("niet gestart"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -297,6 +296,17 @@ export const jaarplanItems = pgTable("jaarplan_items", {
 });
 
 export const insertJaarplanItemSchema = createInsertSchema(jaarplanItems).omit({ id: true, createdAt: true, updatedAt: true });
+
+export const jaarplanActies = pgTable("jaarplan_acties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jaarplanId: varchar("jaarplan_id").references(() => jaarplanItems.id).notNull(),
+  datum: date("datum").notNull(),
+  actie: text("actie").notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertJaarplanActieSchema = createInsertSchema(jaarplanActies).omit({ id: true, createdAt: true });
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
@@ -345,6 +355,8 @@ export type InsertBeoordelingScore = z.infer<typeof insertBeoordelingScoreSchema
 export type BeoordelingScore = typeof beoordelingScores.$inferSelect;
 export type InsertJaarplanItem = z.infer<typeof insertJaarplanItemSchema>;
 export type JaarplanItem = typeof jaarplanItems.$inferSelect;
+export type InsertJaarplanActie = z.infer<typeof insertJaarplanActieSchema>;
+export type JaarplanActie = typeof jaarplanActies.$inferSelect;
 
 export const helpContentTable = pgTable("help_content", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

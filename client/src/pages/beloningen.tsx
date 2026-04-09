@@ -25,7 +25,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import type { Reward, User, FunctioneringReview, Competency, BeoordelingReview, BeoordelingScore, JaarplanItem, YearlyAward } from "@shared/schema";
+import type { Reward, User, FunctioneringReview, Competency, BeoordelingReview, BeoordelingScore, JaarplanItem, JaarplanActie, YearlyAward } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
@@ -1975,47 +1975,187 @@ const statusOptions = [
   { value: "geannuleerd", label: "Geannuleerd", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
 ];
 
-function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?: User | null }) {
+function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
+  item: JaarplanItem;
+  canEdit: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { toast } = useToast();
+  const [showActieForm, setShowActieForm] = useState(false);
+  const [newActieDatum, setNewActieDatum] = useState(new Date().toISOString().slice(0, 10));
+  const [newActieTekst, setNewActieTekst] = useState("");
+
+  const { data: acties = [] } = useQuery<JaarplanActie[]>({
+    queryKey: ["/api/jaarplan", item.id, "acties"],
+    queryFn: async () => {
+      const res = await fetch(`/api/jaarplan/${item.id}/acties`, { credentials: "include" });
+      if (!res.ok) throw new Error("Ophalen mislukt");
+      return res.json();
+    },
+  });
+
+  const addActieMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/jaarplan/${item.id}/acties`, { datum: newActieDatum, actie: newActieTekst }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "acties"] });
+      setNewActieTekst("");
+      setNewActieDatum(new Date().toISOString().slice(0, 10));
+      setShowActieForm(false);
+      toast({ title: "Actie toegevoegd" });
+    },
+    onError: () => toast({ title: "Toevoegen mislukt", variant: "destructive" }),
+  });
+
+  const deleteActieMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/jaarplan/acties/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "acties"] }),
+  });
+
+  const statusOpt = statusOptions.find(s => s.value === item.status) || statusOptions[0];
+
+  return (
+    <div className="border rounded-lg p-3" data-testid={`jaarplan-plan-${item.id}`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium whitespace-pre-wrap">{item.afspraken}</p>
+          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+            {item.startDatum && <span>Start: {formatDate(item.startDatum)}</span>}
+            {item.eindDatum && <span>Einde: {formatDate(item.eindDatum)}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Badge variant="outline" className={`text-[10px] ${statusOpt.color}`} data-testid={`jaarplan-status-${item.id}`}>
+            {statusOpt.label}
+          </Badge>
+          {canEdit && (
+            <>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onEdit} data-testid={`button-edit-jaarplan-${item.id}`}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onDelete} data-testid={`button-delete-jaarplan-${item.id}`}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-2 border-t pt-2 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Acties ({acties.length})</span>
+          {canEdit && (
+            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setShowActieForm(v => !v)} data-testid={`button-add-actie-${item.id}`}>
+              <Plus className="h-3 w-3 mr-1" />
+              Actie toevoegen
+            </Button>
+          )}
+        </div>
+
+        {showActieForm && canEdit && (
+          <div className="bg-muted/40 rounded-md p-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={newActieDatum}
+                onChange={e => setNewActieDatum(e.target.value)}
+                className="h-7 text-xs w-36"
+                data-testid={`input-actie-datum-${item.id}`}
+              />
+              <span className="text-xs text-muted-foreground">datum van de actie</span>
+            </div>
+            <Textarea
+              value={newActieTekst}
+              onChange={e => setNewActieTekst(e.target.value)}
+              placeholder="Beschrijf de ondernomen actie..."
+              rows={2}
+              className="text-xs"
+              data-testid={`input-actie-tekst-${item.id}`}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowActieForm(false); setNewActieTekst(""); }}>
+                Annuleren
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => addActieMutation.mutate()}
+                disabled={!newActieTekst.trim() || addActieMutation.isPending}
+                data-testid={`button-save-actie-${item.id}`}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Opslaan
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {acties.length > 0 && (
+          <div className="space-y-0">
+            {acties.map((actie, idx) => (
+              <div
+                key={actie.id}
+                className={`flex items-start gap-2 text-xs py-1.5 ${idx < acties.length - 1 ? "border-b border-border/40" : ""}`}
+                data-testid={`jaarplan-actie-${actie.id}`}
+              >
+                <span className="text-muted-foreground whitespace-nowrap font-medium min-w-[80px]">{formatDate(actie.datum)}</span>
+                <p className="flex-1 whitespace-pre-wrap">{actie.actie}</p>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 shrink-0"
+                    onClick={() => deleteActieMutation.mutate(actie.id)}
+                    data-testid={`button-delete-actie-${actie.id}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {acties.length === 0 && !showActieForm && (
+          <p className="text-xs text-muted-foreground italic">Nog geen acties geregistreerd</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function JaarplanSection({ currentUser }: { currentUser?: User | null }) {
   const { toast } = useToast();
   const isAdmin = isAdminRole(currentUser?.role) || currentUser?.role === "manager_az";
   const isPureManager = currentUser?.role === "manager";
-  const myDept = currentUser?.department || "";
   const canEdit = isAdmin || isPureManager;
+  const myDept = currentUser?.department || "";
+
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [editingItem, setEditingItem] = useState<(JaarplanItem & { userName?: string }) | null>(null);
+  const [editingItem, setEditingItem] = useState<JaarplanItem | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [adminAfdeling, setAdminAfdeling] = useState("__all__");
+  const [formData, setFormData] = useState({
+    afspraken: "",
+    startDatum: "",
+    eindDatum: "",
+    status: "niet gestart",
+  });
 
   const { data: departments } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/departments"],
     enabled: isAdmin,
   });
 
-  const filteredUsers = users?.filter(u => u.active &&
-    (isPureManager && myDept ? u.department === myDept : (selectedDepartment ? u.department === selectedDepartment : true))
-  ) || [];
-  const [formData, setFormData] = useState({
-    afspraken: "",
-    startDatum: "",
-    eindDatum: "",
-    voortgang: "",
-    status: "niet gestart",
-  });
-
-  const { data: itemsByYear, isLoading } = useQuery<(JaarplanItem & { userName?: string })[]>({
-    queryKey: ["/api/jaarplan", selectedYear],
+  const { data: items = [], isLoading } = useQuery<JaarplanItem[]>({
+    queryKey: ["/api/jaarplan", selectedYear, adminAfdeling],
     queryFn: async () => {
-      const res = await fetch(`/api/jaarplan?year=${selectedYear}`, { credentials: "include" });
+      let url = `/api/jaarplan?year=${selectedYear}`;
+      if (isAdmin && adminAfdeling && adminAfdeling !== "__all__") url += `&afdeling=${encodeURIComponent(adminAfdeling)}`;
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: isAdmin || isPureManager,
-  });
-
-  const { data: myItems } = useQuery<(JaarplanItem & { userName?: string })[]>({
-    queryKey: ["/api/jaarplan/mine"],
-    enabled: !isAdmin && !isPureManager,
+    enabled: canEdit,
   });
 
   const saveMutation = useMutation({
@@ -2024,48 +2164,35 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/jaarplan"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/jaarplan/mine"] });
       toast({ title: "Jaarplan opgeslagen" });
       handleCloseForm();
     },
-    onError: () => {
-      toast({ title: "Opslaan mislukt", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Opslaan mislukt", variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/jaarplan/${id}`);
-    },
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/jaarplan/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/jaarplan"] });
-      toast({ title: "Item verwijderd" });
+      toast({ title: "Plan verwijderd" });
     },
   });
 
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingItem(null);
-    setSelectedDepartment("");
-    setSelectedUserId("");
-    setFormData({ afspraken: "", startDatum: "", eindDatum: "", voortgang: "", status: "niet gestart" });
+    setFormData({ afspraken: "", startDatum: "", eindDatum: "", status: "niet gestart" });
   };
 
-  const handleNewItem = () => {
-    handleCloseForm();
-    setShowForm(true);
-  };
+  const handleNewItem = () => { handleCloseForm(); setShowForm(true); };
 
-  const handleEditItem = (item: JaarplanItem & { userName?: string }) => {
+  const handleEditItem = (item: JaarplanItem) => {
     setEditingItem(item);
-    const user = users?.find(u => u.id === item.userId);
-    if (user?.department) setSelectedDepartment(user.department);
-    setSelectedUserId(item.userId);
+    if (isAdmin) setAdminAfdeling(item.afdeling);
     setFormData({
       afspraken: item.afspraken,
       startDatum: item.startDatum || "",
       eindDatum: item.eindDatum || "",
-      voortgang: item.voortgang || "",
       status: item.status || "niet gestart",
     });
     setShowForm(true);
@@ -2076,33 +2203,27 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
       toast({ title: "Vul de afspraken in", variant: "destructive" });
       return;
     }
-    const userId = selectedUserId || currentUser?.id;
-    if (!userId) return;
-
+    const afdeling = isAdmin ? (adminAfdeling !== "__all__" ? adminAfdeling : "") : myDept;
+    if (!afdeling) {
+      toast({ title: "Selecteer een afdeling voor het plan", variant: "destructive" });
+      return;
+    }
     saveMutation.mutate({
-      userId,
+      afdeling,
       year: selectedYear,
       ...formData,
       startDatum: formData.startDatum || null,
       eindDatum: formData.eindDatum || null,
       editId: editingItem?.id,
-      createdBy: currentUser?.id,
     });
   };
 
-  const allItems = (isAdmin || isPureManager) ? itemsByYear : myItems?.filter(i => i.year === selectedYear);
-  const itemsToShow = isPureManager && myDept
-    ? allItems?.filter(item => {
-        const u = users?.find(u2 => u2.id === item.userId);
-        return u?.department === myDept;
-      })
-    : allItems;
-  const groupedByUser = (itemsToShow || []).reduce((acc, item) => {
-    const name = (item as any).userName || "Onbekend";
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(item);
+  const groupedByAfdeling = items.reduce((acc, item) => {
+    const dept = item.afdeling || "Onbekend";
+    if (!acc[dept]) acc[dept] = [];
+    acc[dept].push(item);
     return acc;
-  }, {} as Record<string, (JaarplanItem & { userName?: string })[]>);
+  }, {} as Record<string, JaarplanItem[]>);
 
   return (
     <div className="space-y-4">
@@ -2116,28 +2237,41 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        {canEdit && (
-          <Button onClick={handleNewItem} data-testid="button-new-jaarplan">
-            <Plus className="h-4 w-4 mr-2" />
-            Nieuw Item
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Select value={adminAfdeling} onValueChange={setAdminAfdeling}>
+              <SelectTrigger className="w-44 h-8 text-sm" data-testid="select-jaarplan-admin-afdeling">
+                <SelectValue placeholder="Alle afdelingen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Alle afdelingen</SelectItem>
+                {departments?.sort((a, b) => a.name.localeCompare(b.name)).map(d => (
+                  <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {canEdit && (
+            <Button onClick={handleNewItem} data-testid="button-new-jaarplan">
+              <Plus className="h-4 w-4 mr-2" />
+              Nieuw Plan
+            </Button>
+          )}
+        </div>
       </div>
 
       {showForm && canEdit && (
         <Card className="border border-border/60">
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold">{editingItem ? "Item bewerken" : "Nieuw jaarplan item"}</h4>
-              <Button variant="ghost" size="sm" onClick={handleCloseForm}>
-                <X className="h-4 w-4" />
-              </Button>
+              <h4 className="text-sm font-semibold">{editingItem ? "Plan bewerken" : "Nieuw jaarplan"}</h4>
+              <Button variant="ghost" size="sm" onClick={handleCloseForm}><X className="h-4 w-4" /></Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {!isPureManager && (
-                <div className="space-y-1">
+              {isAdmin && (
+                <div className="space-y-1 md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground">Afdeling</label>
-                  <Select value={selectedDepartment} onValueChange={v => { setSelectedDepartment(v); setSelectedUserId(""); }}>
+                  <Select value={adminAfdeling} onValueChange={setAdminAfdeling}>
                     <SelectTrigger data-testid="select-jaarplan-department">
                       <SelectValue placeholder="Selecteer afdeling" />
                     </SelectTrigger>
@@ -2149,92 +2283,39 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
                   </Select>
                 </div>
               )}
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Medewerker</label>
-                <Select value={selectedUserId} onValueChange={setSelectedUserId} disabled={!isPureManager && !selectedDepartment}>
-                  <SelectTrigger data-testid="select-jaarplan-user">
-                    <SelectValue placeholder={isPureManager || selectedDepartment ? "Selecteer medewerker" : "Selecteer eerst een afdeling"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredUsers.map(u => (
-                      <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {isPureManager && myDept && (
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground">Afdeling</label>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/50 text-sm">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span>{myDept}</span>
+                  </div>
+                </div>
+              )}
               <div className="space-y-1 md:col-span-2">
-                <label className="text-xs font-medium text-muted-foreground">Plan</label>
-                {(() => {
-                  const userPlans = [...new Set(
-                    (canEdit ? itemsByYear : myItems)
-                      ?.filter(i => i.userId === selectedUserId)
-                      .map(i => i.afspraken) || []
-                  )].sort();
-                  return (
-                    <div className="space-y-2">
-                      {userPlans.length > 0 && (
-                        <Select
-                          value={userPlans.includes(formData.afspraken) ? formData.afspraken : ""}
-                          onValueChange={v => setFormData(prev => ({ ...prev, afspraken: v }))}
-                        >
-                          <SelectTrigger data-testid="select-jaarplan-plan">
-                            <SelectValue placeholder="Selecteer bestaand plan..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {userPlans.map(plan => (
-                              <SelectItem key={plan} value={plan}>{plan}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <Input
-                        value={formData.afspraken}
-                        onChange={e => setFormData(prev => ({ ...prev, afspraken: e.target.value }))}
-                        placeholder="Of typ een nieuw plan..."
-                        data-testid="input-jaarplan-plan"
-                      />
-                    </div>
-                  );
-                })()}
+                <label className="text-xs font-medium text-muted-foreground">Plan / Afspraken</label>
+                <Textarea
+                  value={formData.afspraken}
+                  onChange={e => setFormData(prev => ({ ...prev, afspraken: e.target.value }))}
+                  placeholder="Beschrijf het plan of de gemaakte afspraken..."
+                  rows={3}
+                  data-testid="input-jaarplan-plan"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Startdatum</label>
-                <Input
-                  type="date"
-                  value={formData.startDatum}
-                  onChange={e => setFormData(prev => ({ ...prev, startDatum: e.target.value }))}
-                  data-testid="input-jaarplan-start"
-                />
+                <Input type="date" value={formData.startDatum} onChange={e => setFormData(prev => ({ ...prev, startDatum: e.target.value }))} data-testid="input-jaarplan-start" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Einddatum</label>
-                <Input
-                  type="date"
-                  value={formData.eindDatum}
-                  onChange={e => setFormData(prev => ({ ...prev, eindDatum: e.target.value }))}
-                  data-testid="input-jaarplan-eind"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Voortgang</label>
-                <Textarea
-                  value={formData.voortgang}
-                  onChange={e => setFormData(prev => ({ ...prev, voortgang: e.target.value }))}
-                  placeholder="Beschrijf de voortgang..."
-                  rows={2}
-                  data-testid="input-jaarplan-voortgang"
-                />
+                <Input type="date" value={formData.eindDatum} onChange={e => setFormData(prev => ({ ...prev, eindDatum: e.target.value }))} data-testid="input-jaarplan-eind" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Status</label>
                 <Select value={formData.status} onValueChange={v => setFormData(prev => ({ ...prev, status: v }))}>
-                  <SelectTrigger data-testid="select-jaarplan-status">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger data-testid="select-jaarplan-status"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
+                    {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -2251,106 +2332,42 @@ function JaarplanSection({ users, currentUser }: { users?: User[]; currentUser?:
       )}
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-        </div>
-      ) : !itemsToShow || itemsToShow.length === 0 ? (
+        <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
+      ) : items.length === 0 ? (
         <Card className="border border-dashed">
           <CardContent className="p-8 text-center">
             <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Geen jaarplan items voor {selectedYear}</p>
+            <p className="text-sm text-muted-foreground">Geen jaarplannen voor {selectedYear}</p>
             {canEdit && (
               <Button variant="link" onClick={handleNewItem} className="mt-2" data-testid="button-new-jaarplan-empty">
-                Voeg een item toe
+                Voeg een plan toe
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {Object.entries(groupedByUser).sort(([a], [b]) => a.localeCompare(b)).map(([userName, items]) => {
-            const groupedByPlan = items.reduce((acc, item) => {
-              const plan = item.afspraken || "Zonder plan";
-              if (!acc[plan]) acc[plan] = [];
-              acc[plan].push(item);
-              return acc;
-            }, {} as Record<string, typeof items>);
-
-            return (
-              <Card key={userName} className="border border-border/60">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs bg-primary/10 text-primary">{userName.split(" ").map(n => n[0]).join("").slice(0, 2)}</AvatarFallback>
-                    </Avatar>
-                    <h3 className="text-sm font-semibold" data-testid={`jaarplan-user-${userName}`}>{userName}</h3>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-4">
-                  {Object.entries(groupedByPlan).sort(([a], [b]) => a.localeCompare(b)).map(([planName, planItems]) => {
-                    const sortedItems = [...planItems].sort((a, b) => {
-                      const da = a.startDatum ? new Date(a.startDatum).getTime() : 0;
-                      const db = b.startDatum ? new Date(b.startDatum).getTime() : 0;
-                      return da - db;
-                    });
-                    const latestStatus = sortedItems[sortedItems.length - 1];
-                    const latestStatusOpt = statusOptions.find(s => s.value === latestStatus?.status) || statusOptions[0];
-
-                    return (
-                      <div key={planName} className="border rounded-lg p-3" data-testid={`jaarplan-plan-${planName}`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-primary" />
-                            <h4 className="text-sm font-semibold">{planName}</h4>
-                          </div>
-                          <Badge variant="outline" className={`text-[10px] ${latestStatusOpt.color}`}>
-                            {latestStatusOpt.label}
-                          </Badge>
-                        </div>
-                        <div className="space-y-0">
-                          <div className="grid grid-cols-[100px_100px_1fr_auto] gap-2 text-xs text-muted-foreground font-medium border-b pb-1 mb-1">
-                            <span>Start</span>
-                            <span>Einde</span>
-                            <span>Voortgang</span>
-                            {canEdit && <span className="w-16"></span>}
-                          </div>
-                          {sortedItems.map((item, idx) => {
-                            const statusOpt = statusOptions.find(s => s.value === item.status) || statusOptions[0];
-                            return (
-                              <div key={item.id} className={`grid grid-cols-[100px_100px_1fr_auto] gap-2 items-start py-1.5 ${idx < sortedItems.length - 1 ? "border-b border-border/40" : ""}`} data-testid={`jaarplan-row-${item.id}`}>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {item.startDatum ? formatDate(item.startDatum) : "—"}
-                                </span>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {item.eindDatum ? formatDate(item.eindDatum) : "—"}
-                                </span>
-                                <div className="flex items-start gap-2">
-                                  <p className="text-xs whitespace-pre-wrap flex-1">{item.voortgang || "—"}</p>
-                                  <Badge variant="outline" className={`text-[10px] shrink-0 ${statusOpt.color}`} data-testid={`jaarplan-status-${item.id}`}>
-                                    {statusOpt.label}
-                                  </Badge>
-                                </div>
-                                {canEdit && (
-                                  <div className="flex items-center gap-0.5 w-16 justify-end">
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditItem(item)} data-testid={`button-edit-jaarplan-${item.id}`}>
-                                      <Pencil className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => deleteMutation.mutate(item.id)} data-testid={`button-delete-jaarplan-${item.id}`}>
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            );
-          })}
+          {Object.entries(groupedByAfdeling).sort(([a], [b]) => a.localeCompare(b)).map(([afdeling, afdelingItems]) => (
+            <Card key={afdeling} className="border border-border/60">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold" data-testid={`jaarplan-afdeling-${afdeling}`}>{afdeling}</h3>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+                {afdelingItems.map(item => (
+                  <JaarplanItemCard
+                    key={item.id}
+                    item={item}
+                    canEdit={canEdit}
+                    onEdit={() => handleEditItem(item)}
+                    onDelete={() => deleteMutation.mutate(item.id)}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
@@ -2580,7 +2597,7 @@ export default function BeloningenPage() {
       )}
 
       {activeTab === "jaarplan" && (
-        <JaarplanSection users={users} currentUser={user} />
+        <JaarplanSection currentUser={user} />
       )}
 
       {activeTab === "beloningsysteem" && (

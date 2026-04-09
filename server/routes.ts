@@ -18,7 +18,7 @@ import {
   insertPersonalDevelopmentSchema, insertLegislationLinkSchema, insertCaoDocumentSchema,
   insertFunctioneringReviewSchema,
   insertCompetencySchema, insertBeoordelingReviewSchema, insertBeoordelingScoreSchema,
-  insertJaarplanItemSchema,
+  insertJaarplanItemSchema, insertJaarplanActieSchema,
   insertHelpContentSchema,
   insertYearlyAwardSchema,
   insertKartografieProductieSchema,
@@ -2296,23 +2296,28 @@ export async function registerRoutes(
     }
   });
 
+  const canEditJaarplan = (role: string) =>
+    isAdminRole(role) || role === "manager" || role === "manager_az";
+
   app.get("/api/jaarplan", requireAuth, async (req, res) => {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
-    const items = await storage.getJaarplanItemsByYear(year);
-    res.json(items);
-  });
-
-  app.get("/api/jaarplan/mine", requireAuth, async (req, res) => {
-    const items = await storage.getJaarplanItemsByUser((req as any).user.id);
+    const user = (req as any).user;
+    const afdeling = isAdminRole(user.role) ? (req.query.afdeling as string | undefined) : user.department;
+    const items = await storage.getJaarplanItemsByYear(year, afdeling || undefined);
     res.json(items);
   });
 
   app.post("/api/jaarplan", requireAuth, async (req, res) => {
-    if (!isAdminRole((req as any).user.role)) {
+    const user = (req as any).user;
+    if (!canEditJaarplan(user.role)) {
       return res.status(403).json({ message: "Geen toegang" });
     }
     try {
       const { editId, ...rest } = req.body;
+      if (!isAdminRole(user.role)) {
+        rest.afdeling = user.department;
+      }
+      rest.createdBy = user.id;
       const parsed = insertJaarplanItemSchema.parse(rest);
       if (editId) {
         const updated = await storage.updateJaarplanItem(editId, parsed);
@@ -2327,7 +2332,7 @@ export async function registerRoutes(
   });
 
   app.put("/api/jaarplan/:id", requireAuth, async (req, res) => {
-    if (!isAdminRole((req as any).user.role)) {
+    if (!canEditJaarplan((req as any).user.role)) {
       return res.status(403).json({ message: "Geen toegang" });
     }
     try {
@@ -2339,10 +2344,41 @@ export async function registerRoutes(
   });
 
   app.delete("/api/jaarplan/:id", requireAuth, async (req, res) => {
-    if (!isAdminRole((req as any).user.role)) {
+    if (!canEditJaarplan((req as any).user.role)) {
       return res.status(403).json({ message: "Geen toegang" });
     }
     await storage.deleteJaarplanItem(req.params.id);
+    res.json({ success: true });
+  });
+
+  app.get("/api/jaarplan/:id/acties", requireAuth, async (req, res) => {
+    const acties = await storage.getJaarplanActies(req.params.id);
+    res.json(acties);
+  });
+
+  app.post("/api/jaarplan/:id/acties", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    if (!canEditJaarplan(user.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    try {
+      const parsed = insertJaarplanActieSchema.parse({
+        ...req.body,
+        jaarplanId: req.params.id,
+        createdBy: user.id,
+      });
+      const actie = await storage.createJaarplanActie(parsed);
+      res.json(actie);
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Validatiefout" });
+    }
+  });
+
+  app.delete("/api/jaarplan/acties/:actieId", requireAuth, async (req, res) => {
+    if (!canEditJaarplan((req as any).user.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    await storage.deleteJaarplanActie(req.params.actieId);
     res.json({ success: true });
   });
 
