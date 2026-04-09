@@ -2155,7 +2155,7 @@ function JaarplanSection({ currentUser }: { currentUser?: User | null }) {
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
-    enabled: canEdit,
+    enabled: !!currentUser,
   });
 
   const saveMutation = useMutation({

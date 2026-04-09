@@ -2302,8 +2302,13 @@ export async function registerRoutes(
   app.get("/api/jaarplan", requireAuth, async (req, res) => {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const user = (req as any).user;
-    const afdeling = isAdminRole(user.role) ? (req.query.afdeling as string | undefined) : user.department;
-    const items = await storage.getJaarplanItemsByYear(year, afdeling || undefined);
+    let afdeling: string | undefined;
+    if (isAdminRole(user.role) || user.role === "manager_az") {
+      afdeling = req.query.afdeling as string | undefined;
+    } else if (user.role === "manager") {
+      afdeling = user.department || undefined;
+    }
+    const items = await storage.getJaarplanItemsByYear(year, afdeling);
     res.json(items);
   });
 
