@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Download, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, Download, Trash2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import type { KartografieProductie } from "@shared/schema";
 
 const HUIDIG_JAAR = new Date().getFullYear();
@@ -1547,6 +1547,7 @@ const STANDAARD_KARTOGRAFEN = ["E. Galeano", "J. Pieters"];
 function MaandelijkseProdKartografenTab({ myName }: { myName?: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [jaar, setJaar] = useState(HUIDIG_JAAR);
   const [maand, setMaand] = useState(new Date().getMonth() + 1);
   const [rijen, setRijen] = useState<MpkRij[]>([
     ...STANDAARD_KARTOGRAFEN.map(LEGE_RIJ),
@@ -1558,10 +1559,20 @@ function MaandelijkseProdKartografenTab({ myName }: { myName?: string }) {
   const [toonToevoegen, setToonToevoegen] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
 
-  const { isLoading } = useQuery({
-    queryKey: ["/api/maand-prod-kartograaf", HUIDIG_JAAR, maand],
+  const { data: jaarMaandData } = useQuery({
+    queryKey: ["/api/maand-prod-kartograaf/jaar", jaar],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/maand-prod-kartograaf?jaar=${HUIDIG_JAAR}&maand=${maand}`);
+      const res = await apiRequest("GET", `/api/maand-prod-kartograaf/jaar/${jaar}`);
+      return res.json() as Promise<{ maand: number }[]>;
+    },
+  });
+  const ingevuldeMaanden = new Set((jaarMaandData ?? []).map((r) => r.maand));
+  const alleJaarMaandenIngevuld = ingevuldeMaanden.size >= 12;
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-kartograaf", jaar, maand],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-kartograaf?jaar=${jaar}&maand=${maand}`);
       const data = await res.json();
       if (data.kartografen && data.kartografen.length > 0) {
         setRijen(data.kartografen.map((r: any): MpkRij => ({
@@ -1587,17 +1598,18 @@ function MaandelijkseProdKartografenTab({ myName }: { myName?: string }) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/maand-prod-kartograaf", {
-        jaar: HUIDIG_JAAR, maand,
-        kartografen: rijen.map(r => ({ ...r, jaar: HUIDIG_JAAR, maand })),
-        samenvatting: { jaar: HUIDIG_JAAR, maand, binnengekomen, aantal_kartografen: aantalKartografen },
+        jaar, maand,
+        kartografen: rijen.map(r => ({ ...r, jaar, maand })),
+        samenvatting: { jaar, maand, binnengekomen, aantal_kartografen: aantalKartografen },
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-kartograaf"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-kartograaf/jaar"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trend-kartografen-hist"] });
       queryClient.invalidateQueries({ queryKey: ["/api/kartografie-productie"] });
       setOpgeslagen(true);
-      toast({ title: "Opgeslagen", description: `Productie ${MAAND_NAMEN[maand - 1]} ${HUIDIG_JAAR} opgeslagen.` });
+      toast({ title: "Opgeslagen", description: `Productie ${MAAND_NAMEN[maand - 1]} ${jaar} opgeslagen.` });
     },
     onError: () => toast({ title: "Fout", description: "Opslaan mislukt.", variant: "destructive" }),
   });
@@ -1655,8 +1667,38 @@ function MaandelijkseProdKartografenTab({ myName }: { myName?: string }) {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-semibold">Productie Kartografen {HUIDIG_JAAR}</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse productie per kartograaf in</p>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-semibold">Productie Kartografen</CardTitle>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setJaar(j => j - 1)}
+                    disabled={jaar <= HUIDIG_JAAR}
+                    data-testid="button-vorig-jaar-mpk"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Vorig jaar"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-base font-semibold min-w-[3rem] text-center" data-testid="label-jaar-mpk">{jaar}</span>
+                  <button
+                    onClick={() => setJaar(j => j + 1)}
+                    disabled={!alleJaarMaandenIngevuld}
+                    data-testid="button-volgend-jaar-mpk"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={alleJaarMaandenIngevuld ? "Volgend jaar" : "Vul eerst alle maanden van het huidige jaar in"}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Voer de maandelijkse productie per kartograaf in
+                {!alleJaarMaandenIngevuld && jaar === HUIDIG_JAAR && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    · Vul alle 12 maanden in om {HUIDIG_JAAR + 1} te ontgrendelen
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Select value={String(maand)} onValueChange={v => setMaand(parseInt(v))}>
