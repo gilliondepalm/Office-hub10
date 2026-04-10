@@ -157,6 +157,8 @@ export const positionHistory = pgTable("position_history", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   salary: integer("salary"),
+  beginSchaal: integer("begin_schaal"),
+  eindSchaal: integer("eind_schaal"),
   notes: text("notes"),
 });
 
@@ -417,6 +419,8 @@ export const jobFunctions = pgTable("job_functions", {
   departmentId: varchar("department_id").references(() => departments.id, { onDelete: "set null" }),
   sortOrder: integer("sort_order").notNull().default(0),
   descriptionFilePath: text("description_file_path"),
+  beginSchaal: integer("begin_schaal"),
+  eindSchaal: integer("eind_schaal"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

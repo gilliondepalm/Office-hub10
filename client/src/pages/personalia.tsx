@@ -507,7 +507,8 @@ const positionFormSchema = z.object({
   functionTitle: z.string().min(1, "Functie is verplicht"),
   startDate: z.string().min(1, "Startdatum is verplicht"),
   endDate: z.string().optional(),
-  salary: z.string().optional(),
+  beginSchaal: z.string().optional(),
+  eindSchaal: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -536,10 +537,17 @@ function PositionHistoryDialog({
     enabled: open,
   });
 
+  const { data: jobFunctions } = useQuery<JobFunction[]>({
+    queryKey: ["/api/job-functions"],
+    enabled: open && isAdmin,
+  });
+
   const form = useForm<z.infer<typeof positionFormSchema>>({
     resolver: zodResolver(positionFormSchema),
-    defaultValues: { functionTitle: "", startDate: "", endDate: "", salary: "", notes: "" },
+    defaultValues: { functionTitle: "", startDate: "", endDate: "", beginSchaal: "", eindSchaal: "", notes: "" },
   });
+
+  const watchedTitle = form.watch("functionTitle");
 
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof positionFormSchema>) => {
@@ -548,7 +556,8 @@ function PositionHistoryDialog({
         functionTitle: data.functionTitle,
         startDate: data.startDate,
         endDate: data.endDate || null,
-        salary: data.salary ? parseInt(data.salary) : null,
+        beginSchaal: data.beginSchaal ? parseInt(data.beginSchaal) : null,
+        eindSchaal: data.eindSchaal ? parseInt(data.eindSchaal) : null,
         notes: data.notes || null,
       });
     },
@@ -569,7 +578,8 @@ function PositionHistoryDialog({
         functionTitle: data.functionTitle,
         startDate: data.startDate,
         endDate: data.endDate || null,
-        salary: data.salary ? parseInt(data.salary) : null,
+        beginSchaal: data.beginSchaal ? parseInt(data.beginSchaal) : null,
+        eindSchaal: data.eindSchaal ? parseInt(data.eindSchaal) : null,
         notes: data.notes || null,
       });
     },
@@ -594,9 +604,21 @@ function PositionHistoryDialog({
     },
   });
 
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return "-";
-    return "XCG " + new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 }).format(amount);
+  useEffect(() => {
+    if (!watchedTitle || !jobFunctions || editEntry) return;
+    const match = jobFunctions.find((f) => f.name === watchedTitle);
+    if (match) {
+      if (match.beginSchaal != null) form.setValue("beginSchaal", String(match.beginSchaal));
+      if (match.eindSchaal != null) form.setValue("eindSchaal", String(match.eindSchaal));
+    }
+  }, [watchedTitle, jobFunctions, editEntry]);
+
+  const formatSchaal = (begin: number | null, eind: number | null) => {
+    const fmt = (v: number) => new Intl.NumberFormat("nl-NL").format(v);
+    if (begin != null && eind != null) return `${fmt(begin)} – ${fmt(eind)}`;
+    if (begin != null) return `v.a. ${fmt(begin)}`;
+    if (eind != null) return `t/m ${fmt(eind)}`;
+    return null;
   };
 
   return (
@@ -605,7 +627,7 @@ function PositionHistoryDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5" />
-            Functie & Salarisontwikkeling - {formatNaamMetTitels(user)}
+            Functie & Schaalhistorie - {formatNaamMetTitels(user)}
           </DialogTitle>
         </DialogHeader>
 
@@ -634,10 +656,12 @@ function PositionHistoryDialog({
                             ? formatDate(entry.endDate)
                             : "heden"}
                         </span>
-                        <span className="text-sm font-medium flex items-center gap-1" data-testid={`text-salary-${entry.id}`}>
-                          <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                          {formatCurrency(entry.salary)} /mnd
-                        </span>
+                        {formatSchaal(entry.beginSchaal ?? null, entry.eindSchaal ?? null) && (
+                          <span className="text-sm font-medium flex items-center gap-1" data-testid={`text-schaal-${entry.id}`}>
+                            <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                            Schaal {formatSchaal(entry.beginSchaal ?? null, entry.eindSchaal ?? null)}
+                          </span>
+                        )}
                       </div>
                       {entry.notes && (
                         <p className="text-xs text-muted-foreground mt-1">{entry.notes}</p>
@@ -655,7 +679,8 @@ function PositionHistoryDialog({
                               functionTitle: entry.functionTitle,
                               startDate: entry.startDate,
                               endDate: entry.endDate || "",
-                              salary: entry.salary ? String(entry.salary) : "",
+                              beginSchaal: entry.beginSchaal != null ? String(entry.beginSchaal) : "",
+                              eindSchaal: entry.eindSchaal != null ? String(entry.eindSchaal) : "",
                               notes: entry.notes || "",
                             });
                           }}
@@ -721,21 +746,28 @@ function PositionHistoryDialog({
                         )} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <FormField control={form.control} name="salary" render={({ field }) => (
+                        <FormField control={form.control} name="beginSchaal" render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Salaris (bruto/mnd)</FormLabel>
-                            <FormControl><Input {...field} type="number" placeholder="bijv. 3500" data-testid="input-position-salary" /></FormControl>
+                            <FormLabel>Begin schaal</FormLabel>
+                            <FormControl><Input {...field} type="number" placeholder="bijv. 2500" data-testid="input-position-begin-schaal" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
-                        <FormField control={form.control} name="notes" render={({ field }) => (
+                        <FormField control={form.control} name="eindSchaal" render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Opmerking</FormLabel>
-                            <FormControl><Input {...field} placeholder="bijv. Promotie" data-testid="input-position-notes" /></FormControl>
+                            <FormLabel>Eind schaal</FormLabel>
+                            <FormControl><Input {...field} type="number" placeholder="bijv. 4000" data-testid="input-position-eind-schaal" /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                       </div>
+                      <FormField control={form.control} name="notes" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Opmerking</FormLabel>
+                          <FormControl><Input {...field} placeholder="bijv. Promotie" data-testid="input-position-notes" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
                       <div className="flex gap-2">
                         <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-save-position">
                           {(createMutation.isPending || updateMutation.isPending) ? "Opslaan..." : editEntry ? "Wijzigen" : "Toevoegen"}
@@ -749,7 +781,7 @@ function PositionHistoryDialog({
                 </CardContent>
               </Card>
             ) : (
-              <Button variant="outline" onClick={() => { setAddOpen(true); form.reset({ functionTitle: "", startDate: "", endDate: "", salary: "", notes: "" }); }} className="w-full" data-testid="button-add-position">
+              <Button variant="outline" onClick={() => { setAddOpen(true); form.reset({ functionTitle: "", startDate: "", endDate: "", beginSchaal: "", eindSchaal: "", notes: "" }); }} className="w-full" data-testid="button-add-position">
                 <Plus className="h-4 w-4 mr-2" />
                 Functie Toevoegen
               </Button>
@@ -1019,7 +1051,7 @@ function InlinePositionHistory({ user }: { user: User }) {
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Briefcase className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold text-sm">Functie & Salarisontwikkeling</h3>
+          <h3 className="font-semibold text-sm">Functie & Schaalhistorie</h3>
           <Badge variant="secondary" className="ml-auto text-xs">{history?.length || 0}</Badge>
         </div>
         {isLoading ? (
@@ -1045,10 +1077,14 @@ function InlinePositionHistory({ user }: { user: User }) {
                       ? formatDate(entry.endDate)
                       : "heden"}
                   </span>
-                  {entry.salary && (
+                  {(entry.beginSchaal != null || entry.eindSchaal != null) && (
                     <span className="text-xs font-medium flex items-center gap-1">
                       <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                      XCG {new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 0 }).format(entry.salary)} /mnd
+                      Schaal {entry.beginSchaal != null && entry.eindSchaal != null
+                        ? `${new Intl.NumberFormat("nl-NL").format(entry.beginSchaal)} – ${new Intl.NumberFormat("nl-NL").format(entry.eindSchaal)}`
+                        : entry.beginSchaal != null
+                          ? `v.a. ${new Intl.NumberFormat("nl-NL").format(entry.beginSchaal)}`
+                          : `t/m ${new Intl.NumberFormat("nl-NL").format(entry.eindSchaal!)}`}
                     </span>
                   )}
                 </div>
@@ -1643,7 +1679,7 @@ export default function PersonaliaPage() {
                                             variant="ghost"
                                             onClick={() => setHistoryUser(u)}
                                             data-testid={`button-history-user-${u.id}`}
-                                            title="Functie & Salaris"
+                                            title="Functie & Schalen"
                                           >
                                             <Briefcase className="h-4 w-4 text-muted-foreground" />
                                           </Button>

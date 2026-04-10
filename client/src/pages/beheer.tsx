@@ -59,6 +59,8 @@ const jobFunctionFormSchema = z.object({
   name: z.string().min(1, "Naam is verplicht"),
   description: z.string().optional(),
   departmentId: z.string().optional(),
+  beginSchaal: z.string().optional(),
+  eindSchaal: z.string().optional(),
 });
 
 // ─── Dialogs ─────────────────────────────────────────────────────────────────
@@ -703,7 +705,7 @@ function FunctiesTab() {
 
   const form = useForm<z.infer<typeof jobFunctionFormSchema>>({
     resolver: zodResolver(jobFunctionFormSchema),
-    defaultValues: { name: "", description: "", departmentId: "" },
+    defaultValues: { name: "", description: "", departmentId: "", beginSchaal: "", eindSchaal: "" },
   });
 
   const createMutation = useMutation({
@@ -713,12 +715,14 @@ function FunctiesTab() {
         description: data.description || null,
         departmentId: data.departmentId && data.departmentId !== "none" ? data.departmentId : null,
         sortOrder: 0,
+        beginSchaal: data.beginSchaal || null,
+        eindSchaal: data.eindSchaal || null,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/job-functions"] });
       toast({ title: "Functie aangemaakt" });
-      setOpen(false); form.reset({ name: "", description: "", departmentId: "" });
+      setOpen(false); form.reset({ name: "", description: "", departmentId: "", beginSchaal: "", eindSchaal: "" });
     },
     onError: () => { toast({ title: "Fout bij aanmaken", variant: "destructive" }); },
   });
@@ -733,7 +737,7 @@ function FunctiesTab() {
 
   const editForm = useForm<z.infer<typeof jobFunctionFormSchema>>({
     resolver: zodResolver(jobFunctionFormSchema),
-    defaultValues: { name: "", description: "", departmentId: "" },
+    defaultValues: { name: "", description: "", departmentId: "", beginSchaal: "", eindSchaal: "" },
   });
 
   const editMutation = useMutation({
@@ -742,6 +746,8 @@ function FunctiesTab() {
         name: data.name,
         description: data.description || null,
         departmentId: data.departmentId && data.departmentId !== "none" ? data.departmentId : null,
+        beginSchaal: data.beginSchaal || null,
+        eindSchaal: data.eindSchaal || null,
       });
     },
     onSuccess: () => {
@@ -778,6 +784,8 @@ function FunctiesTab() {
       name: func.name,
       description: func.description || "",
       departmentId: func.departmentId || "",
+      beginSchaal: func.beginSchaal != null ? String(func.beginSchaal) : "",
+      eindSchaal: func.eindSchaal != null ? String(func.eindSchaal) : "",
     });
     setEditFunc(func);
   };
@@ -846,6 +854,22 @@ function FunctiesTab() {
           <FormMessage />
         </FormItem>
       )} />
+      <div className="grid grid-cols-2 gap-3">
+        <FormField control={control} name="beginSchaal" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Begin schaal</FormLabel>
+            <FormControl><Input {...field} type="number" placeholder="bijv. 2500" data-testid={`${testPrefix}-begin-schaal`} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+        <FormField control={control} name="eindSchaal" render={({ field }) => (
+          <FormItem>
+            <FormLabel>Eind schaal</FormLabel>
+            <FormControl><Input {...field} type="number" placeholder="bijv. 4000" data-testid={`${testPrefix}-eind-schaal`} /></FormControl>
+            <FormMessage />
+          </FormItem>
+        )} />
+      </div>
       <FormField control={control} name="description" render={({ field }) => (
         <FormItem>
           <FormLabel>Omschrijving (optioneel)</FormLabel>
@@ -944,6 +968,14 @@ function FunctiesTab() {
                           </Button>
                         </div>
                       </div>
+                      {(func.beginSchaal != null || func.eindSchaal != null) && (
+                        <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                          <span className="font-medium text-foreground/70">Schaal:</span>
+                          {func.beginSchaal != null ? new Intl.NumberFormat("nl-NL").format(func.beginSchaal) : "—"}
+                          {" – "}
+                          {func.eindSchaal != null ? new Intl.NumberFormat("nl-NL").format(func.eindSchaal) : "—"}
+                        </p>
+                      )}
                       {func.description && (
                         <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{func.description}</p>
                       )}
