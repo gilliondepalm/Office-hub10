@@ -57,7 +57,6 @@ const userFormSchema = z.object({
   telefoonnr: z.string().optional(),
   mobielnr: z.string().optional(),
   adres: z.string().optional(),
-  titels: z.array(titelEntrySchema).optional(),
 }).refine((data) => {
   if (data.birthDate && data.startDate && data.birthDate > data.startDate) return false;
   return true;
@@ -81,15 +80,14 @@ const editFormSchema = z.object({
   telefoonnr: z.string().optional(),
   mobielnr: z.string().optional(),
   adres: z.string().optional(),
-  titels: z.array(titelEntrySchema).optional(),
 }).refine((data) => {
   if (data.birthDate && data.startDate && data.birthDate > data.startDate) return false;
   return true;
 }, { message: "Geboortedatum mag niet na datum in dienst zijn", path: ["birthDate"] });
 
 function buildTitelPayload(titels: TitelEntry[] | undefined) {
-  const voor = (titels ?? []).filter(t => t.positie === "voor" && t.tekst).map(t => t.tekst);
-  const achter = (titels ?? []).filter(t => t.positie === "achter" && t.tekst).map(t => t.tekst);
+  const voor = (titels ?? []).filter(t => t.positie === "voor" && t.tekst.trim()).map(t => t.tekst.trim());
+  const achter = (titels ?? []).filter(t => t.positie === "achter" && t.tekst.trim()).map(t => t.tekst.trim());
   return { titelsVoor: voor.length ? voor : null, titelsAchter: achter.length ? achter : null };
 }
 
