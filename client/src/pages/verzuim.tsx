@@ -1217,6 +1217,9 @@ export default function VerzuimPage() {
   const [activeTab, setActiveTab] = useState("meldingen");
   const [overzichtSortCol, setOverzichtSortCol] = useState<"nr" | "date">("nr");
   const [overzichtSortDir, setOverzichtSortDir] = useState<"asc" | "desc">("asc");
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printFilter, setPrintFilter] = useState<"afdeling" | "medewerker">("afdeling");
+  const [printFilterValue, setPrintFilterValue] = useState("");
   const [overzichtRedenAbsence, setOverzichtRedenAbsence] = useState<any | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [detailAbsence, setDetailAbsence] = useState<any>(null);
@@ -1454,6 +1457,80 @@ export default function VerzuimPage() {
       return true;
     }
     return false;
+  };
+
+  const handlePrintOverzicht = () => {
+    const processedAbsences = deptFilteredAbsences.filter(
+      a => a.status === "approved" || a.status === "rejected" || a.status === "cancelled"
+    );
+    const filteredDayCancels = isAdminOrManager
+      ? (allDayCancellations || []).filter(c => {
+          if (isPureManager && myDept) return c.userDepartment === myDept;
+          return true;
+        })
+      : [];
+    const allRows: { _kind: "absence" | "dayCancel"; dept: string; userId: string; userName: string; row: any }[] = [
+      ...processedAbsences.map(a => ({ _kind: "absence" as const, dept: (a as any).userDepartment || "Geen afdeling", userId: a.userId, userName: (a as any).userName || "Medewerker", row: a })),
+      ...filteredDayCancels.map(c => ({ _kind: "dayCancel" as const, dept: (c as any).userDepartment || "Geen afdeling", userId: (c as any).userId || "", userName: (c as any).userName || "Medewerker", row: c })),
+    ];
+
+    const filteredRows = printFilter === "afdeling"
+      ? (printFilterValue ? allRows.filter(r => r.dept === printFilterValue) : allRows)
+      : (printFilterValue ? allRows.filter(r => r.userId === printFilterValue) : allRows);
+
+    const filterLabel = printFilter === "afdeling"
+      ? (printFilterValue || "Alle afdelingen")
+      : (allUsers?.find(u => u.id === printFilterValue)?.fullName || "Alle medewerkers");
+
+    const sorted = [...filteredRows].sort((a, b) => {
+      const dA = a._kind === "absence" ? a.row.startDate : a.row.cancelledDate;
+      const dB = b._kind === "absence" ? b.row.startDate : b.row.cancelledDate;
+      return dA.localeCompare(dB);
+    });
+
+    const rowsHtml = sorted.map((item, idx) => {
+      if (item._kind === "absence") {
+        const a = item.row;
+        const typLabel = a.type === "persoonlijk" && a.persoonlijkBesluit === "geoorloofd" ? "Geoorloofd" : (typeLabels[a.type] || a.type);
+        const statusLabel = statusConfig[a.status]?.label || a.status;
+        const reason = (a.type === "bvvd" && a.bvvdReason ? a.bvvdReason + (a.reason ? ` - ${a.reason}` : "") : a.reason || "-");
+        const period = `${formatDateShort(a.startDate)} – ${formatDate(a.endDate)}${a.halfDay === "am" ? " (Ochtend)" : a.halfDay === "pm" ? " (Middag)" : ""}`;
+        const submitted = formatDateTime(a.createdAt);
+        return `<tr><td>${idx + 1}</td><td>${item.userName}</td><td>${item.dept}</td><td>${typLabel}</td><td>${period}</td><td>${submitted}</td><td>${reason}</td><td>${statusLabel}</td></tr>`;
+      } else {
+        const c = item.row;
+        const typLabel = (typeLabels[c.absenceType] || c.absenceType || "-") + " (dag)";
+        const submitted = formatDateTime(c.createdAt);
+        return `<tr><td>${idx + 1}</td><td>${item.userName}</td><td>${item.dept}</td><td>${typLabel}</td><td>${formatDate(c.cancelledDate)}</td><td>${submitted}</td><td>${c.cancelReason || "-"}</td><td>Gecanceld</td></tr>`;
+      }
+    }).join("");
+
+    const printDate = new Date().toLocaleDateString("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><title>Verzuim Overzicht</title><style>
+      body{font-family:Arial,sans-serif;font-size:11px;margin:15mm 15mm 15mm 15mm;}
+      h1{font-size:15px;margin:0 0 2px 0;}
+      .sub{font-size:10px;color:#555;margin-bottom:14px;}
+      table{width:100%;border-collapse:collapse;}
+      th{background:#e5e7eb;font-weight:bold;text-align:left;padding:5px 7px;border:1px solid #9ca3af;font-size:10px;}
+      td{padding:4px 7px;border:1px solid #d1d5db;vertical-align:top;font-size:10px;}
+      tr:nth-child(even) td{background:#f9fafb;}
+      @page{margin:10mm;}
+    </style></head><body>
+      <h1>Verzuim Overzicht</h1>
+      <p class="sub">${printFilter === "afdeling" ? "Afdeling" : "Medewerker"}: <strong>${filterLabel}</strong> &nbsp;|&nbsp; Afgedrukt op: ${printDate} &nbsp;|&nbsp; Totaal: ${filteredRows.length} regel(s)</p>
+      <table><thead><tr>
+        <th style="width:30px">Nr.</th><th>Medewerker</th><th>Afdeling</th><th>Type</th><th>Periode / Datum</th><th>Ingediend op</th><th>Reden</th><th>Status</th>
+      </tr></thead><tbody>${rowsHtml || '<tr><td colspan="8" style="text-align:center;color:#888;">Geen gegevens</td></tr>'}</tbody></table>
+    </body></html>`;
+
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); }, 400);
+    }
+    setPrintOpen(false);
   };
 
   const myBalance = vacationBalances?.find(b => b.userId === user?.id);
@@ -2396,6 +2473,19 @@ export default function VerzuimPage() {
 
       {activeTab === "overzicht" && (
         <div className="space-y-3">
+          {isAdminOrManager && (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setPrintFilter("afdeling"); setPrintFilterValue(""); setPrintOpen(true); }}
+                data-testid="button-print-overzicht"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Afdrukken
+              </Button>
+            </div>
+          )}
           {(() => {
             const processedAbsences = deptFilteredAbsences.filter(a => a.status === "approved" || a.status === "rejected" || a.status === "cancelled");
             const filteredDayCancels = isAdminOrManager
@@ -2644,6 +2734,76 @@ export default function VerzuimPage() {
           })()}
         </div>
       )}
+
+      {/* Print Dialog */}
+      <Dialog open={printOpen} onOpenChange={(v) => { setPrintOpen(v); if (!v) setPrintFilterValue(""); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5" />
+              Afdrukken Verzuim Overzicht
+            </DialogTitle>
+            <DialogDescription>
+              Kies of u per afdeling of per medewerker wilt afdrukken.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Filteren op</label>
+              <Select
+                value={printFilter}
+                onValueChange={(v: "afdeling" | "medewerker") => { setPrintFilter(v); setPrintFilterValue(""); }}
+              >
+                <SelectTrigger data-testid="select-print-filter-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="afdeling">Afdeling</SelectItem>
+                  <SelectItem value="medewerker">Medewerker</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                {printFilter === "afdeling" ? "Afdeling" : "Medewerker"}
+                <span className="text-muted-foreground font-normal ml-1">(leeg = alle)</span>
+              </label>
+              {printFilter === "afdeling" ? (
+                <Select value={printFilterValue} onValueChange={setPrintFilterValue}>
+                  <SelectTrigger data-testid="select-print-dept">
+                    <SelectValue placeholder="— Alle afdelingen —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from(new Set(
+                      deptFilteredUsers.filter(u => u.active).map(u => u.department || "Geen afdeling")
+                    )).sort((a, b) => a.localeCompare(b, "nl")).map(dept => (
+                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select value={printFilterValue} onValueChange={setPrintFilterValue}>
+                  <SelectTrigger data-testid="select-print-user">
+                    <SelectValue placeholder="— Alle medewerkers —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[...deptFilteredUsers].filter(u => u.active).sort((a, b) => a.fullName.localeCompare(b.fullName, "nl")).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.fullName}{isAdmin && u.department ? ` — ${u.department}` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setPrintOpen(false)}>Annuleren</Button>
+            <Button onClick={handlePrintOverzicht} data-testid="button-do-print">
+              <Printer className="h-4 w-4 mr-2" />
+              Afdrukken
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={snipperdagOpen} onOpenChange={setSnipperdagOpen}>
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
