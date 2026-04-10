@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -182,6 +182,13 @@ function EditDialog({
   const { toast } = useToast();
   const { data: jobFunctionList } = useQuery<JobFunction[]>({ queryKey: ["/api/job-functions"] });
   const [editTitels, setEditTitels] = useState<TitelEntry[]>(() => bestaandeTitels(user));
+
+  useEffect(() => {
+    if (open) {
+      setEditTitels(bestaandeTitels(user));
+    }
+  }, [open, user.id]);
+
   const form = useForm<z.infer<typeof editFormSchema>>({
     resolver: zodResolver(editFormSchema),
     defaultValues: {
