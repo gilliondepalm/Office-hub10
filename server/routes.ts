@@ -2230,6 +2230,36 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/site-settings/app-pics", requireAuth, async (req, res) => {
+    try {
+      const fs = await import("fs");
+      const files = fs.readdirSync(appPicsDir)
+        .filter((f: string) => /\.(jpe?g|png|gif|webp|avif)$/i.test(f))
+        .map((f: string) => ({ name: f, url: `/uploads/App_pics/${f}` }));
+      res.json(files);
+    } catch {
+      res.json([]);
+    }
+  });
+
+  app.post("/api/site-settings/login-photo-select", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || !isAdminRole(user.role)) {
+        return res.status(403).json({ message: "Alleen beheerders" });
+      }
+      const { url } = req.body as { url: string };
+      if (!url || !url.startsWith("/uploads/App_pics/")) {
+        return res.status(400).json({ message: "Ongeldige URL" });
+      }
+      await storage.setSiteSetting("login_photo", url);
+      res.json({ value: url });
+    } catch (err: any) {
+      res.status(400).json({ message: err.message || "Instellen mislukt" });
+    }
+  });
+
   app.post("/api/site-settings/login-photo", requireAuth, uploadImage.single("photo"), async (req, res) => {
     try {
       const userId = (req.session as any).userId;
