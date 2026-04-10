@@ -2796,6 +2796,15 @@ export async function registerRoutes(
   });
 
   // ── Maandelijkse Productie OR Notaris ─────────────────────────────────────────
+  app.get("/api/maand-prod-or-notaris/jaar/:jaar", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try {
+      res.json(await storage.getMaandProdOrNotarisJaar(jaar));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   app.get("/api/maand-prod-or-notaris", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try {

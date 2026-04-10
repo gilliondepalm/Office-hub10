@@ -238,6 +238,7 @@ export interface IStorage {
   upsertTrendOrAlgemeenRow(data: InsertTrendOrAlgemeen): Promise<void>;
 
   getMaandProdOrNotaris(jaar: number, maand: number): Promise<MaandProdOrNotaris[]>;
+  getMaandProdOrNotarisJaar(jaar: number): Promise<MaandProdOrNotaris[]>;
   saveMaandProdOrNotaris(rows: InsertMaandProdOrNotaris[]): Promise<void>;
   upsertTrendOrNotarisRow(data: InsertTrendOrNotaris): Promise<void>;
 
@@ -1379,6 +1380,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(maandProdOrNotaris)
       .where(and(eq(maandProdOrNotaris.jaar, jaar), eq(maandProdOrNotaris.maand, maand)))
       .orderBy(maandProdOrNotaris.sort_order);
+  }
+  async getMaandProdOrNotarisJaar(jaar: number): Promise<MaandProdOrNotaris[]> {
+    return await db.select().from(maandProdOrNotaris)
+      .where(eq(maandProdOrNotaris.jaar, jaar))
+      .orderBy(maandProdOrNotaris.maand, maandProdOrNotaris.sort_order);
   }
   async saveMaandProdOrNotaris(rows: InsertMaandProdOrNotaris[]): Promise<void> {
     if (rows.length === 0) return;

@@ -2276,17 +2276,19 @@ function MaandelijkseProdOrInfoTab() {
   const { user } = useAuth();
   const kanBewerken = user && (user.role === "admin" || user.role === "manager");
 
-  const huidigJaar = new Date().getFullYear();
-  const beschikbareJaren = Array.from({ length: 5 }, (_, i) => String(huidigJaar - 2 + i));
-  const [jaar, setJaar] = useState(String(huidigJaar));
+  const [jaar, setJaar] = useState(HUIDIG_JAAR);
   const [rijen, setRijen] = useState<OrInfoRij[]>(Array.from({ length: 12 }, (_, i) => LEGE_ORI_RIJ(i + 1)));
   const [opgeslagen, setOpgeslagen] = useState(false);
+  const [aantalIngevuldeMaanden, setAantalIngevuldeMaanden] = useState(0);
+
+  const alleJaarMaandenIngevuld = aantalIngevuldeMaanden >= 12;
 
   const { isLoading } = useQuery({
     queryKey: ["/api/maand-prod-or-info", jaar],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/maand-prod-or-info?jaar=${jaar}`);
       const data: OrInfoRij[] = await res.json();
+      setAantalIngevuldeMaanden(data.length);
       setRijen(Array.from({ length: 12 }, (_, i) => {
         const gevonden = data.find(r => r.maand === i + 1);
         return gevonden ? { ...gevonden } : LEGE_ORI_RIJ(i + 1);
@@ -2297,7 +2299,7 @@ function MaandelijkseProdOrInfoTab() {
 
   const { mutate: opslaan, isPending } = useMutation({
     mutationFn: async () => {
-      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar), aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0 }));
+      const payload = rijen.map(r => ({ ...r, jaar, aktes: 0, inschrijvingen: 0, doorhalingen: 0, opheffingen: 0, beslagen: 0, cessies: 0 }));
       await apiRequest("POST", "/api/maand-prod-or-info", { rows: payload });
     },
     onSuccess: () => {
@@ -2406,20 +2408,40 @@ function MaandelijkseProdOrInfoTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-semibold">Binnengekomen Inzage Deel III</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse OR-info per categorie in</p>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-semibold">Binnengekomen Inzage Deel III</CardTitle>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { setJaar(j => j - 1); setOpgeslagen(false); setAantalIngevuldeMaanden(0); }}
+                    disabled={jaar <= HUIDIG_JAAR}
+                    data-testid="button-vorig-jaar-ori"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Vorig jaar"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-base font-semibold min-w-[3rem] text-center" data-testid="label-jaar-ori">{jaar}</span>
+                  <button
+                    onClick={() => { setJaar(j => j + 1); setOpgeslagen(false); setAantalIngevuldeMaanden(0); }}
+                    disabled={!alleJaarMaandenIngevuld}
+                    data-testid="button-volgend-jaar-ori"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={alleJaarMaandenIngevuld ? "Volgend jaar" : "Vul eerst alle maanden van het huidige jaar in"}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Voer de maandelijkse OR-info per categorie in
+                {!alleJaarMaandenIngevuld && jaar === HUIDIG_JAAR && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    · Vul alle 12 maanden in om {HUIDIG_JAAR + 1} te ontgrendelen
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
-                <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-or-info">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {beschikbareJaren.map(j => (
-                    <SelectItem key={j} value={j} className="text-xs" data-testid={`option-jaar-or-info-${j}`}>{j}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               {kanBewerken && (
                 <Button
                   size="sm"
@@ -2470,16 +2492,22 @@ function MaandelijkseProdOrNotarisTab() {
   const { user } = useAuth();
   const kanBewerken = user && (user.role === "admin" || user.role === "manager");
 
-  const huidigJaar  = new Date().getFullYear();
-  const huidigMaand = new Date().getMonth() + 1;
-  const beschikbareJaren = Array.from({ length: 5 }, (_, i) => String(huidigJaar - 2 + i));
-
-  const [jaar,  setJaar]  = useState(String(huidigJaar));
-  const [maand, setMaand] = useState(huidigMaand);
+  const [jaar,  setJaar]  = useState(HUIDIG_JAAR);
+  const [maand, setMaand] = useState(new Date().getMonth() + 1);
   const [rijen, setRijen] = useState<OrNotarisRij[]>(ORN_ACTIEF.map(n => legeOrnRij(n.key)));
   const [opgeslagen, setOpgeslagen] = useState(false);
   const [nieuweNaam, setNieuweNaam] = useState("");
   const [toonToevoegen, setToonToevoegen] = useState(false);
+
+  const { data: jaarMaandDataOrn } = useQuery({
+    queryKey: ["/api/maand-prod-or-notaris/jaar", jaar],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-or-notaris/jaar/${jaar}`);
+      return res.json() as Promise<{ maand: number }[]>;
+    },
+  });
+  const ingevuldeMaandenOrn = new Set((jaarMaandDataOrn ?? []).map((r) => r.maand));
+  const alleJaarMaandenIngevuld = ingevuldeMaandenOrn.size >= 12;
 
   const { isLoading } = useQuery({
     queryKey: ["/api/maand-prod-or-notaris", jaar, maand],
@@ -2498,11 +2526,12 @@ function MaandelijkseProdOrNotarisTab() {
 
   const { mutate: opslaan, isPending } = useMutation({
     mutationFn: async () => {
-      const payload = rijen.map((r, idx) => ({ ...r, jaar: parseInt(jaar), maand, sort_order: idx }));
+      const payload = rijen.map((r, idx) => ({ ...r, jaar, maand, sort_order: idx }));
       await apiRequest("POST", "/api/maand-prod-or-notaris", { rows: payload });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-or-notaris", jaar, maand] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-or-notaris/jaar"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trend-or-notaris"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trend-or-algemeen"] });
       toast({ title: "Opgeslagen", description: `Productie OR Notaris ${ORN_NOTARIS_MAANDEN[maand - 1]} ${jaar} opgeslagen.` });
@@ -2553,18 +2582,40 @@ function MaandelijkseProdOrNotarisTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-semibold">Productie OR Notarissen</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Voer per maand de aantallen per notaris in</p>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-semibold">Productie OR Notarissen</CardTitle>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { setJaar(j => j - 1); setOpgeslagen(false); }}
+                    disabled={jaar <= HUIDIG_JAAR}
+                    data-testid="button-vorig-jaar-orn"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Vorig jaar"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-base font-semibold min-w-[3rem] text-center" data-testid="label-jaar-orn">{jaar}</span>
+                  <button
+                    onClick={() => { setJaar(j => j + 1); setOpgeslagen(false); }}
+                    disabled={!alleJaarMaandenIngevuld}
+                    data-testid="button-volgend-jaar-orn"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={alleJaarMaandenIngevuld ? "Volgend jaar" : "Vul eerst alle maanden van het huidige jaar in"}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Voer per maand de aantallen per notaris in
+                {!alleJaarMaandenIngevuld && jaar === HUIDIG_JAAR && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    · Vul alle 12 maanden in om {HUIDIG_JAAR + 1} te ontgrendelen
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
-                <SelectTrigger className="w-24 h-8 text-xs" data-testid="select-jaar-orn">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {beschikbareJaren.map(j => <SelectItem key={j} value={j} className="text-xs" data-testid={`option-jaar-orn-${j}`}>{j}</SelectItem>)}
-                </SelectContent>
-              </Select>
               <Select value={String(maand)} onValueChange={v => { setMaand(parseInt(v)); setOpgeslagen(false); }}>
                 <SelectTrigger className="w-24 h-8 text-xs" data-testid="select-maand-orn">
                   <SelectValue>{ORN_NOTARIS_MAANDEN[maand - 1]}</SelectValue>
