@@ -2750,19 +2750,21 @@ function MaandelijkseProdKmInfoTab() {
   const { user } = useAuth();
   const kanBewerken = user && (user.role === "admin" || user.role === "manager");
 
-  const huidigJaar = new Date().getFullYear();
-  const beschikbareJaren = Array.from({ length: 5 }, (_, i) => String(huidigJaar - 2 + i));
-  const [jaar, setJaar] = useState(String(huidigJaar));
+  const [jaar, setJaar] = useState(HUIDIG_JAAR);
   const [rijen, setRijen] = useState<KmInfoRij[]>(
     Array.from({ length: 12 }, (_, i) => LEGE_KMI_RIJ(i + 1))
   );
   const [opgeslagen, setOpgeslagen] = useState(false);
+  const [aantalIngevuldeMaanden, setAantalIngevuldeMaanden] = useState(0);
+
+  const alleJaarMaandenIngevuld = aantalIngevuldeMaanden >= 12;
 
   const { isLoading } = useQuery({
     queryKey: ["/api/maand-prod-km-info", jaar],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/maand-prod-km-info?jaar=${jaar}`);
       const data: KmInfoRij[] = await res.json();
+      setAantalIngevuldeMaanden(data.length);
       const nieuw: KmInfoRij[] = Array.from({ length: 12 }, (_, i) => {
         const gevonden = data.find(r => r.maand === i + 1);
         return gevonden ? { ...gevonden } : LEGE_KMI_RIJ(i + 1);
@@ -2774,7 +2776,7 @@ function MaandelijkseProdKmInfoTab() {
 
   const { mutate: opslaan, isPending } = useMutation({
     mutationFn: async () => {
-      const payload = rijen.map(r => ({ ...r, jaar: parseInt(jaar) }));
+      const payload = rijen.map(r => ({ ...r, jaar }));
       await apiRequest("POST", "/api/maand-prod-km-info", { rows: payload });
     },
     onSuccess: () => {
@@ -2826,20 +2828,40 @@ function MaandelijkseProdKmInfoTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-semibold">Binnengekomen Inzage Deel II</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse KM-info per categorie in</p>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-semibold">Binnengekomen Inzage Deel II</CardTitle>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { setJaar(j => j - 1); setOpgeslagen(false); setAantalIngevuldeMaanden(0); }}
+                    disabled={jaar <= HUIDIG_JAAR}
+                    data-testid="button-vorig-jaar-kmi"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Vorig jaar"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-base font-semibold min-w-[3rem] text-center" data-testid="label-jaar-kmi">{jaar}</span>
+                  <button
+                    onClick={() => { setJaar(j => j + 1); setOpgeslagen(false); setAantalIngevuldeMaanden(0); }}
+                    disabled={!alleJaarMaandenIngevuld}
+                    data-testid="button-volgend-jaar-kmi"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={alleJaarMaandenIngevuld ? "Volgend jaar" : "Vul eerst alle maanden van het huidige jaar in"}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Voer de maandelijkse KM-info per categorie in
+                {!alleJaarMaandenIngevuld && jaar === HUIDIG_JAAR && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    · Vul alle 12 maanden in om {HUIDIG_JAAR + 1} te ontgrendelen
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={jaar} onValueChange={v => { setJaar(v); setOpgeslagen(false); }}>
-                <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-jaar-km-info">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {beschikbareJaren.map(j => (
-                    <SelectItem key={j} value={j} className="text-xs" data-testid={`option-jaar-km-info-${j}`}>{j}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               {kanBewerken && (
                 <Button
                   size="sm"
