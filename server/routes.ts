@@ -2598,6 +2598,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/maand-prod-landmeter/jaar/:jaar", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
+    const jaar = parseInt(req.params.jaar);
+    if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
+    try {
+      const rows = await storage.getMaandProdLandmeterJaar(jaar);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen" });
+    }
+  });
+
   app.get("/api/maand-prod-landmeter/alle", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Niet ingelogd" });
     try {

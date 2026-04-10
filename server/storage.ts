@@ -219,6 +219,7 @@ export interface IStorage {
   getAllMaandProdSamenvatting(): Promise<MaandProdSamenvatting[]>;
 
   getMaandProdLandmeter(jaar: number, maand: number): Promise<MaandProdLandmeter[]>;
+  getMaandProdLandmeterJaar(jaar: number): Promise<MaandProdLandmeter[]>;
   saveMaandProdLandmeter(rows: InsertMaandProdLandmeter[]): Promise<void>;
   bulkUpsertMaandProdLandmeter(rows: InsertMaandProdLandmeter[]): Promise<void>;
   getMaandProdSamenvattingLm(jaar: number, maand: number): Promise<MaandProdSamenvattingLm | undefined>;
@@ -1279,6 +1280,12 @@ export class DatabaseStorage implements IStorage {
   async getMaandProdLandmeter(jaar: number, maand: number): Promise<MaandProdLandmeter[]> {
     return await db.select().from(maandProdLandmeter)
       .where(and(eq(maandProdLandmeter.jaar, jaar), eq(maandProdLandmeter.maand, maand)));
+  }
+
+  async getMaandProdLandmeterJaar(jaar: number): Promise<MaandProdLandmeter[]> {
+    return await db.select().from(maandProdLandmeter)
+      .where(eq(maandProdLandmeter.jaar, jaar))
+      .orderBy(maandProdLandmeter.maand, maandProdLandmeter.landmeter);
   }
 
   async saveMaandProdLandmeter(rows: InsertMaandProdLandmeter[]): Promise<void> {

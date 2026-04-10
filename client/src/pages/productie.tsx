@@ -1876,6 +1876,7 @@ const LEGE_LM_RIJ = (naam: string): MplRij => ({
 function MaandelijkseProdLandmetersTab({ myName }: { myName?: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [jaar, setJaar] = useState(HUIDIG_JAAR);
   const [maand, setMaand] = useState(new Date().getMonth() + 1);
   const [rijen, setRijen] = useState<MplRij[]>([
     ...STANDAARD_LANDMETERS.map(LEGE_LM_RIJ),
@@ -1890,10 +1891,20 @@ function MaandelijkseProdLandmetersTab({ myName }: { myName?: string }) {
   const [toonToevoegen, setToonToevoegen] = useState(false);
   const [opgeslagen, setOpgeslagen] = useState(false);
 
-  const { isLoading } = useQuery({
-    queryKey: ["/api/maand-prod-landmeter", HUIDIG_JAAR, maand],
+  const { data: jaarMaandDataLm } = useQuery({
+    queryKey: ["/api/maand-prod-landmeter/jaar", jaar],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/maand-prod-landmeter?jaar=${HUIDIG_JAAR}&maand=${maand}`);
+      const res = await apiRequest("GET", `/api/maand-prod-landmeter/jaar/${jaar}`);
+      return res.json() as Promise<{ maand: number }[]>;
+    },
+  });
+  const ingevuldeMaandenLm = new Set((jaarMaandDataLm ?? []).map((r) => r.maand));
+  const alleJaarMaandenIngevuld = ingevuldeMaandenLm.size >= 12;
+
+  const { isLoading } = useQuery({
+    queryKey: ["/api/maand-prod-landmeter", jaar, maand],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/maand-prod-landmeter?jaar=${jaar}&maand=${maand}`);
       const data = await res.json();
       if (data.landmeters && data.landmeters.length > 0) {
         setRijen(data.landmeters.map((r: any): MplRij => ({
@@ -1925,16 +1936,17 @@ function MaandelijkseProdLandmetersTab({ myName }: { myName?: string }) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/maand-prod-landmeter", {
-        jaar: HUIDIG_JAAR, maand,
-        landmeters: rijen.map(r => ({ ...r, jaar: HUIDIG_JAAR, maand })),
-        samenvatting: { jaar: HUIDIG_JAAR, maand, binnengekomen, aantal_landmeters: aantalLandmeters, eilandgebied, particulier, grensuitzetting },
+        jaar, maand,
+        landmeters: rijen.map(r => ({ ...r, jaar, maand })),
+        samenvatting: { jaar, maand, binnengekomen, aantal_landmeters: aantalLandmeters, eilandgebied, particulier, grensuitzetting },
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-landmeter"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/maand-prod-landmeter/jaar"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trend-km-buiten"] });
       setOpgeslagen(true);
-      toast({ title: "Opgeslagen", description: `Productie Landmeters ${MAAND_NAMEN[maand - 1]} ${HUIDIG_JAAR} opgeslagen.` });
+      toast({ title: "Opgeslagen", description: `Productie Landmeters ${MAAND_NAMEN[maand - 1]} ${jaar} opgeslagen.` });
     },
     onError: () => toast({ title: "Fout", description: "Opslaan mislukt.", variant: "destructive" }),
   });
@@ -1989,8 +2001,38 @@ function MaandelijkseProdLandmetersTab({ myName }: { myName?: string }) {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-semibold">Productie Landmeters {HUIDIG_JAAR}</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Voer de maandelijkse productie per landmeter in</p>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-semibold">Productie Landmeters</CardTitle>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setJaar(j => j - 1)}
+                    disabled={jaar <= HUIDIG_JAAR}
+                    data-testid="button-vorig-jaar-mpl"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Vorig jaar"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-base font-semibold min-w-[3rem] text-center" data-testid="label-jaar-mpl">{jaar}</span>
+                  <button
+                    onClick={() => setJaar(j => j + 1)}
+                    disabled={!alleJaarMaandenIngevuld}
+                    data-testid="button-volgend-jaar-mpl"
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={alleJaarMaandenIngevuld ? "Volgend jaar" : "Vul eerst alle maanden van het huidige jaar in"}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Voer de maandelijkse productie per landmeter in
+                {!alleJaarMaandenIngevuld && jaar === HUIDIG_JAAR && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    · Vul alle 12 maanden in om {HUIDIG_JAAR + 1} te ontgrendelen
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Select value={String(maand)} onValueChange={v => setMaand(parseInt(v))}>
