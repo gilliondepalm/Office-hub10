@@ -1668,7 +1668,7 @@ export default function PersonaliaPage() {
                                           >
                                             <Pencil className="h-4 w-4 text-muted-foreground" />
                                           </Button>
-                                          {u.id !== currentUser.id && (
+                                          {u.id !== currentUser?.id && (
                                             u.active ? (
                                               <Button
                                                 size="icon"

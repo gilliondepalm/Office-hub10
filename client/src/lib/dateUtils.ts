@@ -1,6 +1,7 @@
-export function formatDate(dateStr: string | null | undefined): string {
+export function formatDate(dateStr: string | Date | null | undefined): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00");
+  const s = dateStr instanceof Date ? dateStr.toISOString() : dateStr;
+  const d = new Date(s.includes("T") ? s : s + "T00:00:00");
   if (isNaN(d.getTime())) return "—";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -8,18 +9,19 @@ export function formatDate(dateStr: string | null | undefined): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-export function formatDateShort(dateStr: string | null | undefined): string {
+export function formatDateShort(dateStr: string | Date | null | undefined): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00");
+  const s = dateStr instanceof Date ? dateStr.toISOString() : dateStr;
+  const d = new Date(s.includes("T") ? s : s + "T00:00:00");
   if (isNaN(d.getTime())) return "—";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}`;
 }
 
-export function formatDateTime(dateStr: string | null | undefined): string {
+export function formatDateTime(dateStr: string | Date | null | undefined): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr);
+  const d = dateStr instanceof Date ? dateStr : new Date(dateStr);
   if (isNaN(d.getTime())) return "—";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");

@@ -235,7 +235,7 @@ function AoProceduresTab() {
             </CardHeader>
             <CardContent>
               <Accordion type="multiple" className="w-full">
-                {procs.map((proc) => (
+                {(procs ?? []).map((proc) => (
                   <AccordionItem key={proc.id} value={proc.id}>
                     <AccordionTrigger className="hover:no-underline">
                       <div className="flex items-center gap-2 text-left">

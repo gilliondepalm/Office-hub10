@@ -876,7 +876,7 @@ function FunctioneringForm({ users, currentUser }: { users?: User[]; currentUser
           createdBy: viewingReview?.createdBy || currentUser?.id || "",
           createdAt: viewingReview?.createdAt || new Date().toISOString(),
           updatedAt: viewingReview?.updatedAt || null,
-          userName: viewingReview?.userName || formData.medewerker,
+          medewerker: viewingReview?.medewerker || formData.medewerker,
         } as FunctioneringReview} />
       </div>
 
