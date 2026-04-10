@@ -22,6 +22,7 @@ import { useRef } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateShort } from "@/lib/dateUtils";
+import { useAankondigingenNotifications } from "@/pages/aankondigingen";
 
 function StatCard({
   title,
@@ -61,6 +62,8 @@ function StatCard({
 export default function DashboardPage() {
   const { user } = useAuth();
   const isAdmin = isAdminRole(user?.role);
+  const { newAnnouncementsCount, unreadMessagesCount } = useAankondigingenNotifications();
+  const totalNieuweItems = newAnnouncementsCount + unreadMessagesCount;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loginFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -531,7 +534,14 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="font-semibold text-sm">Recente Aankondigingen</h3>
               </div>
-              <Badge variant="secondary" className="text-xs">{recentAnnouncements.length}</Badge>
+              <div className="flex items-center gap-1.5">
+                {totalNieuweItems > 0 && (
+                  <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[1.25rem] h-5 flex items-center justify-center" data-testid="badge-dashboard-notifications">
+                    {totalNieuweItems}
+                  </Badge>
+                )}
+                <Badge variant="secondary" className="text-xs">{recentAnnouncements.length}</Badge>
+              </div>
             </CardHeader>
             <CardContent className="pt-0">
               {recentAnnouncements.length === 0 ? (

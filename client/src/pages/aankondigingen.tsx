@@ -746,7 +746,7 @@ export default function AankondigingenPage() {
         >
           <Megaphone className="h-4 w-4 inline -mt-0.5" />
           Aankondigingen
-          {newAnnouncementsCount > 0 && activeTab !== "announcements" && (
+          {newAnnouncementsCount > 0 && (
             <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[1.25rem] h-5 flex items-center justify-center" data-testid="badge-new-announcements">
               {newAnnouncementsCount}
             </Badge>
@@ -780,7 +780,7 @@ export default function AankondigingenPage() {
         >
           <Newspaper className="h-4 w-4 inline -mt-0.5" />
           Nieuwsbrieven
-          {newNieuwsbrievenCount > 0 && activeTab !== "nieuwsbrieven" && (
+          {newNieuwsbrievenCount > 0 && (
             <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[1.25rem] h-5 flex items-center justify-center" data-testid="badge-new-nieuwsbrieven">
               {newNieuwsbrievenCount}
             </Badge>
