@@ -794,6 +794,32 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
     return map;
   }, [userAbsences, cancelledDates]);
 
+  const dateCoveredByBoth = useMemo(() => {
+    const amDates = new Set<string>();
+    const pmDates = new Set<string>();
+    for (const abs of userAbsences || []) {
+      if (abs.halfDay !== "am" && abs.halfDay !== "pm") continue;
+      const start = new Date(abs.startDate + "T00:00:00");
+      const end = new Date(abs.endDate + "T00:00:00");
+      const cur = new Date(start);
+      while (cur <= end) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) {
+          const dateStr = cur.toISOString().split("T")[0];
+          const isCancelled = abs.status === "cancelled" || (cancelledDates.get(dateStr)?.has(abs.id) ?? false);
+          if (!isCancelled) {
+            if (abs.halfDay === "am") amDates.add(dateStr);
+            else pmDates.add(dateStr);
+          }
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    const covered = new Set<string>();
+    for (const d of amDates) { if (pmDates.has(d)) covered.add(d); }
+    return covered;
+  }, [userAbsences, cancelledDates]);
+
   const cancelMutation = useMutation({
     mutationFn: async ({ absenceId, cancelledDate, reason }: { absenceId: string; cancelledDate: string; reason: string }) => {
       const res = await apiRequest("POST", `/api/absence-cancellations`, { absenceId, cancelledDate, cancelReason: reason });
@@ -877,7 +903,7 @@ function CancelVerzuimTab({ allUsers, currentUser, isAdmin, onlyMe = false, read
             const isCancelledDay = !!absence && (cancelledDates.get(dateStr)?.has(absence.id) ?? false);
             const isAbsenceCancelled = !!absence && absence.status === "cancelled";
             const isAnyCancel = isCancelledDay || isAbsenceCancelled;
-            const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm");
+            const isHalfDay = absence && (absence.halfDay === "am" || absence.halfDay === "pm") && !dateCoveredByBoth.has(dateStr);
             const holidayName = publicHolidayMap.get(dateStr);
             const isHoliday = !!holidayName;
             const snipperdagName = snipperdagenMap.get(dateStr);
