@@ -2479,6 +2479,7 @@ export default function VerzuimPage() {
                                 : <ChevronUp className="h-3 w-3 opacity-30" />}
                             </button>
                           </TableHead>
+                          <TableHead>Ingediend</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -2503,7 +2504,7 @@ export default function VerzuimPage() {
                           return (
                             <Fragment key={dept}>
                               <TableRow>
-                                <TableCell colSpan={6} className="bg-muted/50 font-bold text-sm py-1.5">
+                                <TableCell colSpan={7} className="bg-muted/50 font-bold text-sm py-1.5">
                                   {dept}
                                 </TableCell>
                               </TableRow>
@@ -2563,6 +2564,9 @@ export default function VerzuimPage() {
                                         {absence.halfDay === "am" && <Badge variant="outline" className="ml-1 text-xs">Ochtend</Badge>}
                                         {absence.halfDay === "pm" && <Badge variant="outline" className="ml-1 text-xs">Middag</Badge>}
                                       </TableCell>
+                                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {formatDateTime((absence as any).createdAt)}
+                                      </TableCell>
                                       <TableCell className="text-sm text-muted-foreground max-w-48 truncate">{displayReason}</TableCell>
                                       <TableCell>
                                         <div className="flex items-center gap-1.5">
@@ -2602,6 +2606,9 @@ export default function VerzuimPage() {
                                         </div>
                                       </TableCell>
                                       <TableCell className="text-sm text-muted-foreground">{formatDate(c.cancelledDate)}</TableCell>
+                                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {formatDateTime((c as any).createdAt)}
+                                      </TableCell>
                                       <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
                                         {c.cancelReason || <span className="italic opacity-60">–</span>}
                                       </TableCell>
