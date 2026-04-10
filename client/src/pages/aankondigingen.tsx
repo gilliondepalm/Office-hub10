@@ -599,13 +599,18 @@ export function useAankondigingenNotifications() {
     m => m.toUserId === userId && !m.read
   ).length;
 
+  const newMessagesCount = (messagesData || []).filter(
+    m => (m.toUserId === userId || (m as any).fromUserId === userId) &&
+      new Date((m as any).createdAt).getTime() > getLastSeen(userId, "messages")
+  ).length;
+
   const newNieuwsbrievenCount = (nieuwsbrieven || []).filter(
     f => new Date(f.modified).getTime() > getLastSeen(userId, "nieuwsbrieven")
   ).length;
 
-  const totalNew = newAnnouncementsCount + unreadMessagesCount + newNieuwsbrievenCount;
+  const totalNew = newAnnouncementsCount + Math.max(unreadMessagesCount, newMessagesCount) + newNieuwsbrievenCount;
 
-  return { newAnnouncementsCount, unreadMessagesCount, newNieuwsbrievenCount, totalNew };
+  return { newAnnouncementsCount, unreadMessagesCount, newMessagesCount, newNieuwsbrievenCount, totalNew };
 }
 
 export default function AankondigingenPage() {
@@ -648,9 +653,14 @@ export default function AankondigingenPage() {
     f => new Date(f.modified).getTime() > getLastSeen(userId, "nieuwsbrieven")
   ).length;
 
+  const newMessagesCount = (messagesData || []).filter(
+    m => (m.toUserId === userId || (m as any).fromUserId === userId) &&
+      new Date((m as any).createdAt).getTime() > getLastSeen(userId, "messages")
+  ).length;
+
   const handleTabChange = (tab: "announcements" | "messages" | "nieuwsbrieven") => {
     setActiveTab(tab);
-    if (userId && (tab === "announcements" || tab === "nieuwsbrieven")) {
+    if (userId) {
       setLastSeen(userId, tab);
       forceUpdate(n => n + 1);
     }
@@ -763,9 +773,9 @@ export default function AankondigingenPage() {
         >
           <Mail className="h-4 w-4 inline -mt-0.5" />
           Berichten
-          {unreadCount > 0 && (
+          {Math.max(unreadCount, newMessagesCount) > 0 && (
             <Badge variant="destructive" className="text-xs px-1.5 py-0 min-w-[1.25rem] h-5 flex items-center justify-center" data-testid="badge-unread-count">
-              {unreadCount}
+              {Math.max(unreadCount, newMessagesCount)}
             </Badge>
           )}
         </button>

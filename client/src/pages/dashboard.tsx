@@ -62,8 +62,8 @@ function StatCard({
 export default function DashboardPage() {
   const { user } = useAuth();
   const isAdmin = isAdminRole(user?.role);
-  const { newAnnouncementsCount, unreadMessagesCount } = useAankondigingenNotifications();
-  const totalNieuweItems = newAnnouncementsCount + unreadMessagesCount;
+  const { newAnnouncementsCount, unreadMessagesCount, newMessagesCount } = useAankondigingenNotifications();
+  const totalNieuweItems = newAnnouncementsCount + Math.max(unreadMessagesCount, newMessagesCount ?? 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loginFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
