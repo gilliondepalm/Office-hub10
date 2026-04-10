@@ -2230,37 +2230,19 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/site-settings/app-pics", requireAuth, async (req, res) => {
-    try {
-      const fs = await import("fs");
-      const files = fs.readdirSync(appPicsDir)
-        .filter((f: string) => /\.(jpe?g|png|gif|webp|avif)$/i.test(f))
-        .map((f: string) => ({ name: f, url: `/uploads/App_pics/${f}` }));
-      res.json(files);
-    } catch {
-      res.json([]);
-    }
+  const uploadLoginPhoto = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, appPicsDir),
+      filename: (_req, _file, cb) => cb(null, "login.png"),
+    }),
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype.startsWith("image/")) cb(null, true);
+      else cb(new Error("Alleen afbeeldingen zijn toegestaan"));
+    },
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 
-  app.post("/api/site-settings/login-photo-select", requireAuth, async (req, res) => {
-    try {
-      const userId = (req.session as any).userId;
-      const user = await storage.getUser(userId);
-      if (!user || !isAdminRole(user.role)) {
-        return res.status(403).json({ message: "Alleen beheerders" });
-      }
-      const { url } = req.body as { url: string };
-      if (!url || !url.startsWith("/uploads/App_pics/")) {
-        return res.status(400).json({ message: "Ongeldige URL" });
-      }
-      await storage.setSiteSetting("login_photo", url);
-      res.json({ value: url });
-    } catch (err: any) {
-      res.status(400).json({ message: err.message || "Instellen mislukt" });
-    }
-  });
-
-  app.post("/api/site-settings/login-photo", requireAuth, uploadImage.single("photo"), async (req, res) => {
+  app.post("/api/site-settings/login-photo", requireAuth, uploadLoginPhoto.single("photo"), async (req, res) => {
     try {
       const userId = (req.session as any).userId;
       const user = await storage.getUser(userId);
@@ -2270,7 +2252,7 @@ export async function registerRoutes(
       if (!req.file) {
         return res.status(400).json({ message: "Geen afbeelding geüpload" });
       }
-      const photoUrl = `/uploads/App_pics/${req.file.filename}`;
+      const photoUrl = `/uploads/App_pics/login.png`;
       await storage.setSiteSetting("login_photo", photoUrl);
       res.json({ value: photoUrl });
     } catch (err: any) {

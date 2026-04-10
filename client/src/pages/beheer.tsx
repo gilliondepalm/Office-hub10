@@ -26,7 +26,7 @@ import {
 import {
   Shield, Save, Users, Camera, ImageIcon, KeyRound,
   Building2, Briefcase, Plus, Trash2, Pencil,
-  FileText, Upload, ArrowUp, ArrowDown, ListOrdered, ExternalLink, Check,
+  FileText, Upload, ArrowUp, ArrowDown, ListOrdered, ExternalLink,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -186,7 +186,6 @@ function RechtenTab() {
   const [editUser, setEditUser] = useState<SafeUser | null>(null);
   const [resetUser, setResetUser] = useState<SafeUser | null>(null);
   const loginPhotoInputRef = useRef<HTMLInputElement>(null);
-  const [loginGalleryOpen, setLoginGalleryOpen] = useState(false);
   const rapportenPhotoInputRef = useRef<HTMLInputElement>(null);
   const productiePhotoInputRef = useRef<HTMLInputElement>(null);
   const pasfotoInputRef = useRef<HTMLInputElement>(null);
@@ -237,27 +236,6 @@ function RechtenTab() {
       toast({ title: "Inlogfoto bijgewerkt", description: "De achtergrondafbeelding van de inlogpagina is gewijzigd." });
     },
     onError: () => { toast({ title: "Fout", description: "Het uploaden van de foto is mislukt.", variant: "destructive" }); },
-  });
-
-  const { data: appPics } = useQuery<{ name: string; url: string }[]>({
-    queryKey: ["/api/site-settings/app-pics"],
-    queryFn: async () => {
-      const res = await fetch("/api/site-settings/app-pics", { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
-
-  const selectLoginPhotoMutation = useMutation({
-    mutationFn: async (url: string) => {
-      await apiRequest("POST", "/api/site-settings/login-photo-select", { url });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/site-settings", "login_photo"] });
-      setLoginGalleryOpen(false);
-      toast({ title: "Inlogfoto gewijzigd", description: "De geselecteerde afbeelding is ingesteld als achtergrond." });
-    },
-    onError: () => { toast({ title: "Fout", description: "Kon de foto niet instellen.", variant: "destructive" }); },
   });
 
   const { data: rapportenPhoto } = useQuery<{ value: string | null }>({
@@ -409,55 +387,21 @@ function RechtenTab() {
         <CardContent className="pt-0">
           <div className="flex items-center gap-4">
             <div className="relative w-48 h-28 rounded-lg overflow-hidden border border-border bg-muted shrink-0">
-              <img src={loginPhoto?.value || "/images/login-hero.jpg"} alt="Inlogpagina achtergrond" className="w-full h-full object-cover" data-testid="img-login-photo-preview" />
+              <img
+                src={loginPhoto?.value || "/uploads/App_pics/login.png"}
+                alt="Inlogpagina achtergrond"
+                className="w-full h-full object-cover"
+                data-testid="img-login-photo-preview"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
             </div>
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Deze afbeelding wordt getoond als achtergrond op de inlogpagina.</p>
-              <div className="flex gap-2 flex-wrap">
-                <input ref={loginPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLoginPhotoMutation.mutate(f); }} data-testid="input-login-photo" />
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => loginPhotoInputRef.current?.click()} disabled={uploadLoginPhotoMutation.isPending} data-testid="button-change-login-photo">
-                  <Camera className="h-4 w-4" />
-                  {uploadLoginPhotoMutation.isPending ? "Uploaden..." : "Foto uploaden"}
-                </Button>
-                <Dialog open={loginGalleryOpen} onOpenChange={setLoginGalleryOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2" data-testid="button-pick-login-photo">
-                      <ImageIcon className="h-4 w-4" />
-                      Kies uit App_pics
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Kies een afbeelding uit App_pics</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto py-2">
-                      {(appPics ?? []).map((pic) => {
-                        const isSelected = loginPhoto?.value === pic.url;
-                        return (
-                          <button
-                            key={pic.url}
-                            onClick={() => selectLoginPhotoMutation.mutate(pic.url)}
-                            disabled={selectLoginPhotoMutation.isPending}
-                            data-testid={`button-select-pic-${pic.name}`}
-                            className={`relative rounded-lg overflow-hidden border-2 transition-colors text-left focus:outline-none ${isSelected ? "border-primary" : "border-border hover:border-primary/50"}`}
-                          >
-                            <img src={pic.url} alt={pic.name} className="w-full h-24 object-cover" />
-                            <p className="text-xs px-1.5 py-1 truncate text-muted-foreground">{pic.name}</p>
-                            {isSelected && (
-                              <div className="absolute top-1.5 right-1.5 bg-primary text-primary-foreground rounded-full p-0.5">
-                                <Check className="h-3 w-3" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                      {(appPics ?? []).length === 0 && (
-                        <p className="col-span-3 text-sm text-muted-foreground text-center py-8">Geen afbeeldingen gevonden in App_pics.</p>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <p className="text-sm text-muted-foreground">Deze afbeelding wordt getoond als achtergrond op de inlogpagina. Wordt opgeslagen als <code className="text-xs bg-muted px-1 rounded">uploads/App_pics/login.png</code>.</p>
+              <input ref={loginPhotoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLoginPhotoMutation.mutate(f); }} data-testid="input-login-photo" />
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => loginPhotoInputRef.current?.click()} disabled={uploadLoginPhotoMutation.isPending} data-testid="button-change-login-photo">
+                <Camera className="h-4 w-4" />
+                {uploadLoginPhotoMutation.isPending ? "Uploaden..." : "Foto wijzigen"}
+              </Button>
             </div>
           </div>
         </CardContent>
