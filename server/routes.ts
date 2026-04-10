@@ -1227,13 +1227,23 @@ export async function registerRoutes(
         const ongeoorloofdDays = countDays(ongeoorloofdApproved) + rejectedPastDays;
         const recht = u.vacationDaysTotal ?? 25;
         const saldoOud = u.vacationDaysSaldoOud ?? 0;
-        const totaal = recht + saldoOud;
+        // Extra vakantiedagen: 1 extra per jaar vanaf 60e verjaardag t/m 64e (max 5)
+        let extra = 0;
+        if (u.birthDate) {
+          const birthYear = new Date(u.birthDate).getFullYear();
+          const age = currentYear - birthYear;
+          if (age >= 60 && age < 65) {
+            extra = age - 59; // 60→1, 61→2, 62→3, 63→4, 64→5
+          }
+        }
+        const totaal = recht + saldoOud + extra;
         return {
           userId: u.id,
           userName: u.fullName,
           department: u.department || "Geen afdeling",
           recht,
           saldoOud,
+          extra,
           totalDays: totaal,
           geplandDays,
           toegekendDays,

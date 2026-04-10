@@ -1512,6 +1512,7 @@ export default function VerzuimPage() {
                           <TableHead>Medewerker</TableHead>
                           <TableHead className="text-right">Recht</TableHead>
                           <TableHead className="text-right">Saldo Oud</TableHead>
+                          <TableHead className="text-right">Extra</TableHead>
                           <TableHead className="text-right">Totaal</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
@@ -1594,6 +1595,13 @@ export default function VerzuimPage() {
                                     <Pencil className="h-3 w-3" />
                                   </Button>
                                 </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-sm">
+                              {(b as any).extra > 0 ? (
+                                <span className="text-emerald-600 font-medium">+{(b as any).extra}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right text-sm font-medium">{b.totalDays}</TableCell>
@@ -2779,6 +2787,7 @@ export default function VerzuimPage() {
                       {[
                         { label: "Vakantierecht", value: formatDays(b.recht), cls: "" },
                         { label: "Saldo Oud", value: formatDays(b.saldoOud), cls: "" },
+                        { label: "Extra", value: (b as any).extra > 0 ? `+${(b as any).extra}` : "—", cls: (b as any).extra > 0 ? "text-emerald-600 font-medium" : "text-muted-foreground" },
                         { label: "Totaal", value: formatDays(b.totalDays), cls: "font-semibold" },
                         { label: "Gepland", value: formatDays(b.geplandDays), cls: "text-muted-foreground" },
                         { label: "Toegekend", value: formatDays(b.toegekendDays), cls: "" },
@@ -2811,6 +2820,7 @@ export default function VerzuimPage() {
                       <TableHead>Medewerker</TableHead>
                       <TableHead className="text-right">Recht</TableHead>
                       <TableHead className="text-right">Saldo Oud</TableHead>
+                      <TableHead className="text-right">Extra</TableHead>
                       <TableHead className="text-right">Totaal</TableHead>
                       <TableHead className="text-right">Gepland</TableHead>
                       <TableHead className="text-right">Toegekend</TableHead>
@@ -2833,7 +2843,7 @@ export default function VerzuimPage() {
                       return departments.map(dept => (
                         <>
                           <TableRow key={`dept-${dept}`}>
-                            <TableCell colSpan={13} className="bg-muted/50 font-bold text-sm py-1.5">
+                            <TableCell colSpan={14} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
                             </TableCell>
                           </TableRow>
@@ -2846,6 +2856,13 @@ export default function VerzuimPage() {
                                   <span>{formatDays(b.saldoOud)}</span>
                                 ) : (
                                   <span className="text-muted-foreground">0</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {(b as any).extra > 0 ? (
+                                  <span className="text-emerald-600 font-medium">+{(b as any).extra}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-right text-sm font-medium">{formatDays(b.totalDays)}</TableCell>
