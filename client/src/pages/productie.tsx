@@ -2971,38 +2971,34 @@ function parseTrendKartografenHistCSV(csv: string): { rows: KgHistImportRij[]; e
   const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) { errors.push("CSV is leeg of heeft geen datarijen."); return { rows, errors }; }
   const header = lines[0].toLowerCase().replace(/\s/g, "");
-  if (!header.includes("jaar") || !header.includes("maand")) {
-    errors.push("Eerste rij moet kolommen bevatten: jaar,maand,egaleano,jpieters,binnengekomen,afgehandeld");
+  if (!header.includes("jaar") || !header.includes("egaleano")) {
+    errors.push("Eerste rij moet kolommen bevatten: jaar,egaleano,jpieters,binnengekomen,afgehandeld");
     return { rows, errors };
   }
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(/[,;]/).map(c => c.trim());
-    if (cols.length < 6) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 6)`); continue; }
+    if (cols.length < 5) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 5)`); continue; }
     const jaar = parseInt(cols[0]);
-    const maand = parseInt(cols[1]);
-    const egaleano = parseInt(cols[2]) || 0;
-    const jpieters = parseInt(cols[3]) || 0;
-    const binnengekomen = parseInt(cols[4]) || 0;
-    const afgehandeld   = parseInt(cols[5]) || 0;
+    const egaleano    = parseInt(cols[1]) || 0;
+    const jpieters    = parseInt(cols[2]) || 0;
+    const binnengekomen = parseInt(cols[3]) || 0;
+    const afgehandeld   = parseInt(cols[4]) || 0;
     if (isNaN(jaar) || jaar < 1990 || jaar > 2100) { errors.push(`Rij ${i + 1}: ongeldig jaar "${cols[0]}"`); continue; }
-    if (isNaN(maand) || maand < 1 || maand > 12)  { errors.push(`Rij ${i + 1}: ongeldige maand "${cols[1]}" (gebruik 1–12)`); continue; }
-    rows.push({ jaar, maand, egaleano, jpieters, nsambo: 0, binnengekomen, afgehandeld });
+    rows.push({ jaar, maand: 0, egaleano, jpieters, nsambo: 0, binnengekomen, afgehandeld });
   }
   return { rows, errors };
 }
 
 const KG_CSV_FORMAAT = `Kolomvolgorde (komma- of puntkomma-gescheiden):
-jaar        – 4-cijferig jaar (bijv. 2024)
-maand       – maandnummer 1–12
-egaleano    – productie E. Galeano (getal)
-jpieters    – productie J. Pieters (getal)
-binnengekomen – totaal binnengekomen opdrachten (getal)
-afgehandeld – totaal afgehandelde opdrachten (getal)`;
+jaar          – 4-cijferig jaar (bijv. 2024)
+egaleano      – totale productie E. Galeano dat jaar (getal)
+jpieters      – totale productie J. Pieters dat jaar (getal)
+binnengekomen – totaal binnengekomen opdrachten dat jaar (getal)
+afgehandeld   – totaal afgehandelde opdrachten dat jaar (getal)`;
 
-const KG_CSV_VOORBEELD = `jaar,maand,egaleano,jpieters,binnengekomen,afgehandeld
-2024,1,42,35,150,143
-2024,2,51,40,170,165
-2024,3,48,38,160,158`;
+const KG_CSV_VOORBEELD = `jaar,egaleano,jpieters,binnengekomen,afgehandeld
+2024,530,480,1850,1820
+2025,560,510,1920,1900`;
 
 function TrendKartografenImportButton() {
   const [open, setOpen] = useState(false);
@@ -3045,7 +3041,7 @@ function TrendKartografenImportButton() {
           <DialogHeader>
             <DialogTitle>CSV importeren — Trend Kartografen (historisch)</DialogTitle>
             <DialogDescription>
-              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar/maand worden vervangen.
+              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar worden vervangen.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -3096,7 +3092,7 @@ function TrendKartografenImportButton() {
                       <table className="w-full text-[11px]">
                         <thead>
                           <tr className="border-b">
-                            {["jaar","maand","egaleano","jpieters","binnengekomen","afgehandeld"].map(k => (
+                            {["jaar","egaleano","jpieters","binnengekomen","afgehandeld"].map(k => (
                               <th key={k} className="px-2 py-1 text-left font-semibold whitespace-nowrap">{k}</th>
                             ))}
                           </tr>
@@ -3105,7 +3101,6 @@ function TrendKartografenImportButton() {
                           {preview.rows.slice(0, 10).map((r, i) => (
                             <tr key={i} className="border-b last:border-0">
                               <td className="px-2 py-0.5">{r.jaar}</td>
-                              <td className="px-2 py-0.5">{r.maand}</td>
                               <td className="px-2 py-0.5 text-right">{r.egaleano}</td>
                               <td className="px-2 py-0.5 text-right">{r.jpieters}</td>
                               <td className="px-2 py-0.5 text-right">{r.binnengekomen}</td>
@@ -3113,7 +3108,7 @@ function TrendKartografenImportButton() {
                             </tr>
                           ))}
                           {preview.rows.length > 10 && (
-                            <tr><td colSpan={6} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
+                            <tr><td colSpan={5} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -3157,17 +3152,20 @@ function TrendKartografenTab() {
     for (const r of dbKgRows) {
       const j = String(r.jaar);
       if (!map[j]) map[j] = { egaleano: Array(12).fill(0), jpieters: Array(12).fill(0), nsambo: Array(12).fill(0), binnengekomen: Array(12).fill(0), afgehandeld: Array(12).fill(0) };
-      map[j].egaleano[r.maand - 1] = r.egaleano;
-      map[j].jpieters[r.maand - 1] = r.jpieters;
-      map[j].nsambo[r.maand - 1] = r.nsambo;
-      map[j].binnengekomen[r.maand - 1] = r.binnengekomen;
-      map[j].afgehandeld[r.maand - 1] = r.afgehandeld;
+      // maand=0 = jaarsom: sla op in index 0, rest blijft 0
+      const idx = r.maand === 0 ? 0 : r.maand - 1;
+      map[j].egaleano[idx] = r.egaleano;
+      map[j].jpieters[idx] = r.jpieters;
+      map[j].nsambo[idx] = r.nsambo;
+      map[j].binnengekomen[idx] = r.binnengekomen;
+      map[j].afgehandeld[idx] = r.afgehandeld;
     }
     return map;
   }, [dbKgRows]);
   const activeKgData = useMemo(() => ({ ...KG_MAANDDATA, ...(dbKgMap ?? {}) }), [dbKgMap]);
 
-  // Per kartograaf naam → jaar → [12 maanden prod]
+  // Per kartograaf naam → jaar → [12 slots prod]
+  // maand=0 = jaarsom: sla op in slot 0, rest 0
   const mpkDataMap = useMemo(() => {
     const result: Record<string, Record<string, number[]>> = {};
     if (!alleMpkRows) return result;
@@ -3175,11 +3173,14 @@ function TrendKartografenTab() {
       if (r.kartograaf === "afgeboekt_stukken") continue;
       const naam = r.kartograaf;
       const jaar = String(r.jaar);
-      const maandIdx = r.maand - 1;
       const prodWaarde = r.mbr + r.kad_spl + r.gr_uitz;
       if (!result[naam]) result[naam] = {};
-      if (!result[naam][jaar]) result[naam][jaar] = Array(12).fill(0);
-      result[naam][jaar][maandIdx] = prodWaarde;
+      if (r.maand === 0) {
+        result[naam][jaar] = [prodWaarde, ...Array(11).fill(0)];
+      } else {
+        if (!result[naam][jaar]) result[naam][jaar] = Array(12).fill(0);
+        result[naam][jaar][r.maand - 1] = prodWaarde;
+      }
     }
     return result;
   }, [alleMpkRows]);
@@ -3535,44 +3536,34 @@ function parseLandmeterCSV(csv: string): { rows: LmImportRij[]; errors: string[]
   const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) { errors.push("CSV is leeg of heeft geen datarijen."); return { rows, errors }; }
   const header = lines[0].toLowerCase().replace(/\s/g, "");
-  if (!header.includes("jaar") || !header.includes("maand") || !header.includes("landmeter")) {
-    errors.push("Eerste rij moet kolommen bevatten: jaar,maand,landmeter,ex_uitb,meting,gr_uitz,l_meting,plot_inzage_coord");
+  if (!header.includes("jaar") || !header.includes("landmeter")) {
+    errors.push("Eerste rij moet kolommen bevatten: jaar,landmeter,totaal");
     return { rows, errors };
   }
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(/[,;]/).map(c => c.trim());
-    if (cols.length < 8) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 8)`); continue; }
+    if (cols.length < 3) { errors.push(`Rij ${i + 1}: te weinig kolommen (${cols.length}, verwacht 3)`); continue; }
     const jaar = parseInt(cols[0]);
-    const maand = parseInt(cols[1]);
-    const landmeter = cols[2];
-    const ex_uitb = parseInt(cols[3]) || 0;
-    const meting  = parseInt(cols[4]) || 0;
-    const gr_uitz = parseInt(cols[5]) || 0;
-    const l_meting = parseInt(cols[6]) || 0;
-    const plot_inzage_coord = parseInt(cols[7]) || 0;
+    const landmeter = cols[1];
+    const totaal = parseInt(cols[2]) || 0;
     if (isNaN(jaar) || jaar < 1990 || jaar > 2100) { errors.push(`Rij ${i + 1}: ongeldig jaar "${cols[0]}"`); continue; }
-    if (isNaN(maand) || maand < 1 || maand > 12)  { errors.push(`Rij ${i + 1}: ongeldige maand "${cols[1]}" (gebruik 1–12)`); continue; }
     if (!landmeter) { errors.push(`Rij ${i + 1}: lege naam landmeter`); continue; }
-    rows.push({ jaar, maand, landmeter, ex_uitb, meting, gr_uitz, l_meting, plot_inzage_coord });
+    // Sla op als jaarsom (maand=0); meting = totaal, overige velden = 0
+    rows.push({ jaar, maand: 0, landmeter, ex_uitb: 0, meting: totaal, gr_uitz: 0, l_meting: 0, plot_inzage_coord: 0 });
   }
   return { rows, errors };
 }
 
 const LM_CSV_FORMAAT = `Kolomvolgorde (komma- of puntkomma-gescheiden):
-jaar  – 4-cijferig jaar (bijv. 2026)
-maand – maandnummer 1–12
+jaar      – 4-cijferig jaar (bijv. 2026)
 landmeter – volledige naam (bijv. H. Balootje)
-ex_uitb – externe uitbesteding (getal)
-meting – metingen (getal)
-gr_uitz – grensuitzettingen (getal)
-l_meting – L-metingen (getal)
-plot_inzage_coord – plot/inzage/coördinaten (getal)`;
+totaal    – totale productie dat jaar (getal)`;
 
-const LM_CSV_VOORBEELD = `jaar,maand,landmeter,ex_uitb,meting,gr_uitz,l_meting,plot_inzage_coord
-2026,1,H. Balootje,0,45,23,12,5
-2026,1,R. Conradus,0,38,19,8,3
-2026,2,H. Balootje,0,52,28,14,6
-2026,2,R. Conradus,0,44,22,10,4`;
+const LM_CSV_VOORBEELD = `jaar,landmeter,totaal
+2026,H. Balootje,520
+2026,R. Conradus,470
+2025,H. Balootje,498
+2025,R. Conradus,441`;
 
 function TrendLandmetersImportButton() {
   const [open, setOpen] = useState(false);
@@ -3615,7 +3606,7 @@ function TrendLandmetersImportButton() {
           <DialogHeader>
             <DialogTitle>CSV importeren — Trend Landmeters</DialogTitle>
             <DialogDescription>
-              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar/maand worden vervangen.
+              Plak CSV-data of kies een bestand. Bestaande rijen voor hetzelfde jaar worden vervangen.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -3668,7 +3659,7 @@ function TrendLandmetersImportButton() {
                       <table className="w-full text-[11px]">
                         <thead>
                           <tr className="border-b">
-                            {["jaar","maand","landmeter","ex_uitb","meting","gr_uitz","l_meting","plot_inzage_coord"].map(k => (
+                            {["jaar","landmeter","totaal"].map(k => (
                               <th key={k} className="px-2 py-1 text-left font-semibold whitespace-nowrap">{k}</th>
                             ))}
                           </tr>
@@ -3677,17 +3668,12 @@ function TrendLandmetersImportButton() {
                           {preview.rows.slice(0, 10).map((r, i) => (
                             <tr key={i} className="border-b last:border-0">
                               <td className="px-2 py-0.5">{r.jaar}</td>
-                              <td className="px-2 py-0.5">{r.maand}</td>
                               <td className="px-2 py-0.5 whitespace-nowrap">{r.landmeter}</td>
-                              <td className="px-2 py-0.5 text-right">{r.ex_uitb}</td>
                               <td className="px-2 py-0.5 text-right">{r.meting}</td>
-                              <td className="px-2 py-0.5 text-right">{r.gr_uitz}</td>
-                              <td className="px-2 py-0.5 text-right">{r.l_meting}</td>
-                              <td className="px-2 py-0.5 text-right">{r.plot_inzage_coord}</td>
                             </tr>
                           ))}
                           {preview.rows.length > 10 && (
-                            <tr><td colSpan={8} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
+                            <tr><td colSpan={3} className="px-2 py-1 text-muted-foreground italic">... en nog {preview.rows.length - 10} rijen</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -3728,18 +3714,22 @@ function TrendLandmetersTab() {
   const alleLmRijen = alleLmData?.rijen ?? [];
   const alleLmSam   = alleLmData?.samenvatting ?? [];
 
-  // Per landmeter naam → jaar → [12 maanden prod] (prod = meting + gr_uitz)
+  // Per landmeter naam → jaar → [12 slots prod] (prod = meting + gr_uitz)
+  // maand=0 = jaarsom: sla op in slot 0, rest 0
   const lmDataMap = useMemo(() => {
     const result: Record<string, Record<string, number[]>> = {};
     for (const r of alleLmRijen) {
       if (r.landmeter === "afgeboekte_stukken") continue;
       const naam = r.landmeter;
       const jaar = String(r.jaar);
-      const maandIdx = r.maand - 1;
       const prod = r.meting + r.gr_uitz;
       if (!result[naam]) result[naam] = {};
-      if (!result[naam][jaar]) result[naam][jaar] = Array(12).fill(0);
-      result[naam][jaar][maandIdx] = prod;
+      if (r.maand === 0) {
+        result[naam][jaar] = [prod, ...Array(11).fill(0)];
+      } else {
+        if (!result[naam][jaar]) result[naam][jaar] = Array(12).fill(0);
+        result[naam][jaar][r.maand - 1] = prod;
+      }
     }
     return result;
   }, [alleLmRijen]);
@@ -3750,19 +3740,22 @@ function TrendLandmetersTab() {
     for (const s of alleLmSam) {
       const jaar = String(s.jaar);
       if (!result[jaar]) result[jaar] = Array(12).fill(0);
-      result[jaar][s.maand - 1] = s.binnengekomen;
+      const idx = s.maand === 0 ? 0 : s.maand - 1;
+      result[jaar][idx] = s.binnengekomen;
     }
     return result;
   }, [alleLmSam]);
 
-  // Afgehandeld per jaar per maand (som van alle actieve landmeters)
+  // Afgehandeld per jaar (som van alle actieve landmeters)
+  // maand=0 = jaarsom: sla op in slot 0
   const afgehandeldMap = useMemo(() => {
     const result: Record<string, number[]> = {};
     for (const r of alleLmRijen) {
       if (r.landmeter === "afgeboekte_stukken") continue;
       const jaar = String(r.jaar);
       if (!result[jaar]) result[jaar] = Array(12).fill(0);
-      result[jaar][r.maand - 1] += r.meting + r.gr_uitz;
+      const idx = r.maand === 0 ? 0 : r.maand - 1;
+      result[jaar][idx] += r.meting + r.gr_uitz;
     }
     return result;
   }, [alleLmRijen]);
