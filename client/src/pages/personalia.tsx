@@ -33,6 +33,12 @@ import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
 
+const titelEntrySchema = z.object({
+  tekst: z.string().min(1, "Titel mag niet leeg zijn"),
+  positie: z.enum(["voor", "achter"]),
+});
+type TitelEntry = z.infer<typeof titelEntrySchema>;
+
 const userFormSchema = z.object({
   username: z.string().min(1, "Gebruikersnaam is verplicht"),
   password: z.string().min(8, "Minimaal 8 tekens"),
@@ -51,6 +57,7 @@ const userFormSchema = z.object({
   telefoonnr: z.string().optional(),
   mobielnr: z.string().optional(),
   adres: z.string().optional(),
+  titels: z.array(titelEntrySchema).optional(),
 }).refine((data) => {
   if (data.birthDate && data.startDate && data.birthDate > data.startDate) return false;
   return true;
@@ -74,10 +81,93 @@ const editFormSchema = z.object({
   telefoonnr: z.string().optional(),
   mobielnr: z.string().optional(),
   adres: z.string().optional(),
+  titels: z.array(titelEntrySchema).optional(),
 }).refine((data) => {
   if (data.birthDate && data.startDate && data.birthDate > data.startDate) return false;
   return true;
 }, { message: "Geboortedatum mag niet na datum in dienst zijn", path: ["birthDate"] });
+
+function buildTitelPayload(titels: TitelEntry[] | undefined) {
+  const voor = (titels ?? []).filter(t => t.positie === "voor" && t.tekst).map(t => t.tekst);
+  const achter = (titels ?? []).filter(t => t.positie === "achter" && t.tekst).map(t => t.tekst);
+  return { titelVoor: voor.length ? voor : null, titelAchter: achter.length ? achter : null };
+}
+
+function bestaandeTitels(user: User): TitelEntry[] {
+  const voor = ((user as any).titelVoor as string[] | null) ?? [];
+  const achter = ((user as any).titelAchter as string[] | null) ?? [];
+  return [
+    ...voor.map(t => ({ tekst: t, positie: "voor" as const })),
+    ...achter.map(t => ({ tekst: t, positie: "achter" as const })),
+  ];
+}
+
+function formatNaamMetTitels(user: User): string {
+  const voor = ((user as any).titelVoor as string[] | null) ?? [];
+  const achter = ((user as any).titelAchter as string[] | null) ?? [];
+  const naam = [
+    (user as any).voornamen || "",
+    (user as any).voorvoegsel || "",
+    (user as any).achternaam || "",
+  ].filter(Boolean).join(" ") || user.fullName;
+  const parts: string[] = [];
+  if (voor.length) parts.push(voor.join(" "));
+  parts.push(naam);
+  if (achter.length) parts.push(achter.join(", "));
+  return parts.join(" ").trim();
+}
+
+function TitelsField({
+  titels,
+  onChange,
+}: {
+  titels: TitelEntry[];
+  onChange: (t: TitelEntry[]) => void;
+}) {
+  const voegToe = () => onChange([...titels, { tekst: "", positie: "voor" }]);
+  const verwijder = (i: number) => onChange(titels.filter((_, idx) => idx !== i));
+  const wijzig = (i: number, veld: keyof TitelEntry, waarde: string) => {
+    const kopie = titels.map((t, idx) => idx === i ? { ...t, [veld]: waarde } : t);
+    onChange(kopie);
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">Titels</span>
+        <Button type="button" variant="outline" size="sm" onClick={voegToe} data-testid="button-add-titel">
+          <Plus className="h-3 w-3 mr-1" />
+          Titel toevoegen
+        </Button>
+      </div>
+      {titels.length === 0 && (
+        <p className="text-xs text-muted-foreground">Geen titels toegevoegd</p>
+      )}
+      {titels.map((t, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Input
+            value={t.tekst}
+            onChange={e => wijzig(i, "tekst", e.target.value)}
+            placeholder="bijv. Dr., MSc, Ir."
+            className="flex-1"
+            data-testid={`input-titel-tekst-${i}`}
+          />
+          <Select value={t.positie} onValueChange={v => wijzig(i, "positie", v)}>
+            <SelectTrigger className="w-36" data-testid={`select-titel-positie-${i}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="voor">Voor naam</SelectItem>
+              <SelectItem value="achter">Achter naam</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button type="button" variant="ghost" size="icon" onClick={() => verwijder(i)} data-testid={`button-remove-titel-${i}`}>
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const deactivateFormSchema = z.object({
   endDate: z.string().min(1, "Datum uit dienst is verplicht"),
@@ -96,6 +186,7 @@ function EditDialog({
 }) {
   const { toast } = useToast();
   const { data: jobFunctionList } = useQuery<JobFunction[]>({ queryKey: ["/api/job-functions"] });
+  const [editTitels, setEditTitels] = useState<TitelEntry[]>(() => bestaandeTitels(user));
   const form = useForm<z.infer<typeof editFormSchema>>({
     resolver: zodResolver(editFormSchema),
     defaultValues: {
@@ -123,6 +214,7 @@ function EditDialog({
   const mutation = useMutation({
     mutationFn: async (data: z.infer<typeof editFormSchema>) => {
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
+      const { titelVoor, titelAchter } = buildTitelPayload(editTitels);
       const payload: Record<string, any> = {
         username: data.username,
         fullName,
@@ -141,6 +233,8 @@ function EditDialog({
         telefoonnr: data.telefoonnr || null,
         mobielnr: data.mobielnr || null,
         adres: data.adres || null,
+        titelVoor,
+        titelAchter,
       };
       if (data.password && data.password.length > 0) {
         payload.password = data.password;
@@ -210,6 +304,7 @@ function EditDialog({
                 </FormItem>
               )} />
             </div>
+            <TitelsField titels={editTitels} onChange={setEditTitels} />
             <FormField control={form.control} name="email" render={({ field }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
@@ -1023,6 +1118,7 @@ function InlinePersonalDevelopment({ user }: { user: User }) {
 
 export default function PersonaliaPage() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [createTitels, setCreateTitels] = useState<TitelEntry[]>([]);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<User | null>(null);
   const [historyUser, setHistoryUser] = useState<User | null>(null);
@@ -1060,6 +1156,7 @@ export default function PersonaliaPage() {
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof userFormSchema>) => {
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
+      const { titelVoor, titelAchter } = buildTitelPayload(createTitels);
       await apiRequest("POST", "/api/users", {
         ...data,
         fullName,
@@ -1076,6 +1173,8 @@ export default function PersonaliaPage() {
         telefoonnr: data.telefoonnr || null,
         mobielnr: data.mobielnr || null,
         adres: data.adres || null,
+        titelVoor,
+        titelAchter,
         avatar: null,
         active: true,
         endDate: null,
@@ -1086,6 +1185,7 @@ export default function PersonaliaPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Medewerker aangemaakt" });
       setCreateOpen(false);
+      setCreateTitels([]);
       createForm.reset();
     },
     onError: (err: any) => {
@@ -1183,6 +1283,7 @@ export default function PersonaliaPage() {
                       </FormItem>
                     )} />
                   </div>
+                  <TitelsField titels={createTitels} onChange={setCreateTitels} />
                   <FormField control={createForm.control} name="email" render={({ field }) => (
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
@@ -1474,7 +1575,7 @@ export default function PersonaliaPage() {
                                         <AvatarFallback className={`text-xs ${isManager ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>{initials}</AvatarFallback>
                                       </Avatar>
                                       <div>
-                                        <p className="font-medium text-sm">{u.fullName}</p>
+                                        <p className="font-medium text-sm" data-testid={`text-fullname-${u.id}`}>{formatNaamMetTitels(u)}</p>
                                         <p className="text-xs text-muted-foreground">@{u.username}</p>
                                       </div>
                                     </div>
