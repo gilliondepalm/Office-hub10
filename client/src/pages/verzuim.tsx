@@ -2479,7 +2479,7 @@ export default function VerzuimPage() {
                                 : <ChevronUp className="h-3 w-3 opacity-30" />}
                             </button>
                           </TableHead>
-                          <TableHead>Ingediend</TableHead>
+                          <TableHead>Ingediend op</TableHead>
                           <TableHead>Reden</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
