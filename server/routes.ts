@@ -2199,11 +2199,16 @@ export async function registerRoutes(
   const publicSettingKeys = ["login_photo"];
   const authSettingKeys = ["dashboard_photo", "rapporten_photo", "productie_photo"];
 
+  const DEFAULT_LOGIN_PHOTO = "/uploads/App_pics/curacao_login.jpg";
+
   app.get("/api/site-settings/public/:key", async (req, res) => {
     if (!publicSettingKeys.includes(req.params.key)) {
       return res.status(404).json({ message: "Instelling niet gevonden" });
     }
     const value = await storage.getSiteSetting(req.params.key);
+    if (req.params.key === "login_photo") {
+      return res.json({ value: value ?? DEFAULT_LOGIN_PHOTO });
+    }
     res.json({ value });
   });
 

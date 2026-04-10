@@ -87,7 +87,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img
-          src={loginPhoto?.value || "/uploads/App_pics/login.png"}
+          src={loginPhoto?.value || "/uploads/App_pics/curacao_login.jpg"}
           alt="Kantoor"
           className="absolute inset-0 w-full h-full object-cover"
           data-testid="img-login-photo"
