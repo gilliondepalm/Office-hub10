@@ -462,7 +462,7 @@ function DeactivateDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: `${user.fullName} is nu inactief` });
+      toast({ title: `${formatNaamMetTitels(user)} is nu inactief` });
       onOpenChange(false);
     },
     onError: (err: any) => {
@@ -477,7 +477,7 @@ function DeactivateDialog({
           <DialogTitle>Medewerker Deactiveren</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Vul de datum uit dienst in voor <span className="font-medium text-foreground">{user.fullName}</span>.
+          Vul de datum uit dienst in voor <span className="font-medium text-foreground">{formatNaamMetTitels(user)}</span>.
         </p>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
@@ -600,7 +600,7 @@ function PositionHistoryDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5" />
-            Functie & Salarisontwikkeling - {user.fullName}
+            Functie & Salarisontwikkeling - {formatNaamMetTitels(user)}
           </DialogTitle>
         </DialogHeader>
 
@@ -850,7 +850,7 @@ function PersonalDevelopmentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GraduationCap className="h-5 w-5" />
-            Persoonlijke Ontwikkeling - {user.fullName}
+            Persoonlijke Ontwikkeling - {formatNaamMetTitels(user)}
           </DialogTitle>
         </DialogHeader>
 
