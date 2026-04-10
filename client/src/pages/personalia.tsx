@@ -90,12 +90,12 @@ const editFormSchema = z.object({
 function buildTitelPayload(titels: TitelEntry[] | undefined) {
   const voor = (titels ?? []).filter(t => t.positie === "voor" && t.tekst).map(t => t.tekst);
   const achter = (titels ?? []).filter(t => t.positie === "achter" && t.tekst).map(t => t.tekst);
-  return { titelVoor: voor.length ? voor : null, titelAchter: achter.length ? achter : null };
+  return { titelsVoor: voor.length ? voor : null, titelsAchter: achter.length ? achter : null };
 }
 
 function bestaandeTitels(user: User): TitelEntry[] {
-  const voor = ((user as any).titelVoor as string[] | null) ?? [];
-  const achter = ((user as any).titelAchter as string[] | null) ?? [];
+  const voor = user.titelsVoor ?? [];
+  const achter = user.titelsAchter ?? [];
   return [
     ...voor.map(t => ({ tekst: t, positie: "voor" as const })),
     ...achter.map(t => ({ tekst: t, positie: "achter" as const })),
@@ -103,18 +103,15 @@ function bestaandeTitels(user: User): TitelEntry[] {
 }
 
 function formatNaamMetTitels(user: User): string {
-  const voor = ((user as any).titelVoor as string[] | null) ?? [];
-  const achter = ((user as any).titelAchter as string[] | null) ?? [];
-  const naam = [
-    (user as any).voornamen || "",
-    (user as any).voorvoegsel || "",
-    (user as any).achternaam || "",
-  ].filter(Boolean).join(" ") || user.fullName;
-  const parts: string[] = [];
-  if (voor.length) parts.push(voor.join(" "));
-  parts.push(naam);
-  if (achter.length) parts.push(achter.join(", "));
-  return parts.join(" ").trim();
+  const voor = user.titelsVoor ?? [];
+  const achter = user.titelsAchter ?? [];
+  const naam = [user.voornamen ?? "", user.voorvoegsel ?? "", user.achternaam ?? ""]
+    .filter(Boolean).join(" ") || user.fullName;
+  let result = "";
+  if (voor.length) result += voor.join(" ") + " ";
+  result += naam;
+  if (achter.length) result += ", " + achter.join(", ");
+  return result.trim();
 }
 
 function TitelsField({
@@ -214,7 +211,7 @@ function EditDialog({
   const mutation = useMutation({
     mutationFn: async (data: z.infer<typeof editFormSchema>) => {
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
-      const { titelVoor, titelAchter } = buildTitelPayload(editTitels);
+      const { titelsVoor, titelsAchter } = buildTitelPayload(editTitels);
       const payload: Record<string, any> = {
         username: data.username,
         fullName,
@@ -233,8 +230,8 @@ function EditDialog({
         telefoonnr: data.telefoonnr || null,
         mobielnr: data.mobielnr || null,
         adres: data.adres || null,
-        titelVoor,
-        titelAchter,
+        titelsVoor,
+        titelsAchter,
       };
       if (data.password && data.password.length > 0) {
         payload.password = data.password;
@@ -1156,7 +1153,7 @@ export default function PersonaliaPage() {
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof userFormSchema>) => {
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
-      const { titelVoor, titelAchter } = buildTitelPayload(createTitels);
+      const { titelsVoor, titelsAchter } = buildTitelPayload(createTitels);
       await apiRequest("POST", "/api/users", {
         ...data,
         fullName,
@@ -1173,8 +1170,8 @@ export default function PersonaliaPage() {
         telefoonnr: data.telefoonnr || null,
         mobielnr: data.mobielnr || null,
         adres: data.adres || null,
-        titelVoor,
-        titelAchter,
+        titelsVoor,
+        titelsAchter,
         avatar: null,
         active: true,
         endDate: null,

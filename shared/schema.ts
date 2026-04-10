@@ -34,8 +34,8 @@ export const users = pgTable("users", {
   voorvoegsel: text("voorvoegsel"),
   achternaam: text("achternaam"),
   vacationDaysCancel: real("vacation_days_cancel").default(0),
-  titelVoor: text("titel_voor").array(),
-  titelAchter: text("titel_achter").array(),
+  titelsVoor: text("titels_voor").array(),
+  titelsAchter: text("titels_achter").array(),
 });
 
 export const events = pgTable("events", {
