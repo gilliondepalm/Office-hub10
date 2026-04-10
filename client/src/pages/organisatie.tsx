@@ -383,6 +383,18 @@ function ProcedureInstructions({
   );
 }
 
+function formatNaamMetTitels(user: User): string {
+  const voor = user.titelsVoor ?? [];
+  const achter = user.titelsAchter ?? [];
+  const naam = [user.voornamen ?? "", user.voorvoegsel ?? "", user.achternaam ?? ""]
+    .filter(Boolean).join(" ") || user.fullName;
+  let result = "";
+  if (voor.length) result += voor.join(" ") + " ";
+  result += naam;
+  if (achter.length) result += ", " + achter.join(", ");
+  return result.trim();
+}
+
 function OrganogramTab() {
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
@@ -418,7 +430,7 @@ function OrganogramTab() {
               {directeur && (
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-foreground">{directeur.fullName}</span>
+                    <span className="font-medium text-foreground">{formatNaamMetTitels(directeur)}</span>
                     <Badge variant="default" className="text-xs">directeur</Badge>
                   </div>
                   <span className="text-xs font-mono w-10 text-right">{directeur.phoneExtension || ""}</span>
@@ -427,7 +439,7 @@ function OrganogramTab() {
               {stafAdmins.map((u) => (
                 <div key={u.id} className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
-                    <span>{u.fullName}</span>
+                    <span>{formatNaamMetTitels(u)}</span>
                     <Badge variant="secondary" className="text-xs">admin</Badge>
                   </div>
                   <span className="text-xs font-mono w-10 text-right">{u.phoneExtension || ""}</span>
@@ -459,7 +471,7 @@ function OrganogramTab() {
           const sortedMembers = [...rawMembers].sort((a, b) => {
             const orderDiff = getFuncSortOrder(a.functie ?? null) - getFuncSortOrder(b.functie ?? null);
             if (orderDiff !== 0) return orderDiff;
-            return (a.fullName ?? "").localeCompare(b.fullName ?? "", "nl");
+            return formatNaamMetTitels(a).localeCompare(formatNaamMetTitels(b), "nl");
           });
 
           const managerMembers = sortedMembers.filter((m) => isManagerFunctie(m.functie ?? null));
@@ -484,7 +496,7 @@ function OrganogramTab() {
                       <div>
                         <p className="text-xs text-muted-foreground">Manager</p>
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">{manager.fullName}</p>
+                          <p className="text-sm font-medium">{formatNaamMetTitels(manager)}</p>
                           <span className="text-xs font-mono w-10 text-right text-muted-foreground">{manager.phoneExtension || ""}</span>
                         </div>
                       </div>
@@ -493,7 +505,7 @@ function OrganogramTab() {
                       <div key={m.id}>
                         <p className="text-xs text-muted-foreground">{m.functie}</p>
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">{m.fullName}</p>
+                          <p className="text-sm font-medium">{formatNaamMetTitels(m)}</p>
                           <span className="text-xs font-mono w-10 text-right text-muted-foreground">{m.phoneExtension || ""}</span>
                         </div>
                       </div>
@@ -507,7 +519,7 @@ function OrganogramTab() {
                       <div className="flex items-start gap-2">
                         <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0 mt-1" />
                         <div>
-                          <span className="text-sm text-muted-foreground">{m.fullName}</span>
+                          <span className="text-sm text-muted-foreground">{formatNaamMetTitels(m)}</span>
                           {m.functie && (
                             <p className="text-xs text-muted-foreground/70 leading-tight">{m.functie}</p>
                           )}
