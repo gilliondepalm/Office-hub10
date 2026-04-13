@@ -4,6 +4,9 @@ import {
   users, events, announcements, departments, absences, absenceCancellations, rewards, applications, appAccess, messages,
   aoProcedures, aoInstructions, positionHistory, personalDevelopment, legislationLinks, caoDocuments, siteSettings,
   functioneringReviews, competencies, beoordelingReviews, beoordelingScores, jaarplanItems, jaarplanActies,
+  werktijden, overuurAanvragen,
+  type Werktijden, type InsertWerktijden,
+  type OveruurAanvraag, type InsertOveruurAanvraag,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Announcement, type InsertAnnouncement,
@@ -268,6 +271,13 @@ export interface IStorage {
   bulkUpsertTrendKartografenHist(rows: InsertTrendKartografenHist[]): Promise<void>;
   upsertTrendKartografenHistRow(row: InsertTrendKartografenHist): Promise<void>;
   deleteTrendKartografenHistByJaar(jaar: number): Promise<void>;
+
+  getWerktijden(userid?: string): Promise<Werktijden[]>;
+  createWerktijden(record: InsertWerktijden): Promise<Werktijden>;
+  deleteWerktijden(logid: number): Promise<void>;
+  getOveruurAanvragen(): Promise<OveruurAanvraag[]>;
+  createOveruurAanvraag(aanvraag: InsertOveruurAanvraag): Promise<OveruurAanvraag>;
+  updateOveruurAanvraag(id: string, data: Partial<OveruurAanvraag>): Promise<OveruurAanvraag>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1519,6 +1529,36 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteTrendKartografenHistByJaar(jaar: number): Promise<void> {
     await db.delete(trendKartografenHist).where(eq(trendKartografenHist.jaar, jaar));
+  }
+
+  async getWerktijden(userid?: string): Promise<Werktijden[]> {
+    if (userid) {
+      return db.select().from(werktijden).where(eq(werktijden.userid, userid)).orderBy(desc(werktijden.checktime));
+    }
+    return db.select().from(werktijden).orderBy(desc(werktijden.checktime));
+  }
+
+  async createWerktijden(record: InsertWerktijden): Promise<Werktijden> {
+    const [created] = await db.insert(werktijden).values(record).returning();
+    return created;
+  }
+
+  async deleteWerktijden(logid: number): Promise<void> {
+    await db.delete(werktijden).where(eq(werktijden.logid, logid));
+  }
+
+  async getOveruurAanvragen(): Promise<OveruurAanvraag[]> {
+    return db.select().from(overuurAanvragen).orderBy(desc(overuurAanvragen.createdAt));
+  }
+
+  async createOveruurAanvraag(aanvraag: InsertOveruurAanvraag): Promise<OveruurAanvraag> {
+    const [created] = await db.insert(overuurAanvragen).values(aanvraag).returning();
+    return created;
+  }
+
+  async updateOveruurAanvraag(id: string, data: Partial<OveruurAanvraag>): Promise<OveruurAanvraag> {
+    const [updated] = await db.update(overuurAanvragen).set(data).where(eq(overuurAanvragen.id, id)).returning();
+    return updated;
   }
 }
 

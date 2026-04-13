@@ -658,6 +658,32 @@ export const insertTrendOrNotarisSchema = createInsertSchema(trendOrNotaris).omi
 export type InsertTrendOrNotaris = z.infer<typeof insertTrendOrNotarisSchema>;
 export type TrendOrNotaris = typeof trendOrNotaris.$inferSelect;
 
+// ── Werktijden ────────────────────────────────────────────────────────────────
+export const werktijden = pgTable("werktijden", {
+  logid: serial("logid").primaryKey(),
+  userid: varchar("userid", { length: 20 }).notNull(),
+  checktime: timestamp("checktime").notNull(),
+  checktype: text("checktype").notNull().default("in"), // 'in' | 'out'
+});
+export const insertWerktijdenSchema = createInsertSchema(werktijden).omit({ logid: true });
+export type InsertWerktijden = z.infer<typeof insertWerktijdenSchema>;
+export type Werktijden = typeof werktijden.$inferSelect;
+
+// ── Overuur aanvragen ─────────────────────────────────────────────────────────
+export const overuurAanvragen = pgTable("overuur_aanvragen", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userid: varchar("userid", { length: 20 }).notNull(),
+  datum: date("datum").notNull(),
+  reden: text("reden"),
+  aangevraagdDoor: varchar("aangevraagd_door").references(() => users.id),
+  goedgekeurdDoor: varchar("goedgekeurd_door").references(() => users.id),
+  status: text("status").notNull().default("aangevraagd"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export const insertOveruurAanvraagSchema = createInsertSchema(overuurAanvragen).omit({ id: true, createdAt: true, goedgekeurdDoor: true, status: true });
+export type InsertOveruurAanvraag = z.infer<typeof insertOveruurAanvraagSchema>;
+export type OveruurAanvraag = typeof overuurAanvragen.$inferSelect;
+
 // ── Trend Kartografen historisch ──────────────────────────────────────────────
 export const trendKartografenHist = pgTable("trend_kartografen_hist", {
   id: serial("id").primaryKey(),

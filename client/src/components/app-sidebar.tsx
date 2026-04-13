@@ -13,6 +13,7 @@ import {
   Star,
   FileBarChart,
   BarChart3,
+  Timer,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,7 @@ const menuItems = [
   { title: "Applicaties", url: "/applicaties", icon: AppWindow, key: "applicaties" },
   { title: "Productie", url: "/productie", icon: BarChart3, key: "productie" },
   { title: "Rapporten", url: "/rapporten", icon: FileBarChart, key: "rapporten" },
+  { title: "Werktijden", url: "/werktijden", icon: Timer, key: "werktijden" },
   { title: "Beheer", url: "/beheer", icon: Shield, key: "beheer" },
 ];
 

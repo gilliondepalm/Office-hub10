@@ -45,6 +45,7 @@ const ALL_MODULES = [
   { key: "applicaties", label: "Applicaties" },
   { key: "productie", label: "Productie" },
   { key: "rapporten", label: "Rapporten" },
+  { key: "werktijden", label: "Werktijden" },
   { key: "beheer", label: "Beheer (Admin)" },
 ];
 

@@ -35,6 +35,8 @@ import {
   insertTrendOrAlgemeenSchema,
   insertTrendOrNotarisSchema,
   insertTrendKartografenHistSchema,
+  insertWerktijdenSchema,
+  insertOveruurAanvraagSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -2984,6 +2986,98 @@ export async function registerRoutes(
     const jaar = parseInt(req.params.jaar);
     if (isNaN(jaar)) return res.status(400).json({ message: "Ongeldig jaar" });
     try { await storage.deleteTrendKartografenHistByJaar(jaar); res.json({ message: "Verwijderd" }); } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Werktijden ─────────────────────────────────────────────────────────────
+  app.get("/api/werktijden", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const isManager = isAdminRole(currentUser.role) || currentUser.role === "manager" || currentUser.role === "manager_az";
+      const useridFilter = req.query.userid as string | undefined;
+      if (isManager) {
+        const records = await storage.getWerktijden(useridFilter);
+        res.json(records);
+      } else {
+        const records = await storage.getWerktijden(currentUser.kadasterId || undefined);
+        res.json(records);
+      }
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/werktijden", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const { checktype } = req.body;
+      if (!["in", "out"].includes(checktype)) return res.status(400).json({ message: "Ongeldig checktype" });
+      const userid = currentUser.kadasterId;
+      if (!userid) return res.status(400).json({ message: "Geen userid gevonden. Neem contact op met de beheerder." });
+      const now = new Date();
+      const record = await storage.createWerktijden({ userid, checktime: now, checktype });
+      res.json(record);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/werktijden/admin", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      const parsed = insertWerktijdenSchema.parse(req.body);
+      const record = await storage.createWerktijden(parsed);
+      res.json(record);
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+
+  app.delete("/api/werktijden/:logid", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      const logid = parseInt(req.params.logid);
+      if (isNaN(logid)) return res.status(400).json({ message: "Ongeldig logid" });
+      await storage.deleteWerktijden(logid);
+      res.json({ message: "Verwijderd" });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Overuur aanvragen ──────────────────────────────────────────────────────
+  app.get("/api/overuur-aanvragen", requireAuth, async (req, res) => {
+    try {
+      const records = await storage.getOveruurAanvragen();
+      res.json(records);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/overuur-aanvragen", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const isManager = isAdminRole(currentUser.role) || currentUser.role === "manager" || currentUser.role === "manager_az";
+      if (!isManager) return res.status(403).json({ message: "Alleen managers mogen overuur aanvragen indienen" });
+      const parsed = insertOveruurAanvraagSchema.parse({ ...req.body, aangevraagdDoor: currentUser.id });
+      const record = await storage.createOveruurAanvraag(parsed);
+      res.json(record);
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+
+  app.patch("/api/overuur-aanvragen/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || currentUser.role !== "directeur" && !isAdminRole(currentUser.role)) {
+        return res.status(403).json({ message: "Alleen directie mag overuur goedkeuren" });
+      }
+      const { status } = req.body;
+      if (!["goedgekeurd", "afgewezen"].includes(status)) return res.status(400).json({ message: "Ongeldig status" });
+      const updated = await storage.updateOveruurAanvraag(req.params.id, {
+        status,
+        goedgekeurdDoor: currentUser.id,
+      });
+      res.json(updated);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   return httpServer;
