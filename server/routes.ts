@@ -809,6 +809,15 @@ export async function registerRoutes(
     res.json(allUsers.map(({ password: _, ...u }) => u));
   });
 
+  app.get("/api/users/next-userid", requirePersonaliaAdmin, async (_req, res) => {
+    try {
+      const nextId = await storage.getNextKadasterId();
+      res.json({ nextId });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/users", requirePersonaliaAdmin, async (req, res) => {
     try {
       const parsed = insertUserSchema.parse(req.body);

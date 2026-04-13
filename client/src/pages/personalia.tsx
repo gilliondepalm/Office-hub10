@@ -1171,6 +1171,11 @@ export default function PersonaliaPage() {
     queryKey: ["/api/users"],
   });
 
+  const { data: nextUserIdData } = useQuery<{ nextId: string }>({
+    queryKey: ["/api/users/next-userid"],
+    enabled: createOpen,
+  });
+
   const { data: departments } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
   });
@@ -1222,6 +1227,7 @@ export default function PersonaliaPage() {
     onSuccess: (newUser: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/next-userid"] });
       toast({
         title: "Medewerker aangemaakt",
         description: newUser?.kadasterId ? `Userid: ${newUser.kadasterId}` : undefined,
@@ -1429,8 +1435,8 @@ export default function PersonaliaPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Userid</label>
-                      <div className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground mt-1.5" data-testid="display-new-userid">
-                        Wordt automatisch toegewezen
+                      <div className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground mt-1.5 font-medium" data-testid="display-new-userid">
+                        {nextUserIdData?.nextId ?? "—"}
                       </div>
                     </div>
                     <FormField control={createForm.control} name="cedulaNr" render={({ field }) => (
