@@ -37,6 +37,7 @@ import {
   insertTrendKartografenHistSchema,
   insertWerktijdenSchema,
   insertOveruurAanvraagSchema,
+  insertImportLogSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -58,6 +59,15 @@ const aankondigingenDir = path.join(uploadsDir, "Aankondigingen");
 if (!fs.existsSync(aankondigingenDir)) {
   fs.mkdirSync(aankondigingenDir, { recursive: true });
 }
+
+const uploadCsv = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const ok = file.mimetype === "text/csv" || file.mimetype === "text/plain" || file.originalname.endsWith(".csv") || file.originalname.endsWith(".txt");
+    if (ok) cb(null, true); else cb(new Error("Alleen CSV/TXT bestanden zijn toegestaan"));
+  },
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 const pdfStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, aankondigingenDir),
@@ -3005,32 +3015,6 @@ export async function registerRoutes(
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  app.post("/api/werktijden", requireAuth, async (req, res) => {
-    try {
-      const currentUser = (req as any).user;
-      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
-      const { checktype } = req.body;
-      if (!["in", "out"].includes(checktype)) return res.status(400).json({ message: "Ongeldig checktype" });
-      const userid = currentUser.kadasterId;
-      if (!userid) return res.status(400).json({ message: "Geen userid gevonden. Neem contact op met de beheerder." });
-      const now = new Date();
-      const record = await storage.createWerktijden({ userid, checktime: now, checktype });
-      res.json(record);
-    } catch (err: any) { res.status(500).json({ message: err.message }); }
-  });
-
-  app.post("/api/werktijden/admin", requireAuth, async (req, res) => {
-    try {
-      const currentUser = (req as any).user;
-      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
-        return res.status(403).json({ message: "Geen toegang" });
-      }
-      const parsed = insertWerktijdenSchema.parse(req.body);
-      const record = await storage.createWerktijden(parsed);
-      res.json(record);
-    } catch (err: any) { res.status(400).json({ message: err.message }); }
-  });
-
   app.delete("/api/werktijden/:logid", requireAuth, async (req, res) => {
     try {
       const currentUser = (req as any).user;
@@ -3041,6 +3025,206 @@ export async function registerRoutes(
       if (isNaN(logid)) return res.status(400).json({ message: "Ongeldig logid" });
       await storage.deleteWerktijden(logid);
       res.json({ message: "Verwijderd" });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Prikklok Import ────────────────────────────────────────────────────────
+  // POST /api/werktijden/import — Verwerkt CSV-upload van prikklokdata
+  app.post("/api/werktijden/import", requireAuth, uploadCsv.single("bestand"), async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Alleen managers mogen prikklokdata importeren" });
+      }
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ message: "Geen bestand ontvangen" });
+
+      const bestandsnaam = file.originalname;
+      const rawText: string = file.buffer?.toString("utf-8") ?? fs.readFileSync(file.path, "utf-8");
+      if (file.path) try { fs.unlinkSync(file.path); } catch {}
+
+      // ── CSV parsen ──────────────────────────────────────────────────────────
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) return res.status(400).json({ message: "Bestand is leeg" });
+
+      // Detecteer separator (komma of puntkomma)
+      const sep = lines[0].includes(";") ? ";" : ",";
+      const headers = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, ""));
+
+      const colUserId  = ["userid","pin","personeelsnr","id","employee_id","emp_id"].find(c => headers.includes(c));
+      const colTime    = ["checktime","datetime","timestamp","tijdstip","tijd","date_time","check_time"].find(c => headers.includes(c));
+      const colType    = ["checktype","type","status","richting","direction","check_type","action"].find(c => headers.includes(c));
+
+      if (!colUserId) return res.status(400).json({ message: `Geen userid-kolom gevonden. Verwacht: userid/pin/personeelsnr. Gevonden kolommen: ${headers.join(", ")}` });
+      if (!colTime)   return res.status(400).json({ message: `Geen tijdstip-kolom gevonden. Verwacht: checktime/datetime/timestamp. Gevonden kolommen: ${headers.join(", ")}` });
+
+      const idxUser = headers.indexOf(colUserId);
+      const idxTime = headers.indexOf(colTime);
+      const idxType = colType ? headers.indexOf(colType) : -1;
+
+      // Alle bekende users ophalen voor validatie
+      const allUsers = await storage.getUsers();
+      const knownUserids = new Set(allUsers.map((u: any) => u.kadasterId).filter(Boolean));
+
+      const records: { userid: string; checktime: Date; checktype: string }[] = [];
+      const eventLogs: { eventType: string; userid?: string; checktime?: Date; bericht: string }[] = [];
+      let foutRecords = 0;
+      let waarschuwingen = 0;
+
+      // Per-user per-dag teller voor alternerende in/out
+      const userDayCounter: Record<string, number> = {};
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
+        const rawUserId = cols[idxUser];
+        const rawTime   = cols[idxTime];
+        const rawType   = idxType >= 0 ? cols[idxType] : "";
+
+        if (!rawUserId || !rawTime) {
+          foutRecords++;
+          eventLogs.push({ eventType: "error", bericht: `Rij ${i + 1}: ontbrekende userid of tijdstip` });
+          continue;
+        }
+
+        // Tijdstip parsen (meerdere formaten)
+        let checktime: Date | null = null;
+        const formats = [
+          rawTime,
+          rawTime.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1"),
+          rawTime.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1"),
+        ];
+        for (const f of formats) {
+          const d = new Date(f);
+          if (!isNaN(d.getTime())) { checktime = d; break; }
+        }
+        if (!checktime) {
+          foutRecords++;
+          eventLogs.push({ eventType: "error", userid: rawUserId, bericht: `Rij ${i + 1}: ongeldig tijdstip "${rawTime}"` });
+          continue;
+        }
+
+        // Checktype parsen
+        let checktype = "in";
+        if (rawType) {
+          const t = rawType.toLowerCase();
+          if (["1", "out", "c/o", "o", "uit", "uitklok"].includes(t)) checktype = "out";
+          else if (["0", "in", "c/i", "i", "inklok"].includes(t)) checktype = "in";
+          else {
+            waarschuwingen++;
+            eventLogs.push({ eventType: "warning", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: onbekend checktype "${rawType}", als "in" geïnterpreteerd` });
+          }
+        } else {
+          // Alternerende in/out per user per dag
+          const dayKey = `${rawUserId}::${checktime.toISOString().slice(0, 10)}`;
+          const count = userDayCounter[dayKey] ?? 0;
+          checktype = count % 2 === 0 ? "in" : "out";
+          userDayCounter[dayKey] = count + 1;
+        }
+
+        // Valideer userid
+        if (!knownUserids.has(rawUserId)) {
+          waarschuwingen++;
+          eventLogs.push({ eventType: "warning", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: userid "${rawUserId}" niet gevonden in systeem` });
+        }
+
+        // Buiten bereik?
+        const h = checktime.getHours();
+        if (h < 5 || h > 22) {
+          waarschuwingen++;
+          eventLogs.push({ eventType: "warning", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: tijdstip ${checktime.toTimeString().slice(0, 5)} valt buiten normaal bereik (05:00–22:00)` });
+        }
+
+        records.push({ userid: rawUserId, checktime, checktype });
+        eventLogs.push({ eventType: "info", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: ${rawUserId} ${checktype} ${checktime.toISOString()}` });
+      }
+
+      // ── Duplicaten detecteren ───────────────────────────────────────────────
+      const seen = new Set<string>();
+      const deduped: typeof records = [];
+      for (const r of records) {
+        const key = `${r.userid}::${r.checktime.toISOString()}`;
+        if (seen.has(key)) {
+          waarschuwingen++;
+          eventLogs.push({ eventType: "warning", userid: r.userid, checktime: r.checktime, bericht: `Duplicaat gevonden: ${r.userid} @ ${r.checktime.toISOString()}` });
+        } else {
+          seen.add(key);
+          deduped.push(r);
+        }
+      }
+
+      // ── Missende paren detecteren ──────────────────────────────────────────
+      const byUserDay: Record<string, typeof records> = {};
+      for (const r of deduped) {
+        const key = `${r.userid}::${r.checktime.toISOString().slice(0, 10)}`;
+        if (!byUserDay[key]) byUserDay[key] = [];
+        byUserDay[key].push(r);
+      }
+      for (const [key, recs] of Object.entries(byUserDay)) {
+        const ins  = recs.filter(r => r.checktype === "in").length;
+        const outs = recs.filter(r => r.checktype === "out").length;
+        if (ins === 0 && outs > 0) {
+          waarschuwingen++;
+          eventLogs.push({ eventType: "warning", userid: key.split("::")[0], bericht: `${key.split("::")[1]}: uitklokregistraties zonder inklok` });
+        } else if (ins > 0 && outs === 0) {
+          waarschuwingen++;
+          eventLogs.push({ eventType: "warning", userid: key.split("::")[0], bericht: `${key.split("::")[1]}: inklokregistraties zonder uitklok` });
+        }
+      }
+
+      // ── Opslaan in DB ──────────────────────────────────────────────────────
+      const importEntry = await storage.createImportLog({
+        importedBy: currentUser.id,
+        bestandsnaam,
+        totaalRecords: lines.length - 1,
+        geldigeRecords: deduped.length,
+        foutRecords,
+        waarschuwingen,
+        status: foutRecords === 0 ? "verwerkt" : "verwerkt_met_fouten",
+      });
+
+      // Sla event logs op met importId
+      await storage.createPrikklokEventLogs(
+        eventLogs.map(e => ({ ...e, importId: importEntry.id }))
+      );
+
+      // Sla werktijden records op
+      await storage.bulkCreateWerktijden(deduped);
+
+      res.json({
+        importId: importEntry.id,
+        bestandsnaam,
+        totaalRecords: lines.length - 1,
+        geldigeRecords: deduped.length,
+        foutRecords,
+        waarschuwingen,
+        status: importEntry.status,
+      });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/import-logs — Overzicht van alle imports
+  app.get("/api/import-logs", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      const logs = await storage.getImportLogs();
+      res.json(logs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // GET /api/prikklok-events — Event logboek
+  app.get("/api/prikklok-events", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      const importId = req.query.importId as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 500;
+      const logs = await storage.getPrikklokEventLogs(importId, limit);
+      res.json(logs);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

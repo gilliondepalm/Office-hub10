@@ -4,9 +4,11 @@ import {
   users, events, announcements, departments, absences, absenceCancellations, rewards, applications, appAccess, messages,
   aoProcedures, aoInstructions, positionHistory, personalDevelopment, legislationLinks, caoDocuments, siteSettings,
   functioneringReviews, competencies, beoordelingReviews, beoordelingScores, jaarplanItems, jaarplanActies,
-  werktijden, overuurAanvragen,
+  werktijden, overuurAanvragen, importLog, prikklokEventLog,
   type Werktijden, type InsertWerktijden,
   type OveruurAanvraag, type InsertOveruurAanvraag,
+  type ImportLog, type InsertImportLog,
+  type PrikklokEventLog, type InsertPrikklokEventLog,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Announcement, type InsertAnnouncement,
@@ -274,10 +276,18 @@ export interface IStorage {
 
   getWerktijden(userid?: string): Promise<Werktijden[]>;
   createWerktijden(record: InsertWerktijden): Promise<Werktijden>;
+  bulkCreateWerktijden(records: InsertWerktijden[]): Promise<Werktijden[]>;
   deleteWerktijden(logid: number): Promise<void>;
   getOveruurAanvragen(): Promise<OveruurAanvraag[]>;
   createOveruurAanvraag(aanvraag: InsertOveruurAanvraag): Promise<OveruurAanvraag>;
   updateOveruurAanvraag(id: string, data: Partial<OveruurAanvraag>): Promise<OveruurAanvraag>;
+
+  getImportLogs(): Promise<ImportLog[]>;
+  createImportLog(log: InsertImportLog): Promise<ImportLog>;
+
+  getPrikklokEventLogs(importId?: string, limit?: number): Promise<PrikklokEventLog[]>;
+  createPrikklokEventLogs(events: InsertPrikklokEventLog[]): Promise<void>;
+  deleteWerktijdenByImport(importId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1543,6 +1553,11 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async bulkCreateWerktijden(records: InsertWerktijden[]): Promise<Werktijden[]> {
+    if (records.length === 0) return [];
+    return db.insert(werktijden).values(records).returning();
+  }
+
   async deleteWerktijden(logid: number): Promise<void> {
     await db.delete(werktijden).where(eq(werktijden.logid, logid));
   }
@@ -1559,6 +1574,42 @@ export class DatabaseStorage implements IStorage {
   async updateOveruurAanvraag(id: string, data: Partial<OveruurAanvraag>): Promise<OveruurAanvraag> {
     const [updated] = await db.update(overuurAanvragen).set(data).where(eq(overuurAanvragen.id, id)).returning();
     return updated;
+  }
+
+  async getImportLogs(): Promise<ImportLog[]> {
+    return db.select().from(importLog).orderBy(desc(importLog.importedAt));
+  }
+
+  async createImportLog(log: InsertImportLog): Promise<ImportLog> {
+    const [created] = await db.insert(importLog).values(log).returning();
+    return created;
+  }
+
+  async getPrikklokEventLogs(importId?: string, limit = 500): Promise<PrikklokEventLog[]> {
+    if (importId) {
+      return db.select().from(prikklokEventLog)
+        .where(eq(prikklokEventLog.importId, importId))
+        .orderBy(prikklokEventLog.id)
+        .limit(limit);
+    }
+    return db.select().from(prikklokEventLog).orderBy(desc(prikklokEventLog.id)).limit(limit);
+  }
+
+  async createPrikklokEventLogs(events: InsertPrikklokEventLog[]): Promise<void> {
+    if (events.length === 0) return;
+    await db.insert(prikklokEventLog).values(events);
+  }
+
+  async deleteWerktijdenByImport(importId: string): Promise<void> {
+    const eventsForImport = await db.select({ checktime: prikklokEventLog.checktime, userid: prikklokEventLog.userid })
+      .from(prikklokEventLog)
+      .where(and(eq(prikklokEventLog.importId, importId), eq(prikklokEventLog.eventType, "info")));
+    for (const ev of eventsForImport) {
+      if (ev.userid && ev.checktime) {
+        await db.delete(werktijden)
+          .where(and(eq(werktijden.userid, ev.userid), eq(werktijden.checktime, ev.checktime)));
+      }
+    }
   }
 }
 

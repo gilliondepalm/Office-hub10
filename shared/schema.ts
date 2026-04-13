@@ -684,6 +684,36 @@ export const insertOveruurAanvraagSchema = createInsertSchema(overuurAanvragen).
 export type InsertOveruurAanvraag = z.infer<typeof insertOveruurAanvraagSchema>;
 export type OveruurAanvraag = typeof overuurAanvragen.$inferSelect;
 
+// ── Import Log ────────────────────────────────────────────────────────────────
+export const importLog = pgTable("import_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  importedAt: timestamp("imported_at").notNull().defaultNow(),
+  importedBy: varchar("imported_by").references(() => users.id),
+  bestandsnaam: text("bestandsnaam"),
+  totaalRecords: integer("totaal_records").default(0),
+  geldigeRecords: integer("geldige_records").default(0),
+  foutRecords: integer("fout_records").default(0),
+  waarschuwingen: integer("waarschuwingen").default(0),
+  status: text("status").notNull().default("verwerkt"),
+});
+export const insertImportLogSchema = createInsertSchema(importLog).omit({ id: true, importedAt: true });
+export type InsertImportLog = z.infer<typeof insertImportLogSchema>;
+export type ImportLog = typeof importLog.$inferSelect;
+
+// ── Prikklok Event Log ────────────────────────────────────────────────────────
+export const prikklokEventLog = pgTable("prikklok_event_log", {
+  id: serial("id").primaryKey(),
+  eventAt: timestamp("event_at").notNull().defaultNow(),
+  importId: varchar("import_id").references(() => importLog.id),
+  eventType: text("event_type").notNull().default("info"), // info | warning | error
+  userid: varchar("userid", { length: 20 }),
+  checktime: timestamp("checktime"),
+  bericht: text("bericht").notNull(),
+});
+export const insertPrikklokEventLogSchema = createInsertSchema(prikklokEventLog).omit({ id: true, eventAt: true });
+export type InsertPrikklokEventLog = z.infer<typeof insertPrikklokEventLogSchema>;
+export type PrikklokEventLog = typeof prikklokEventLog.$inferSelect;
+
 // ── Trend Kartografen historisch ──────────────────────────────────────────────
 export const trendKartografenHist = pgTable("trend_kartografen_hist", {
   id: serial("id").primaryKey(),
