@@ -56,6 +56,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUsers(): Promise<User[]>;
+  getNextKadasterId(): Promise<string>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, data: Partial<InsertUser>): Promise<User>;
   deleteUser(id: string): Promise<void>;
@@ -287,6 +288,14 @@ export class DatabaseStorage implements IStorage {
 
   async getUsers(): Promise<User[]> {
     return db.select().from(users);
+  }
+
+  async getNextKadasterId(): Promise<string> {
+    const result = await db.execute(
+      sql`SELECT COALESCE(MAX(NULLIF(kadaster_id, '')::integer), 0) + 1 AS next_id FROM users`
+    );
+    const rows = result.rows as any[];
+    return String(rows[0]?.next_id ?? 1);
   }
 
   async createUser(user: InsertUser): Promise<User> {

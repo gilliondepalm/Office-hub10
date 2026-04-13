@@ -392,13 +392,14 @@ function EditDialog({
               </FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="kadasterId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Kadaster ID</FormLabel>
-                  <FormControl><Input {...field} placeholder="bijv. K-12345" data-testid="input-edit-kadaster-id" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <div>
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Userid</label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground select-all" data-testid="display-userid">
+                    {user.kadasterId || "—"}
+                  </div>
+                </div>
+              </div>
               <FormField control={form.control} name="cedulaNr" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cedulanr.</FormLabel>
@@ -1195,7 +1196,7 @@ export default function PersonaliaPage() {
     mutationFn: async (data: z.infer<typeof userFormSchema>) => {
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
       const { titelsVoor, titelsAchter } = buildTitelPayload(createTitels);
-      await apiRequest("POST", "/api/users", {
+      const res = await apiRequest("POST", "/api/users", {
         ...data,
         fullName,
         voornamen: data.voornamen,
@@ -1206,7 +1207,6 @@ export default function PersonaliaPage() {
         birthDate: data.birthDate || null,
         phoneExtension: data.phoneExtension || null,
         functie: (data.functie === "none" || !data.functie) ? null : data.functie,
-        kadasterId: data.kadasterId || null,
         cedulaNr: data.cedulaNr || null,
         telefoonnr: data.telefoonnr || null,
         mobielnr: data.mobielnr || null,
@@ -1217,11 +1217,15 @@ export default function PersonaliaPage() {
         active: true,
         endDate: null,
       });
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (newUser: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Medewerker aangemaakt" });
+      toast({
+        title: "Medewerker aangemaakt",
+        description: newUser?.kadasterId ? `Userid: ${newUser.kadasterId}` : undefined,
+      });
       setCreateOpen(false);
       setCreateTitels([]);
       createForm.reset();
@@ -1423,13 +1427,12 @@ export default function PersonaliaPage() {
                     </FormItem>
                   )} />
                   <div className="grid grid-cols-2 gap-4">
-                    <FormField control={createForm.control} name="kadasterId" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Kadaster ID</FormLabel>
-                        <FormControl><Input {...field} placeholder="bijv. K-12345" data-testid="input-user-kadaster-id" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <div>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Userid</label>
+                      <div className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground mt-1.5" data-testid="display-new-userid">
+                        Wordt automatisch toegewezen
+                      </div>
+                    </div>
                     <FormField control={createForm.control} name="cedulaNr" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cedulanr.</FormLabel>

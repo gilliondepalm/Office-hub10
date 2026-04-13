@@ -816,7 +816,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Wachtwoord moet minimaal 8 tekens bevatten" });
       }
       const hashed = await bcrypt.hash(parsed.password, 12);
-      const user = await storage.createUser({ ...parsed, password: hashed });
+      const nextKadasterId = await storage.getNextKadasterId();
+      const user = await storage.createUser({ ...parsed, password: hashed, kadasterId: nextKadasterId });
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (err: any) {
