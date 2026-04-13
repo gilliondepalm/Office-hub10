@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "8Yy-t--gztUbo4UlJwN_m"
+uri = "file://uploads/App_pics/werktijden.png"
+type = "image"
+title = "werktijden office time tracking"
 
 [[outputs]]
 id = "7rPcuyNJ4_r_hHHvs_Ceb"
