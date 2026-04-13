@@ -22,7 +22,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Users, Mail, Building2, Pencil, UserCheck, UserX, CalendarDays, Briefcase, TrendingUp, Trash2, GraduationCap, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Users, Mail, Building2, Pencil, UserCheck, UserX, CalendarDays, Briefcase, TrendingUp, Trash2, GraduationCap, CheckCircle2, Circle, Copy } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -267,6 +267,28 @@ function EditDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-muted-foreground">Gebruiker-ID</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    value={user.id}
+                    readOnly
+                    className="font-mono text-xs bg-muted text-muted-foreground cursor-default"
+                    data-testid="input-userid-readonly"
+                  />
+                  <button
+                    type="button"
+                    title="Kopieer ID"
+                    className="shrink-0 p-2 rounded border border-input bg-background hover:bg-muted transition-colors"
+                    data-testid="button-copy-userid"
+                    onClick={() => { navigator.clipboard.writeText(user.id); }}
+                  >
+                    <Copy className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="username" render={({ field }) => (
                 <FormItem>
@@ -1157,6 +1179,7 @@ function InlinePersonalDevelopment({ user }: { user: User }) {
 export default function PersonaliaPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createTitels, setCreateTitels] = useState<TitelEntry[]>([]);
+  const [newCreatedUserId, setNewCreatedUserId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [deactivateUser, setDeactivateUser] = useState<User | null>(null);
   const [historyUser, setHistoryUser] = useState<User | null>(null);
@@ -1195,7 +1218,7 @@ export default function PersonaliaPage() {
     mutationFn: async (data: z.infer<typeof userFormSchema>) => {
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
       const { titelsVoor, titelsAchter } = buildTitelPayload(createTitels);
-      await apiRequest("POST", "/api/users", {
+      const res = await apiRequest("POST", "/api/users", {
         ...data,
         fullName,
         voornamen: data.voornamen,
@@ -1217,12 +1240,13 @@ export default function PersonaliaPage() {
         active: true,
         endDate: null,
       });
+      const newUser = await res.json();
+      return newUser?.id as string | undefined;
     },
-    onSuccess: () => {
+    onSuccess: (newId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Medewerker aangemaakt" });
-      setCreateOpen(false);
+      if (newId) setNewCreatedUserId(newId);
       setCreateTitels([]);
       createForm.reset();
     },
@@ -1283,7 +1307,7 @@ export default function PersonaliaPage() {
       <div className="p-6 space-y-6">
       <div className="flex items-center justify-end gap-4 flex-wrap">
         {canEditPersonalia && (personelTab === "actief" || personelTab === "tijdelijk") && (
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) setNewCreatedUserId(null); }}>
             <DialogTrigger asChild>
               <Button data-testid="button-add-user" onClick={() => {
                 createForm.setValue("role", personelTab === "tijdelijk" ? "tijdelijk" : "employee");
@@ -1296,6 +1320,38 @@ export default function PersonaliaPage() {
               <DialogHeader>
                 <DialogTitle>{personelTab === "tijdelijk" ? "Nieuw Tijdelijk Personeelslid" : "Nieuwe Medewerker"}</DialogTitle>
               </DialogHeader>
+              {newCreatedUserId ? (
+                <div className="space-y-4 py-2">
+                  <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 p-4 space-y-3">
+                    <p className="text-sm font-medium text-green-800 dark:text-green-300">Medewerker aangemaakt</p>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Gebruiker-ID</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          value={newCreatedUserId}
+                          readOnly
+                          className="font-mono text-xs bg-muted text-muted-foreground cursor-default"
+                          data-testid="input-new-userid-readonly"
+                        />
+                        <button
+                          type="button"
+                          title="Kopieer ID"
+                          className="shrink-0 p-2 rounded border border-input bg-background hover:bg-muted transition-colors"
+                          data-testid="button-copy-new-userid"
+                          onClick={() => { navigator.clipboard.writeText(newCreatedUserId); }}
+                        >
+                          <Copy className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={() => { setCreateOpen(false); setNewCreatedUserId(null); }} data-testid="button-close-new-user">
+                      Sluiten
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <Form {...createForm}>
                 <form onSubmit={createForm.handleSubmit((d) => createMutation.mutate(d))} className="space-y-4">
                   <div className="grid grid-cols-[1fr_120px_1fr] gap-3">
@@ -1466,6 +1522,7 @@ export default function PersonaliaPage() {
                   </Button>
                 </form>
               </Form>
+              )}
             </DialogContent>
           </Dialog>
         )}
