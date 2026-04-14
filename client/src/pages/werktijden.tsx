@@ -18,7 +18,8 @@ import { Progress } from "@/components/ui/progress";
 import {
   Upload, Database, FileText, AlertTriangle, CheckCircle2,
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
-  FileUp, Filter, Search, Calendar,
+  FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
+  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -141,6 +142,214 @@ function buildSessies(records: Werktijd[]): Sessie[] {
     });
 }
 
+// ── Analyse constanten (bloktijden in seconden) ───────────────────────────────
+const _H = 3600, _M = 60;
+const ANA_BLK1_S  = 7*_H;              // 07:00
+const ANA_BLK1_E  = 8*_H;              // 08:00
+const ANA_BLK2_S  = 11*_H+45*_M;      // 11:45
+const ANA_BLK2_E  = 12*_H;             // 12:00
+const ANA_BLK3_S  = 13*_H+30*_M;      // 13:30
+const ANA_BLK3_E  = 14*_H;             // 14:00
+const ANA_BLK4_WD = 16*_H+45*_M;      // 16:45 Ma-Do
+const ANA_BLK4_FR = 16*_H+30*_M;      // 16:30 Vr
+const ANA_BLK4_E  = 18*_H;             // 18:00
+const ANA_BREAK_S = 12*_H;             // 12:00 pauze start
+const ANA_BREAK_E = 13*_H+30*_M;       // 13:30 pauze einde
+const ANA_TARGET_WD = 8*_H;            // 8u target Ma-Do
+const ANA_TARGET_FR = 7*_H+30*_M;      // 7.5u target Vr
+const ANA_PAUZE_OUT_MIN = 11*_H+30*_M; // vroegste uitklok pauze
+const ANA_PAUZE_OUT_MAX = 13*_H+30*_M; // laatste uitklok pauze
+const ANA_PAUZE_IN_MIN  = 12*_H;       // vroegste inklok pauze
+const ANA_PAUZE_IN_MAX  = 15*_H;       // laatste inklok pauze
+
+// ── Analyse types ─────────────────────────────────────────────────────────────
+type WorkPair = {
+  inRec: Werktijd;
+  outRec: Werktijd | null;
+  inTime: Date;
+  outTime: Date | null;
+  durSec: number | null;
+  werktijdSec: number | null;
+};
+
+type PauzePair = {
+  outRec: Werktijd;
+  inRec: Werktijd;
+  outTime: Date;
+  inTime: Date;
+  durSec: number;
+};
+
+type DagAnalyse = {
+  datum: string;
+  dagStr: string;
+  weekdagKort: string;
+  isFriday: boolean;
+  pairs: WorkPair[];
+  completePairs: WorkPair[];
+  incompletePairs: WorkPair[];
+  pauze: PauzePair | null;
+  totaalWerktijdSec: number;
+  targetSec: number;
+  verschilSec: number;
+  blok1Ok: boolean;
+  blok2Ok: boolean;
+  blok3Ok: boolean;
+  blok4Ok: boolean;
+  teLaat: Array<{ rec: Werktijd; tijd: string }>;
+  teVroeg: Array<{ rec: Werktijd; tijd: string }>;
+  isAbsent: boolean;
+};
+
+type AbsenceRecord = {
+  id: number;
+  userId: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+  type: string;
+};
+
+// ── Analyse helpers ───────────────────────────────────────────────────────────
+function secOfDay(d: Date): number {
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+}
+
+function formatHMS(sec: number): string {
+  const abs = Math.abs(Math.round(sec));
+  const h   = Math.floor(abs / 3600);
+  const m   = Math.floor((abs % 3600) / 60);
+  const s   = abs % 60;
+  return `${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+}
+
+function formatTime12(d: Date): string {
+  const h24 = d.getHours();
+  const h   = h24 % 12 === 0 ? 12 : h24 % 12;
+  const m   = d.getMinutes().toString().padStart(2,"0");
+  const s   = d.getSeconds().toString().padStart(2,"0");
+  const ampm = h24 < 12 ? "am" : "pm";
+  return `${h.toString().padStart(2,"0")}:${m}:${s} ${ampm}`;
+}
+
+function buildAnalysePairs(recs: Werktijd[]): WorkPair[] {
+  const sorted = [...recs].sort((a, b) =>
+    parseChecktime(a.checktime).getTime() - parseChecktime(b.checktime).getTime()
+  );
+  const pairs: WorkPair[] = [];
+  let pendingIn: Werktijd | null = null;
+
+  for (const r of sorted) {
+    if (r.checktype === "in") {
+      if (pendingIn !== null) {
+        pairs.push({
+          inRec: pendingIn, outRec: null,
+          inTime: parseChecktime(pendingIn.checktime),
+          outTime: null, durSec: null, werktijdSec: null,
+        });
+      }
+      pendingIn = r;
+    } else {
+      if (pendingIn !== null) {
+        const inTime  = parseChecktime(pendingIn.checktime);
+        const outTime = parseChecktime(r.checktime);
+        const durSec  = (outTime.getTime() - inTime.getTime()) / 1000;
+        const inSec   = secOfDay(inTime);
+        const outSec  = secOfDay(outTime);
+        const brkOv   = Math.max(0, Math.min(outSec, ANA_BREAK_E) - Math.max(inSec, ANA_BREAK_S));
+        const werktijdSec = Math.max(0, durSec - brkOv);
+        pairs.push({ inRec: pendingIn, outRec: r, inTime, outTime, durSec, werktijdSec });
+        pendingIn = null;
+      }
+    }
+  }
+  if (pendingIn !== null) {
+    pairs.push({
+      inRec: pendingIn, outRec: null,
+      inTime: parseChecktime(pendingIn.checktime),
+      outTime: null, durSec: null, werktijdSec: null,
+    });
+  }
+  return pairs;
+}
+
+function detectPauze(pairs: WorkPair[]): PauzePair | null {
+  for (let i = 0; i < pairs.length - 1; i++) {
+    const s1 = pairs[i]; const s2 = pairs[i + 1];
+    if (!s1.outRec || !s1.outTime || !s2.inTime) continue;
+    const outSec = secOfDay(s1.outTime);
+    const inSec  = secOfDay(s2.inTime);
+    const gapSec = (s2.inTime.getTime() - s1.outTime.getTime()) / 1000;
+    if (outSec >= ANA_PAUZE_OUT_MIN && outSec <= ANA_PAUZE_OUT_MAX &&
+        inSec  >= ANA_PAUZE_IN_MIN  && inSec  <= ANA_PAUZE_IN_MAX  &&
+        gapSec >= 30*60 && gapSec <= 180*60) {
+      return {
+        outRec: s1.outRec, inRec: s2.inRec,
+        outTime: s1.outTime, inTime: s2.inTime, durSec: gapSec,
+      };
+    }
+  }
+  return null;
+}
+
+function computeDagAnalyse(datum: string, recs: Werktijd[], isAbsent: boolean): DagAnalyse {
+  const d        = new Date(datum + "T00:00:00");
+  const isFriday = d.getDay() === 5;
+  const targetSec = isFriday ? ANA_TARGET_FR : ANA_TARGET_WD;
+  const b4Start   = isFriday ? ANA_BLK4_FR  : ANA_BLK4_WD;
+
+  const pairs          = buildAnalysePairs(recs);
+  const completePairs  = pairs.filter(p => p.outRec !== null);
+  const incompletePairs= pairs.filter(p => p.outRec === null);
+  const pauze          = detectPauze(pairs);
+
+  const totaalWerktijdSec = completePairs.reduce((s, p) => s + (p.werktijdSec ?? 0), 0);
+  const verschilSec       = totaalWerktijdSec - targetSec;
+
+  const sorted  = [...recs].sort((a, b) =>
+    parseChecktime(a.checktime).getTime() - parseChecktime(b.checktime).getTime()
+  );
+  const inRecs  = sorted.filter(r => r.checktype === "in");
+  const outRecs = sorted.filter(r => r.checktype === "out");
+
+  const blok1Ok = inRecs.some(r => { const s = secOfDay(parseChecktime(r.checktime)); return s >= ANA_BLK1_S && s <= ANA_BLK1_E; });
+  const blok2Ok = outRecs.some(r => { const s = secOfDay(parseChecktime(r.checktime)); return s >= ANA_BLK2_S && s <= ANA_BLK2_E + 30*60; });
+  const blok3Ok = inRecs.some(r => { const s = secOfDay(parseChecktime(r.checktime)); return s >= ANA_BLK3_S && s <= ANA_BLK3_E + 30*60; });
+  const blok4Ok = outRecs.some(r => { const s = secOfDay(parseChecktime(r.checktime)); return s >= b4Start - 15*60 && s <= ANA_BLK4_E; });
+
+  const teLaat:  Array<{ rec: Werktijd; tijd: string }> = [];
+  const teVroeg: Array<{ rec: Werktijd; tijd: string }> = [];
+
+  for (const r of sorted) {
+    const dt   = parseChecktime(r.checktime);
+    const sec  = secOfDay(dt);
+    const tijd = formatTime12(dt);
+    if (r.checktype === "in") {
+      if (sec < ANA_BLK1_S) {
+        teVroeg.push({ rec: r, tijd });
+      } else if (sec > ANA_BLK1_E && sec < 13 * _H) {
+        teLaat.push({ rec: r, tijd });
+      } else if (sec > ANA_BLK3_E && sec >= 12 * _H) {
+        teLaat.push({ rec: r, tijd });
+      }
+    } else {
+      // Uitklok te vroeg: voor het blok4-venster (na pauze einde, voor 16:45 / 16:30 vr)
+      if (sec >= ANA_BREAK_E && sec < b4Start) {
+        teVroeg.push({ rec: r, tijd });
+      }
+    }
+  }
+
+  return {
+    datum, dagStr: format(d, "dd-MM-yyyy"),
+    weekdagKort: format(d, "EEE"),
+    isFriday, pairs, completePairs, incompletePairs, pauze,
+    totaalWerktijdSec, targetSec, verschilSec,
+    blok1Ok, blok2Ok, blok3Ok, blok4Ok,
+    teLaat, teVroeg, isAbsent,
+  };
+}
+
 // ── Status badges ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   if (status === "volledig")    return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs">Volledig</Badge>;
@@ -162,6 +371,361 @@ function EventTypeBadge({ type }: { type: string }) {
   return <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs">Info</Badge>;
 }
 
+// ── Analyse sub-component ─────────────────────────────────────────────────────
+function AnalyseContent({
+  data,
+  showOnlyIncomplete,
+  setShowOnlyIncomplete,
+}: {
+  data: DagAnalyse[];
+  showOnlyIncomplete: boolean;
+  setShowOnlyIncomplete: (v: boolean) => void;
+}) {
+  const verzuimDagen  = data.filter(d =>
+    !d.isAbsent && d.completePairs.length > 0 &&
+    (!d.blok1Ok || !d.blok2Ok || !d.blok3Ok || !d.blok4Ok)
+  );
+  const allTeLaat     = data.flatMap(d => d.teLaat.map(t => ({ ...t, dag: d })));
+  const allTeVroeg    = data.flatMap(d => d.teVroeg.map(t => ({ ...t, dag: d })));
+  const allPauzes     = data.filter(d => d.pauze !== null).map(d => ({ pauze: d.pauze!, dag: d }));
+  const totalPauzeSec = allPauzes.reduce((s, p) => s + p.pauze.durSec, 0);
+  const totalWerktijdSec  = data.reduce((s, d) => s + d.totaalWerktijdSec, 0);
+  const totalDagenGewerkt = data.filter(d => d.completePairs.length > 0).length;
+  const totalIncomplete   = data.reduce((s, d) => s + d.incompletePairs.length, 0);
+  const variabelSaldoSec  = data.reduce((s, d) => s + (d.isAbsent ? 0 : d.verschilSec), 0);
+
+  type WerkRow = { dag: DagAnalyse; pair: WorkPair; isLast: boolean; isIncomplete: boolean };
+  const werkRows: WerkRow[] = [];
+  for (const dag of data) {
+    dag.completePairs.forEach((pair, idx) => {
+      werkRows.push({ dag, pair, isLast: idx === dag.completePairs.length - 1, isIncomplete: false });
+    });
+    dag.incompletePairs.forEach(pair => werkRows.push({ dag, pair, isLast: false, isIncomplete: true }));
+  }
+  const displayedRows = showOnlyIncomplete ? werkRows.filter(r => r.isIncomplete) : werkRows;
+
+  return (
+    <div className="space-y-5">
+      {/* Samenvatting KPI's */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30">
+                <ShieldAlert className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Verzuim te klokken</p>
+                <p className="text-2xl font-bold text-red-600" data-testid="kpi-verzuim">{verzuimDagen.length}</p>
+                <p className="text-xs text-muted-foreground">dag(en)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+                <ClockAlert className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Te laat ingeklokt</p>
+                <p className="text-2xl font-bold text-amber-600" data-testid="kpi-telaat">{allTeLaat.length}</p>
+                <p className="text-xs text-muted-foreground">keer</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${variabelSaldoSec >= 0 ? "bg-green-50 dark:bg-green-950/30" : "bg-orange-50 dark:bg-orange-950/30"}`}>
+                {variabelSaldoSec >= 0
+                  ? <TrendingUp className="h-5 w-5 text-green-600" />
+                  : <TrendingDown className="h-5 w-5 text-orange-600" />}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Variabel saldo</p>
+                <p className={`text-lg font-bold font-mono ${variabelSaldoSec >= 0 ? "text-green-600" : "text-orange-600"}`} data-testid="kpi-saldo">
+                  {variabelSaldoSec >= 0 ? "+" : "-"}{formatHMS(Math.abs(variabelSaldoSec))}
+                </p>
+                <p className="text-xs text-muted-foreground">{variabelSaldoSec >= 0 ? "te veel" : "te weinig"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+                <Clock className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Totaal gewerkt</p>
+                <p className="text-lg font-bold font-mono text-blue-600" data-testid="kpi-totaal">{formatHMS(totalWerktijdSec)}</p>
+                <p className="text-xs text-muted-foreground">{totalDagenGewerkt} dag(en)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gewerkte werkuren */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Gewerkte werkuren deze periode:
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {totalIncomplete > 0 && (
+            <div className="px-4 pb-2 pt-1">
+              <button
+                className="text-sm font-semibold text-amber-600 hover:underline"
+                onClick={() => setShowOnlyIncomplete(!showOnlyIncomplete)}
+                data-testid="button-show-incomplete"
+              >
+                Totaal incomplete werkuren: {totalIncomplete}{" "}
+                {showOnlyIncomplete ? "— toon alles" : "Klik hier"}
+              </button>
+            </div>
+          )}
+          {displayedRows.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">Geen werkuren gevonden</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead className="pl-4 w-20">Id</TableHead>
+                    <TableHead className="w-14">Dag</TableHead>
+                    <TableHead className="w-28">Datum</TableHead>
+                    <TableHead className="w-28">In</TableHead>
+                    <TableHead className="w-28">Out</TableHead>
+                    <TableHead className="w-28">Uren gewerkt</TableHead>
+                    <TableHead className="w-24">Tot p/d</TableHead>
+                    <TableHead className="w-24 text-amber-700 dark:text-amber-400">te veel</TableHead>
+                    <TableHead className="w-24 text-red-600 pr-4">minder</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayedRows.map((row, i) => (
+                    <TableRow
+                      key={`${row.pair.inRec.logid}-${i}`}
+                      className={row.isIncomplete ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}
+                      data-testid={`row-werk-${row.pair.inRec.logid}`}
+                    >
+                      <TableCell className="pl-4 text-xs font-mono text-muted-foreground">{row.pair.inRec.logid}</TableCell>
+                      <TableCell className="text-sm">{row.dag.weekdagKort}</TableCell>
+                      <TableCell className="text-sm">{row.dag.dagStr}</TableCell>
+                      <TableCell className="text-sm font-mono">{formatTime12(row.pair.inTime)}</TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {row.pair.outTime
+                          ? formatTime12(row.pair.outTime)
+                          : <span className="text-amber-500 italic text-xs">niet uitgelokt</span>}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {row.pair.werktijdSec !== null ? formatHMS(row.pair.werktijdSec) : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono font-semibold text-amber-700 dark:text-amber-400">
+                        {row.isLast ? formatHMS(row.dag.totaalWerktijdSec) : ""}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono font-semibold text-red-600">
+                        {row.isLast && row.dag.verschilSec > 0 ? formatHMS(row.dag.verschilSec) : row.isLast ? "---" : ""}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono font-semibold text-red-600 pr-4">
+                        {row.isLast && row.dag.verschilSec < 0 ? formatHMS(-row.dag.verschilSec) : row.isLast ? "---" : ""}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <div className="px-4 py-3 border-t flex flex-wrap gap-6 text-sm text-muted-foreground">
+            <span>Totaal gewerkt: <strong className="text-foreground font-mono">{formatHMS(totalWerktijdSec)}</strong> uren gewerkt</span>
+            <span>Totaal dagen gewerkt: <strong className="text-foreground">{totalDagenGewerkt}</strong> dag(en)</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Te laat / Te vroeg (naast elkaar) */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <ClockAlert className="h-4 w-4" />
+              Te laat overzichten deze periode:
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {allTeLaat.length === 0 ? (
+              <div className="py-6 text-center text-muted-foreground text-sm">Geen te laat geregistreerd ✓</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
+                    <TableHead className="w-16"><u>Dag</u></TableHead>
+                    <TableHead className="w-28"><u>Datum</u></TableHead>
+                    <TableHead className="pr-4"><u>Tijd</u></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allTeLaat.map((item, i) => (
+                    <TableRow key={`tl-${item.rec.logid}-${i}`} data-testid={`row-telaat-${item.rec.logid}`}>
+                      <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
+                      <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
+                      <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
+                      <TableCell className="text-sm font-mono font-semibold text-red-600 dark:text-red-400 pr-4">{item.tijd}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-blue-700 dark:text-blue-400">
+              <ClockAlert className="h-4 w-4" />
+              Te vroeg:
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {allTeVroeg.length === 0 ? (
+              <div className="py-6 text-center text-muted-foreground text-sm">Geen te vroeg geregistreerd ✓</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="text-xs">
+                    <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
+                    <TableHead className="w-16"><u>Dag</u></TableHead>
+                    <TableHead className="w-28"><u>Datum</u></TableHead>
+                    <TableHead className="pr-4"><u>Tijd</u></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allTeVroeg.map((item, i) => (
+                    <TableRow key={`tv-${item.rec.logid}-${i}`} data-testid={`row-tevroeg-${item.rec.logid}`}>
+                      <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
+                      <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
+                      <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
+                      <TableCell className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400 pr-4">{item.tijd}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pauze overzichten */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CoffeeIcon className="h-5 w-5 text-primary" />
+            Pauze overzichten:
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {allPauzes.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">Geen pauzeregistraties gevonden</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs">
+                  <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
+                  <TableHead className="w-14"><u>Dag</u></TableHead>
+                  <TableHead className="w-28"><u>Datum</u></TableHead>
+                  <TableHead className="w-28"><u>Out</u></TableHead>
+                  <TableHead className="w-28"><u>In</u></TableHead>
+                  <TableHead className="pr-4"><u>Totaal pauze</u></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allPauzes.map(({ pauze, dag }, i) => (
+                  <TableRow key={`pauze-${pauze.outRec.logid}-${i}`} data-testid={`row-pauze-${pauze.outRec.logid}`}>
+                    <TableCell className="pl-4 text-sm font-mono">{pauze.outRec.logid}</TableCell>
+                    <TableCell className="text-sm">{dag.weekdagKort}</TableCell>
+                    <TableCell className="text-sm">{dag.dagStr}</TableCell>
+                    <TableCell className="text-sm font-mono">{formatTime12(pauze.outTime)}</TableCell>
+                    <TableCell className="text-sm font-mono">{formatTime12(pauze.inTime)}</TableCell>
+                    <TableCell className="text-sm font-mono font-semibold pr-4">{formatHMS(pauze.durSec)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {allPauzes.length > 0 && (
+            <div className="px-4 py-3 border-t text-sm text-right text-muted-foreground">
+              Totaal pauze:{" "}
+              <strong className="text-foreground font-mono">{formatHMS(totalPauzeSec)}</strong> uren pauze
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Verzuim bloktijden detail */}
+      {verzuimDagen.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-red-700 dark:text-red-400">
+              <ShieldAlert className="h-5 w-5" />
+              Verzuim te klokken — gemiste bloktijden per dag
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs">
+                  <TableHead className="pl-4 w-14">Dag</TableHead>
+                  <TableHead className="w-28">Datum</TableHead>
+                  <TableHead className="w-36 text-center">Blok 1<br /><span className="font-normal text-muted-foreground">07:00–08:00</span></TableHead>
+                  <TableHead className="w-36 text-center">Blok 2<br /><span className="font-normal text-muted-foreground">11:45–12:00</span></TableHead>
+                  <TableHead className="w-36 text-center">Blok 3<br /><span className="font-normal text-muted-foreground">13:30–14:00</span></TableHead>
+                  <TableHead className="pr-4 text-center">Blok 4<br /><span className="font-normal text-muted-foreground">16:45/16:30–18:00</span></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {verzuimDagen.map((dag, i) => (
+                  <TableRow key={`vz-${dag.datum}-${i}`} className="bg-red-50/30 dark:bg-red-950/10" data-testid={`row-verzuim-${dag.datum}`}>
+                    <TableCell className="pl-4 text-sm">{dag.weekdagKort}</TableCell>
+                    <TableCell className="text-sm">{dag.dagStr}</TableCell>
+                    <TableCell className="text-center">
+                      {dag.blok1Ok
+                        ? <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                        : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {dag.blok2Ok
+                        ? <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                        : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {dag.blok3Ok
+                        ? <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                        : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}
+                    </TableCell>
+                    <TableCell className="text-center pr-4">
+                      {dag.blok4Ok
+                        ? <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                        : <XCircle className="h-4 w-4 text-red-500 mx-auto" />}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ── Hoofdcomponent ────────────────────────────────────────────────────────────
 export default function WerktijdenPage() {
   const { user } = useAuth();
@@ -176,6 +740,10 @@ export default function WerktijdenPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDatum, setFilterDatum] = useState("");
   const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
+  const [analyseUserId, setAnalyseUserId]         = useState("");
+  const [analyseFrom, setAnalyseFrom]             = useState("");
+  const [analyseTo, setAnalyseTo]                 = useState("");
+  const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
@@ -201,6 +769,11 @@ export default function WerktijdenPage() {
 
   const { data: allUsers = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+    enabled: isManager,
+  });
+
+  const { data: absences = [] } = useQuery<AbsenceRecord[]>({
+    queryKey: ["/api/absences"],
     enabled: isManager,
   });
 
@@ -306,6 +879,42 @@ export default function WerktijdenPage() {
     return sessies.filter(s => s.status === "onvolledig").length;
   }, [sessies]);
 
+  // ── Analyse data berekening ──────────────────────────────────────────────────
+  const analyseData = useMemo((): DagAnalyse[] | null => {
+    if (!analyseUserId) return null;
+    const userObj = activeUsers.find((u: any) => u.kadasterId === analyseUserId);
+    const userId  = userObj?.id as number | undefined;
+
+    const userRecs = records.filter(r => {
+      if (r.userid !== analyseUserId) return false;
+      const dk = dateKey(r.checktime);
+      if (analyseFrom && dk < analyseFrom) return false;
+      if (analyseTo   && dk > analyseTo)   return false;
+      return true;
+    });
+
+    const byDay: Record<string, Werktijd[]> = {};
+    for (const r of userRecs) {
+      const k = dateKey(r.checktime);
+      if (!byDay[k]) byDay[k] = [];
+      byDay[k].push(r);
+    }
+
+    const isDateAbsent = (datum: string) => {
+      if (!userId) return false;
+      return absences.some((a: AbsenceRecord) =>
+        a.userId === userId &&
+        a.status === "approved" &&
+        datum >= a.startDate.slice(0, 10) &&
+        datum <= a.endDate.slice(0, 10)
+      );
+    };
+
+    return Object.entries(byDay)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([datum, recs]) => computeDagAnalyse(datum, recs, isDateAbsent(datum)));
+  }, [records, analyseUserId, analyseFrom, analyseTo, absences, activeUsers]);
+
   if (!isManager) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -409,6 +1018,10 @@ export default function WerktijdenPage() {
                   {totalWarnings + totalErrors}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="analyse" data-testid="tab-analyse">
+              <BarChart3 className="h-4 w-4 mr-1.5" />
+              Analyse
             </TabsTrigger>
           </TabsList>
 
@@ -843,6 +1456,106 @@ export default function WerktijdenPage() {
               <p className="text-xs text-center text-muted-foreground">
                 Toont 500 van {filteredEvents.length} events.
               </p>
+            )}
+          </TabsContent>
+
+          {/* ── Analyse tab ──────────────────────────────────────────────────── */}
+          <TabsContent value="analyse" className="space-y-5 mt-4">
+            {/* Filter balk */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Medewerker</label>
+                    <Select
+                      value={analyseUserId}
+                      onValueChange={(v) => { setAnalyseUserId(v); setShowOnlyIncomplete(false); }}
+                    >
+                      <SelectTrigger data-testid="select-analyse-userid">
+                        <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                        <SelectValue placeholder="Selecteer medewerker…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeUsers.map((u: any) => (
+                          <SelectItem key={u.kadasterId} value={u.kadasterId}>
+                            {u.fullName || u.username} (ID: {u.kadasterId})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Van</label>
+                    <Input
+                      type="date"
+                      value={analyseFrom}
+                      onChange={e => setAnalyseFrom(e.target.value)}
+                      className="w-40"
+                      data-testid="input-analyse-from"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Tot en met</label>
+                    <Input
+                      type="date"
+                      value={analyseTo}
+                      onChange={e => setAnalyseTo(e.target.value)}
+                      className="w-40"
+                      data-testid="input-analyse-to"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setAnalyseFrom(""); setAnalyseTo(""); setShowOnlyIncomplete(false); }}
+                    data-testid="button-analyse-reset"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
+                    Reset
+                  </Button>
+                </div>
+                {analyseUserId && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Medewerker: <strong>{getUserName(analyseUserId)}</strong>
+                    {analyseFrom && ` · Van: ${analyseFrom.split("-").reverse().join("-")}`}
+                    {analyseTo && ` · T/m: ${analyseTo.split("-").reverse().join("-")}`}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Geen medewerker geselecteerd */}
+            {!analyseUserId && (
+              <Card>
+                <CardContent className="py-16 text-center text-muted-foreground">
+                  <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Selecteer een medewerker om de analyse te bekijken</p>
+                  <p className="text-sm mt-1">Gebruik het filter bovenaan om een medewerker en periode te kiezen</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Geen data gevonden */}
+            {analyseUserId && analyseData !== null && analyseData.length === 0 && (
+              <Card>
+                <CardContent className="py-16 text-center text-muted-foreground">
+                  <Database className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Geen prikklokdata gevonden</p>
+                  <p className="text-sm mt-1">
+                    Geen registraties voor <strong>{getUserName(analyseUserId)}</strong>
+                    {(analyseFrom || analyseTo) && " in de geselecteerde periode"}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Analyse resultaten */}
+            {analyseUserId && analyseData && analyseData.length > 0 && (
+              <AnalyseContent
+                data={analyseData}
+                showOnlyIncomplete={showOnlyIncomplete}
+                setShowOnlyIncomplete={setShowOnlyIncomplete}
+              />
             )}
           </TabsContent>
         </Tabs>
