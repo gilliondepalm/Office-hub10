@@ -55,8 +55,11 @@ type EventLog = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function parseChecktime(ct: string): Date {
-  if (ct.includes("T")) return new Date(ct);
-  return new Date(ct.replace(" ", "T"));
+  // DB slaat tijden op als lokale tijd (naive timestamp).
+  // De server serialiseert met Z (UTC). Strip de Z zodat de browser
+  // de tijd als lokale (display) tijd interpreteert, zonder uur-aftrek.
+  const s = ct.replace(/Z$/, "").replace(" ", "T");
+  return new Date(s);
 }
 
 function formatTs(ct: string): string {
