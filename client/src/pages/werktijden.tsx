@@ -917,9 +917,9 @@ export default function WerktijdenPage() {
 
   if (!isManager) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="overflow-auto h-full">
         <PageHero title="Werktijden" subtitle="Prikklok data import & verwerking" imageSrc="/uploads/App_pics/werktijden.png" />
-        <div className="flex-1 p-6">
+        <div className="p-6">
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Database className="h-10 w-10 mx-auto mb-3 opacity-30" />
@@ -932,9 +932,9 @@ export default function WerktijdenPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="overflow-auto h-full">
       <PageHero title="Werktijden" subtitle="Prikklok data import & verwerking" imageSrc="/uploads/App_pics/werktijden.png" />
-      <div className="flex-1 p-6 space-y-6">
+      <div className="p-6 space-y-6">
 
         {/* KPI kaarten */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
