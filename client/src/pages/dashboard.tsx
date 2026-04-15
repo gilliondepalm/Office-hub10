@@ -624,7 +624,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-5 gap-1.5 px-1 pb-1">
+                  <div className="grid grid-cols-6 gap-1.5 px-1 pb-1">
                     <span className="text-xs font-medium text-muted-foreground">Maand</span>
                     <div className="flex items-center gap-1 justify-center">
                       <CalendarX className="h-3 w-3 text-muted-foreground" />
@@ -640,7 +640,11 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-1 justify-center">
                       <Hourglass className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium text-muted-foreground text-center">Uren saldo</span>
+                      <span className="text-xs font-medium text-muted-foreground text-center">Uren</span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-center">
+                      <Hourglass className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground text-center">Min</span>
                     </div>
                   </div>
                   {performanceData.months.map((m) => {
@@ -658,15 +662,6 @@ export default function DashboardPage() {
                         </div>
                       );
                     };
-                    const formatSaldo = (min: number) => {
-                      const abs = Math.abs(min);
-                      const h = Math.floor(abs / 60);
-                      const m2 = abs % 60;
-                      const sign = min >= 0 ? "+" : "−";
-                      if (h === 0) return `${sign}${m2}m`;
-                      if (m2 === 0) return `${sign}${h}u`;
-                      return `${sign}${h}u${m2}m`;
-                    };
                     const saldoColor = m.saldoMinuten >= 0
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
                       : "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800";
@@ -674,7 +669,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={m.month}
-                        className={`grid grid-cols-5 gap-1.5 items-center rounded-lg px-2 py-2 ${isCurrentMonth ? "bg-blue-50/60 dark:bg-blue-900/10 border border-blue-200/60 dark:border-blue-800/40" : "bg-muted/30"}`}
+                        className={`grid grid-cols-6 gap-1.5 items-center rounded-lg px-2 py-2 ${isCurrentMonth ? "bg-blue-50/60 dark:bg-blue-900/10 border border-blue-200/60 dark:border-blue-800/40" : "bg-muted/30"}`}
                         data-testid={`perf-month-${m.month}`}
                       >
                         <div>
@@ -684,9 +679,14 @@ export default function DashboardPage() {
                         {badge(m.verzuim, `perf-verzuim-${m.month}`)}
                         {badge(m.teLaat, `perf-telaat-${m.month}`)}
                         {badge(m.teVroegUit, `perf-tevroeg-${m.month}`)}
-                        <div className="flex justify-center" data-testid={`perf-saldo-${m.month}`}>
-                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md border text-sm font-semibold ${saldoColor}`}>
-                            {formatSaldo(m.saldoMinuten)}
+                        <div className="flex justify-center" data-testid={`perf-saldo-uren-${m.month}`}>
+                          <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md border text-sm font-semibold ${saldoColor}`}>
+                            {(m.saldoMinuten >= 0 ? "+" : "−")}{Math.floor(Math.abs(m.saldoMinuten) / 60)}u
+                          </span>
+                        </div>
+                        <div className="flex justify-center" data-testid={`perf-saldo-min-${m.month}`}>
+                          <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md border text-sm font-semibold ${saldoColor}`}>
+                            {String(Math.abs(m.saldoMinuten) % 60).padStart(2, "0")}m
                           </span>
                         </div>
                       </div>
