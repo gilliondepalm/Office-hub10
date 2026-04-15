@@ -22,7 +22,7 @@ import {
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
   TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2, FileDown,
-  ChevronDown, ChevronRight, Plus, LogIn,
+  ChevronDown, ChevronRight, Plus, LogIn, ClipboardEdit, CheckCheck, Ban,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -871,6 +871,16 @@ export default function WerktijdenPage() {
   const [drempelTeVroegUit, setDrempelTeVroegUit] = useState(3);
   const [drempelOnvolledig, setDrempelOnvolledig] = useState(2);
 
+  // Correctieverzoek dialog state
+  const [showCorrectieDialog, setShowCorrectieDialog] = useState(false);
+  const [correctieDatum, setCorrectiesDatum] = useState("");
+  const [correctieTijdstip, setCorrectieTijdstip] = useState("08:00");
+  const [correctieRichting, setCorrectieRichting] = useState<"IN" | "OUT">("IN");
+  const [correctieReden, setCorrectieReden] = useState("");
+  const [correctieKadasterId, setCorrectieKadasterId] = useState("");
+  const [beoordelingNotitie, setBeoordelingNotitie] = useState("");
+  const [beoordeelTarget, setBeoordeelTarget] = useState<{ id: string; status: "goedgekeurd" | "afgewezen" } | null>(null);
+
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
   });
@@ -908,6 +918,10 @@ export default function WerktijdenPage() {
   const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["/api/departments"],
     enabled: isManager,
+  });
+
+  const { data: correctieverzoeken = [] } = useQuery<any[]>({
+    queryKey: ["/api/correctieverzoeken"],
   });
 
   const activeUsers = (allUsers as any[]).filter((u: any) => u.active && u.kadasterId);
@@ -974,6 +988,52 @@ export default function WerktijdenPage() {
       setHandmatigType("in");
     },
     onError: (err: any) => toast({ title: "Fout bij opslaan", description: err.message, variant: "destructive" }),
+  });
+
+  const correctieMutation = useMutation({
+    mutationFn: async (data: object) => {
+      const res = await fetch("/api/correctieverzoeken", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message || "Indienen mislukt");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/correctieverzoeken"] });
+      toast({ title: "Correctieverzoek ingediend", description: "Uw verzoek is ontvangen en wordt beoordeeld door HR." });
+      setShowCorrectieDialog(false);
+      setCorrectiesDatum(""); setCorrectieTijdstip("08:00"); setCorrectieRichting("IN"); setCorrectieReden(""); setCorrectieKadasterId("");
+    },
+    onError: (err: any) => toast({ title: "Fout bij indienen", description: err.message, variant: "destructive" }),
+  });
+
+  const beoordeelMutation = useMutation({
+    mutationFn: async ({ id, status, notitie }: { id: string; status: string; notitie: string }) => {
+      const res = await fetch(`/api/correctieverzoeken/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status, beoordelingNotitie: notitie }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message || "Beoordelen mislukt");
+      }
+      return res.json();
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/correctieverzoeken"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/werktijden"] });
+      toast({ title: vars.status === "goedgekeurd" ? "Verzoek goedgekeurd" : "Verzoek afgewezen", description: vars.status === "goedgekeurd" ? "De registratie is automatisch toegevoegd." : "Het verzoek is afgewezen." });
+      setBeoordeelTarget(null); setBeoordelingNotitie("");
+    },
+    onError: (err: any) => toast({ title: "Fout bij beoordelen", description: err.message, variant: "destructive" }),
   });
 
   function composeWaarschuwing(): string {
@@ -1425,6 +1485,15 @@ export default function WerktijdenPage() {
               {drempelResults.length > 0 && (
                 <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
                   {drempelResults.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="correcties" data-testid="tab-correcties">
+              <ClipboardEdit className="h-4 w-4 mr-1.5" />
+              Correcties
+              {correctieverzoeken.filter((c: any) => c.status === "aangevraagd").length > 0 && (
+                <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+                  {correctieverzoeken.filter((c: any) => c.status === "aangevraagd").length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -2456,8 +2525,285 @@ export default function WerktijdenPage() {
             )}
           </TabsContent>
 
+          {/* ── Correcties tab ───────────────────────────────────────────────── */}
+          <TabsContent value="correcties" className="space-y-4 mt-4">
+            {/* Header met actieknop */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold flex items-center gap-2">
+                  <ClipboardEdit className="h-5 w-5 text-primary" />
+                  Correctieverzoeken prikklok
+                </h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {isManager
+                    ? "Overzicht van alle ingediende correctieverzoeken."
+                    : "Dien een correctieverzoek in als een inklok- of uitklokregistratie ontbreekt of fout is."}
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setCorrectieKadasterId(user?.kadasterId || "");
+                  setShowCorrectieDialog(true);
+                }}
+                data-testid="button-correctie-aanvragen"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Correctie aanvragen
+              </Button>
+            </div>
+
+            {/* Openstaande verzoeken (manager: alle; medewerker: eigen) */}
+            {correctieverzoeken.length === 0 ? (
+              <Card>
+                <CardContent className="py-14 text-center text-muted-foreground">
+                  <ClipboardEdit className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Geen correctieverzoeken</p>
+                  <p className="text-sm mt-1">Er zijn momenteel geen verzoeken ingediend.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead>Medewerker ID</TableHead>
+                      <TableHead>Datum</TableHead>
+                      <TableHead>Tijd</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Reden</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ingediend</TableHead>
+                      {isManager && <TableHead>Actie</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {correctieverzoeken.map((c: any) => (
+                      <TableRow key={c.id} data-testid={`row-correctie-${c.id}`}>
+                        <TableCell className="font-mono text-sm">{c.kadasterId}</TableCell>
+                        <TableCell className="text-sm">
+                          {c.datum ? c.datum.slice(0, 10).split("-").reverse().join("-") : "—"}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {c.checktime
+                            ? new Date(c.checktime).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={
+                            c.richting === "IN"
+                              ? "border-green-400 text-green-700 dark:text-green-400"
+                              : "border-orange-400 text-orange-700 dark:text-orange-400"
+                          }>
+                            {c.richting === "IN" ? <LogIn className="h-3 w-3 mr-1" /> : <LogOut className="h-3 w-3 mr-1" />}
+                            {c.richting}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[200px] truncate" title={c.reden || ""}>
+                          {c.reden || <span className="text-muted-foreground italic">—</span>}
+                        </TableCell>
+                        <TableCell>
+                          {c.status === "aangevraagd" && (
+                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">In behandeling</Badge>
+                          )}
+                          {c.status === "goedgekeurd" && (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                              <CheckCheck className="h-3 w-3 mr-1" />Goedgekeurd
+                            </Badge>
+                          )}
+                          {c.status === "afgewezen" && (
+                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
+                              <Ban className="h-3 w-3 mr-1" />Afgewezen
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {c.createdAt
+                            ? new Date(c.createdAt).toLocaleDateString("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric" })
+                            : "—"}
+                        </TableCell>
+                        {isManager && c.status === "aangevraagd" && (
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-green-400 text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30"
+                                onClick={() => setBeoordeelTarget({ id: c.id, status: "goedgekeurd" })}
+                                data-testid={`button-goedkeuren-${c.id}`}
+                              >
+                                <CheckCheck className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-red-400 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                onClick={() => setBeoordeelTarget({ id: c.id, status: "afgewezen" })}
+                                data-testid={`button-afwijzen-${c.id}`}
+                              >
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                        {isManager && c.status !== "aangevraagd" && <TableCell />}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </TabsContent>
+
         </Tabs>
       </div>
+
+      {/* ── Correctie aanvragen dialog ──────────────────────────────────────────── */}
+      <Dialog open={showCorrectieDialog} onOpenChange={setShowCorrectieDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardEdit className="h-5 w-5 text-primary" />
+              Correctieverzoek indienen
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            {isManager && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Medewerker (Kadaster-ID)</label>
+                <Select value={correctieKadasterId} onValueChange={setCorrectieKadasterId}>
+                  <SelectTrigger data-testid="select-correctie-kadaster">
+                    <SelectValue placeholder="Selecteer medewerker…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeUsers.map((u: any) => (
+                      <SelectItem key={u.kadasterId} value={u.kadasterId}>
+                        {u.fullName || u.username} ({u.kadasterId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <label className="text-sm font-medium mb-1 block">Datum</label>
+              <input
+                type="date"
+                value={correctieDatum}
+                onChange={e => setCorrectiesDatum(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-full ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="input-correctie-datum"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Tijdstip</label>
+              <input
+                type="time"
+                value={correctieTijdstip}
+                onChange={e => setCorrectieTijdstip(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm w-full ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="input-correctie-tijdstip"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Type registratie</label>
+              <div className="flex gap-3">
+                <Button
+                  variant={correctieRichting === "IN" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setCorrectieRichting("IN")}
+                  data-testid="button-correctie-in"
+                >
+                  <LogIn className="h-4 w-4 mr-2" /> Inklokken (IN)
+                </Button>
+                <Button
+                  variant={correctieRichting === "OUT" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setCorrectieRichting("OUT")}
+                  data-testid="button-correctie-out"
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Uitklokken (OUT)
+                </Button>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Reden / toelichting</label>
+              <Textarea
+                value={correctieReden}
+                onChange={e => setCorrectieReden(e.target.value)}
+                placeholder="Geef een korte toelichting waarom de registratie ontbreekt of fout is…"
+                rows={3}
+                data-testid="textarea-correctie-reden"
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowCorrectieDialog(false)}>Annuleren</Button>
+            <Button
+              disabled={!correctieDatum || !correctieTijdstip || !(correctieKadasterId || user?.kadasterId) || correctieMutation.isPending}
+              onClick={() => {
+                const kadasId = isManager ? correctieKadasterId : (user?.kadasterId || "");
+                if (!kadasId || !correctieDatum || !correctieTijdstip) return;
+                const [h, m] = correctieTijdstip.split(":").map(Number);
+                const dt = new Date(`${correctieDatum}T${correctieTijdstip}:00`);
+                correctieMutation.mutate({
+                  kadasterId: kadasId,
+                  datum: correctieDatum,
+                  checktime: dt.toISOString(),
+                  richting: correctieRichting,
+                  reden: correctieReden || null,
+                });
+              }}
+              data-testid="button-correctie-submit"
+            >
+              {correctieMutation.isPending ? "Indienen…" : "Verzoek indienen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Beoordeel correctie dialog ──────────────────────────────────────────── */}
+      <Dialog open={!!beoordeelTarget} onOpenChange={open => { if (!open) { setBeoordeelTarget(null); setBeoordelingNotitie(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {beoordeelTarget?.status === "goedgekeurd"
+                ? <><CheckCheck className="h-5 w-5 text-green-600" /> Verzoek goedkeuren</>
+                : <><Ban className="h-5 w-5 text-red-600" /> Verzoek afwijzen</>}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              {beoordeelTarget?.status === "goedgekeurd"
+                ? "Bij goedkeuring wordt de registratie automatisch toegevoegd aan de prikklokdata."
+                : "Het verzoek wordt afgewezen. De medewerker ontvangt geen automatische registratie."}
+            </p>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Notitie (optioneel)</label>
+              <Textarea
+                value={beoordelingNotitie}
+                onChange={e => setBeoordelingNotitie(e.target.value)}
+                placeholder="Voeg een toelichting toe voor de medewerker…"
+                rows={3}
+                data-testid="textarea-beoordeling-notitie"
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => { setBeoordeelTarget(null); setBeoordelingNotitie(""); }}>Annuleren</Button>
+            <Button
+              variant={beoordeelTarget?.status === "goedgekeurd" ? "default" : "destructive"}
+              disabled={beoordeelMutation.isPending}
+              onClick={() => {
+                if (!beoordeelTarget) return;
+                beoordeelMutation.mutate({ id: beoordeelTarget.id, status: beoordeelTarget.status, notitie: beoordelingNotitie });
+              }}
+              data-testid="button-beoordeel-bevestig"
+            >
+              {beoordeelMutation.isPending ? "Verwerken…" : beoordeelTarget?.status === "goedgekeurd" ? "Goedkeuren" : "Afwijzen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Handmatige registratie dialog ───────────────────────────────────── */}
       <Dialog open={showHandmatigDialog} onOpenChange={setShowHandmatigDialog}>

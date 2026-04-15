@@ -38,6 +38,7 @@ import {
   insertWerktijdenSchema,
   insertOveruurAanvraagSchema,
   insertImportLogSchema,
+  insertCorrectieverzoekSchema,
   isAdminRole,
   canManageVacation,
 } from "@shared/schema";
@@ -3252,7 +3253,56 @@ export async function registerRoutes(
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  // ── Overuur aanvragen ──────────────────────────────────────────────────────
+  // ── Correctieverzoeken ──────────────────────────────────────────────────────
+  app.get("/api/correctieverzoeken", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const isManager = isAdminRole(currentUser.role) || currentUser.role === "manager" || currentUser.role === "manager_az";
+      const records = isManager
+        ? await storage.getCorrectieverzoeken()
+        : await storage.getCorrectieverzoeken(String(currentUser.id));
+      res.json(records);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/correctieverzoeken", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const parsed = insertCorrectieverzoekSchema.parse({ ...req.body, ingediendDoor: String(currentUser.id) });
+      const record = await storage.createCorrectieverzoek(parsed);
+      res.json(record);
+    } catch (err: any) { res.status(400).json({ message: err.message }); }
+  });
+
+  app.patch("/api/correctieverzoeken/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const isManager = isAdminRole(currentUser.role) || currentUser.role === "manager" || currentUser.role === "manager_az";
+      if (!isManager) return res.status(403).json({ message: "Alleen managers mogen verzoeken beoordelen" });
+      const { status, beoordelingNotitie } = req.body;
+      if (!["goedgekeurd", "afgewezen"].includes(status)) return res.status(400).json({ message: "Ongeldig status" });
+      const updated = await storage.updateCorrectieverzoek(req.params.id, {
+        status,
+        beoordeeldDoor: Number(currentUser.id),
+        beoordeeldAt: new Date(),
+        beoordelingNotitie: beoordelingNotitie || null,
+      });
+      // On approval: automatically create werktijd registration
+      if (status === "goedgekeurd") {
+        await storage.createWerktijden({
+          userid: updated.kadasterId,
+          checktime: updated.checktime,
+          direction: updated.richting as "IN" | "OUT",
+          deviceid: "correctie",
+        });
+      }
+      res.json(updated);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   app.get("/api/overuur-aanvragen", requireAuth, async (req, res) => {
     try {
       const records = await storage.getOveruurAanvragen();

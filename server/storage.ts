@@ -4,11 +4,12 @@ import {
   users, events, announcements, departments, absences, absenceCancellations, rewards, applications, appAccess, messages,
   aoProcedures, aoInstructions, positionHistory, personalDevelopment, legislationLinks, caoDocuments, siteSettings,
   functioneringReviews, competencies, beoordelingReviews, beoordelingScores, jaarplanItems, jaarplanActies,
-  werktijden, overuurAanvragen, importLog, prikklokEventLog,
+  werktijden, overuurAanvragen, importLog, prikklokEventLog, correctieverzoeken,
   type Werktijden, type InsertWerktijden,
   type OveruurAanvraag, type InsertOveruurAanvraag,
   type ImportLog, type InsertImportLog,
   type PrikklokEventLog, type InsertPrikklokEventLog,
+  type Correctieverzoek, type InsertCorrectieverzoek,
   type User, type InsertUser,
   type Event, type InsertEvent,
   type Announcement, type InsertAnnouncement,
@@ -288,6 +289,10 @@ export interface IStorage {
   getPrikklokEventLogs(importId?: string, limit?: number): Promise<PrikklokEventLog[]>;
   createPrikklokEventLogs(events: InsertPrikklokEventLog[]): Promise<void>;
   deleteWerktijdenByImport(importId: string): Promise<void>;
+
+  getCorrectieverzoeken(userId?: string): Promise<Correctieverzoek[]>;
+  createCorrectieverzoek(verzoek: InsertCorrectieverzoek): Promise<Correctieverzoek>;
+  updateCorrectieverzoek(id: string, data: Partial<Correctieverzoek>): Promise<Correctieverzoek>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1610,6 +1615,25 @@ export class DatabaseStorage implements IStorage {
           .where(and(eq(werktijden.userid, ev.userid), eq(werktijden.checktime, ev.checktime)));
       }
     }
+  }
+
+  async getCorrectieverzoeken(userId?: string): Promise<Correctieverzoek[]> {
+    if (userId !== undefined) {
+      return db.select().from(correctieverzoeken)
+        .where(eq(correctieverzoeken.ingediendDoor, userId))
+        .orderBy(desc(correctieverzoeken.createdAt));
+    }
+    return db.select().from(correctieverzoeken).orderBy(desc(correctieverzoeken.createdAt));
+  }
+
+  async createCorrectieverzoek(verzoek: InsertCorrectieverzoek): Promise<Correctieverzoek> {
+    const [created] = await db.insert(correctieverzoeken).values(verzoek).returning();
+    return created;
+  }
+
+  async updateCorrectieverzoek(id: string, data: Partial<Correctieverzoek>): Promise<Correctieverzoek> {
+    const [updated] = await db.update(correctieverzoeken).set(data).where(eq(correctieverzoeken.id, id)).returning();
+    return updated;
   }
 }
 

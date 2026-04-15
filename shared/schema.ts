@@ -728,3 +728,24 @@ export const trendKartografenHist = pgTable("trend_kartografen_hist", {
 export const insertTrendKartografenHistSchema = createInsertSchema(trendKartografenHist).omit({ id: true });
 export type InsertTrendKartografenHist = z.infer<typeof insertTrendKartografenHistSchema>;
 export type TrendKartografenHist = typeof trendKartografenHist.$inferSelect;
+
+// ── Correctieverzoeken prikklok ───────────────────────────────────────────────
+export const correctieverzoeken = pgTable("correctieverzoeken", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ingediendDoor: varchar("ingediend_door").references(() => users.id).notNull(),
+  kadasterId: varchar("kadaster_id", { length: 20 }).notNull(),
+  datum: date("datum").notNull(),
+  checktime: timestamp("checktime").notNull(),
+  richting: text("richting").notNull(), // 'IN' | 'OUT'
+  reden: text("reden"),
+  status: text("status").notNull().default("aangevraagd"), // aangevraagd | goedgekeurd | afgewezen
+  beoordeeldDoor: varchar("beoordeeld_door").references(() => users.id),
+  beoordeeldAt: timestamp("beoordeeld_at"),
+  beoordelingNotitie: text("beoordeling_notitie"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export const insertCorrectieverzoekSchema = createInsertSchema(correctieverzoeken).omit({
+  id: true, createdAt: true, beoordeeldDoor: true, beoordeeldAt: true, beoordelingNotitie: true, status: true,
+});
+export type InsertCorrectieverzoek = z.infer<typeof insertCorrectieverzoekSchema>;
+export type Correctieverzoek = typeof correctieverzoeken.$inferSelect;
