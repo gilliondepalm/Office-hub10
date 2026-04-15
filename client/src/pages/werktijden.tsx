@@ -1677,21 +1677,28 @@ export default function WerktijdenPage() {
           {/* ── Registraties tab ─────────────────────────────────────────────── */}
           <TabsContent value="registraties" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-2 items-center">
-              <Select
-                value={filterRegDept}
-                onValueChange={(v) => { setFilterRegDept(v); setFilterUserid("all"); }}
-              >
-                <SelectTrigger className="w-48" data-testid="select-filter-dept-registraties">
-                  <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Kies afdeling…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle afdelingen</SelectItem>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isManager ? (
+                <Select
+                  value={filterRegDept}
+                  onValueChange={(v) => { setFilterRegDept(v); setFilterUserid("all"); }}
+                >
+                  <SelectTrigger className="w-48" data-testid="select-filter-dept-registraties">
+                    <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Kies afdeling…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle afdelingen</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/40 text-sm">
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{(user as any)?.department || "—"}</span>
+                </div>
+              )}
               {isManager ? (
                 <Select value={filterUserid} onValueChange={setFilterUserid}>
                   <SelectTrigger className="w-52" data-testid="select-filter-userid">
@@ -1851,21 +1858,28 @@ export default function WerktijdenPage() {
           {/* ── Sessies tab ──────────────────────────────────────────────────── */}
           <TabsContent value="sessies" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-2 items-center">
-              <Select
-                value={filterSessionDept}
-                onValueChange={(v) => { setFilterSessionDept(v); setFilterUserid("all"); }}
-              >
-                <SelectTrigger className="w-48" data-testid="select-filter-dept-sessies">
-                  <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Kies afdeling…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle afdelingen</SelectItem>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isManager ? (
+                <Select
+                  value={filterSessionDept}
+                  onValueChange={(v) => { setFilterSessionDept(v); setFilterUserid("all"); }}
+                >
+                  <SelectTrigger className="w-48" data-testid="select-filter-dept-sessies">
+                    <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Kies afdeling…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle afdelingen</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/40 text-sm">
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{(user as any)?.department || "—"}</span>
+                </div>
+              )}
               {isManager ? (
                 <Select value={filterUserid} onValueChange={setFilterUserid}>
                   <SelectTrigger className="w-52" data-testid="select-filter-sessies">
