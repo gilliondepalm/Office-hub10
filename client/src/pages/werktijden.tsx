@@ -803,6 +803,7 @@ export default function WerktijdenPage() {
   const [analyseTo, setAnalyseTo]                 = useState("");
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
   const [logboekSearch, setLogboekSearch] = useState("");
+  const [filterAnalyseDept, setFilterAnalyseDept] = useState("all");
   const [filterRegDept, setFilterRegDept] = useState("all");
   const [filterSessionDept, setFilterSessionDept] = useState("all");
   const [showWaarschuwingDialog, setShowWaarschuwingDialog] = useState(false);
@@ -988,6 +989,11 @@ export default function WerktijdenPage() {
       return true;
     });
   }, [sessies, filterUserid, filterDatum, filterSessionDept, activeUsers]);
+
+  const analyseFilteredUsers = useMemo(() => {
+    if (filterAnalyseDept === "all") return activeUsers;
+    return activeUsers.filter((u: any) => u.department === filterAnalyseDept);
+  }, [activeUsers, filterAnalyseDept]);
 
   const regFilteredUsers = useMemo(() => {
     if (filterRegDept === "all") return activeUsers;
@@ -1632,6 +1638,24 @@ export default function WerktijdenPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex flex-wrap gap-3 items-end">
+                  <div className="min-w-[180px]">
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Afdeling</label>
+                    <Select
+                      value={filterAnalyseDept}
+                      onValueChange={(v) => { setFilterAnalyseDept(v); setAnalyseUserId(""); setShowOnlyIncomplete(false); }}
+                    >
+                      <SelectTrigger data-testid="select-analyse-dept">
+                        <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                        <SelectValue placeholder="Alle afdelingen…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Alle afdelingen</SelectItem>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex-1 min-w-[200px]">
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">Medewerker</label>
                     <Select
@@ -1643,7 +1667,7 @@ export default function WerktijdenPage() {
                         <SelectValue placeholder="Selecteer medewerker…" />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeUsers.map((u: any) => (
+                        {analyseFilteredUsers.map((u: any) => (
                           <SelectItem key={u.kadasterId} value={u.kadasterId}>
                             {u.fullName || u.username} (ID: {u.kadasterId})
                           </SelectItem>
