@@ -30,7 +30,7 @@ import {
   Shield, Save, Users, Camera, ImageIcon, KeyRound,
   Building2, Briefcase, Plus, Trash2, Pencil,
   FileText, Upload, ArrowUp, ArrowDown, ListOrdered, ExternalLink,
-  Link2, Link2Off, CheckCircle2, XCircle,
+  CheckCircle2, XCircle,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1177,16 +1177,13 @@ interface PrikklokRow {
   name: string;
 }
 
-function PrikklokKoppelingTab() {
+function PrikklokOverzichtTab() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [prikklokRows, setPrikklokRows] = useState<PrikklokRow[]>([]);
-  const [selections, setSelections] = useState<Record<string, string>>({});
-  const [showOnlyUnlinked, setShowOnlyUnlinked] = useState(false);
   const [search, setSearch] = useState("");
 
   const { data: allUsers = [] } = useQuery<SafeUser[]>({ queryKey: ["/api/users"] });
-  const activeUsers = useMemo(() => (allUsers as any[]).filter((u) => u.active), [allUsers]);
 
   const kadasterMap = useMemo(() => {
     const m: Record<string, SafeUser> = {};
@@ -1197,17 +1194,13 @@ function PrikklokKoppelingTab() {
   }, [allUsers]);
 
   function parseCSV(text: string): PrikklokRow[] {
-    // Strip UTF-8 BOM if present
     const clean = text.replace(/^\uFEFF/, "");
     const lines = clean.split(/\r?\n/).filter((l) => l.trim());
     if (lines.length < 2) return [];
-
-    // Detect separator: tab takes priority (common prikklok TSV export), then semicolon, then comma
     const firstLine = lines[0];
     const sep = firstLine.includes("\t") ? "\t"
               : firstLine.includes(";")  ? ";"
               : ",";
-
     const headers = firstLine.split(sep).map((h) => h.trim().toLowerCase().replace(/['"]/g, "").replace(/^\uFEFF/, ""));
     const useridIdx = headers.findIndex((h) => ["userid", "pin", "id", "user_id", "personeelsnr"].includes(h));
     const nameIdx   = headers.findIndex((h) => ["name", "naam", "fullname", "full_name", "volledige naam"].includes(h));
@@ -1227,7 +1220,6 @@ function PrikklokKoppelingTab() {
       const text = e.target?.result as string;
       const rows = parseCSV(text);
       setPrikklokRows(rows);
-      setSelections({});
       if (rows.length === 0) {
         toast({
           title: "Geen geldige rijen gevonden",
@@ -1235,38 +1227,30 @@ function PrikklokKoppelingTab() {
           variant: "destructive",
         });
       } else {
-        toast({ title: `${rows.length} medewerkers geladen`, description: "Selecteer hieronder de bijbehorende app-medewerker om te koppelen." });
+        toast({ title: `${rows.length} medewerkers ingelezen uit prikklok CSV` });
       }
     };
     reader.readAsText(file, "utf-8");
   }
 
-  const linkMutation = useMutation({
-    mutationFn: async ({ userId, kadasterId }: { userId: string; kadasterId: string | null }) =>
-      apiRequest("PATCH", `/api/users/${userId}`, { kadasterId }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
-  });
-
-  const linkedCount   = prikklokRows.filter((r) => kadasterMap[r.userid]).length;
-  const unlinkedCount = prikklokRows.length - linkedCount;
+  const gevondenCount   = prikklokRows.filter((r) => kadasterMap[r.userid]).length;
+  const nietGevondenCount = prikklokRows.length - gevondenCount;
 
   const displayedRows = useMemo(() => {
-    let rows = showOnlyUnlinked ? prikklokRows.filter((r) => !kadasterMap[r.userid]) : prikklokRows;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      rows = rows.filter((r) => r.userid.toLowerCase().includes(q) || r.name.toLowerCase().includes(q));
-    }
-    return rows;
-  }, [prikklokRows, showOnlyUnlinked, search, kadasterMap]);
+    if (!search.trim()) return prikklokRows;
+    const q = search.trim().toLowerCase();
+    return prikklokRows.filter((r) => r.userid.toLowerCase().includes(q) || r.name.toLowerCase().includes(q));
+  }, [prikklokRows, search]);
 
   return (
     <div className="space-y-6">
       {/* Upload */}
       <Card>
         <CardHeader className="pb-3">
-          <p className="font-semibold text-sm">Stap 1 — Importeer prikklok-medewerkers</p>
+          <p className="font-semibold text-sm">Prikklok medewerkers inlezen</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Upload een CSV-medewerkerexport van het prikklok-systeem — alleen <strong>userid</strong> en <strong>Name</strong> worden ingelezen.
+            Upload een CSV-medewerkerexport van het prikklok-systeem om te controleren welke userids bekend zijn in de applicatie.
+            De userid wordt toegekend via <strong>Personalia → Nieuwe Medewerker</strong>.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1278,7 +1262,7 @@ function PrikklokKoppelingTab() {
             <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm font-medium">Sleep een CSV-bestand hierheen of klik om te uploaden</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Prikklok gebruikersexport — alleen <strong>userid</strong> en <strong>Name</strong> worden ingelezen
+              Prikklok gebruikersexport — <strong>userid</strong> en <strong>Name</strong> worden ingelezen
             </p>
           </div>
           <input
@@ -1293,15 +1277,15 @@ function PrikklokKoppelingTab() {
             <div className="flex gap-3 text-xs text-center">
               <div className="flex-1 rounded-lg bg-muted/50 py-2">
                 <div className="font-semibold text-base">{prikklokRows.length}</div>
-                <div className="text-muted-foreground">Geladen</div>
+                <div className="text-muted-foreground">Ingelezen</div>
               </div>
               <div className="flex-1 rounded-lg bg-green-50 dark:bg-green-950/20 py-2">
-                <div className="font-semibold text-base text-green-700 dark:text-green-400">{linkedCount}</div>
-                <div className="text-muted-foreground">Gekoppeld</div>
+                <div className="font-semibold text-base text-green-700 dark:text-green-400">{gevondenCount}</div>
+                <div className="text-muted-foreground">Gevonden</div>
               </div>
               <div className="flex-1 rounded-lg bg-amber-50 dark:bg-amber-950/20 py-2">
-                <div className="font-semibold text-base text-amber-700 dark:text-amber-400">{unlinkedCount}</div>
-                <div className="text-muted-foreground">Niet gekoppeld</div>
+                <div className="font-semibold text-base text-amber-700 dark:text-amber-400">{nietGevondenCount}</div>
+                <div className="text-muted-foreground">Niet gevonden</div>
               </div>
             </div>
           )}
@@ -1313,9 +1297,8 @@ function PrikklokKoppelingTab() {
               De prikklok exporteert een CSV met de onderstaande kolommen. Alleen{" "}
               <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">userid</span> en{" "}
               <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">Name</span>{" "}
-              worden door de app ingelezen — alle overige 37 kolommen worden genegeerd.
+              worden door de app ingelezen — alle overige kolommen worden genegeerd.
             </p>
-            {/* Kolommen overzicht */}
             <div className="flex flex-wrap gap-1.5 text-xs">
               {[
                 { name: "userid",      used: true  },
@@ -1371,7 +1354,6 @@ function PrikklokKoppelingTab() {
                 </span>
               ))}
             </div>
-            {/* Voorbeeld rij */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Voorbeeld data-rij (verkorte weergave):</p>
               <code className="block bg-background border rounded p-2 font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-nowrap">
@@ -1385,11 +1367,11 @@ function PrikklokKoppelingTab() {
         </CardContent>
       </Card>
 
-      {/* Matching tabel */}
+      {/* Overzicht tabel */}
       {prikklokRows.length > 0 && (
         <Card className="overflow-hidden">
           <CardHeader className="pb-3">
-            <p className="font-semibold text-sm">Stap 2 — Koppel aan app-medewerkers</p>
+            <p className="font-semibold text-sm">Overzicht prikklok medewerkers</p>
             <div className="flex flex-wrap gap-2 mt-2 items-center">
               <Input
                 placeholder="Zoek op ID of naam…"
@@ -1398,14 +1380,6 @@ function PrikklokKoppelingTab() {
                 className="w-52 h-8 text-sm"
                 data-testid="input-search-prikklok"
               />
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer ml-1">
-                <Checkbox
-                  checked={showOnlyUnlinked}
-                  onCheckedChange={(v) => setShowOnlyUnlinked(!!v)}
-                  data-testid="checkbox-show-unlinked"
-                />
-                Toon alleen niet-gekoppeld
-              </label>
               <span className="text-xs text-muted-foreground ml-auto">{displayedRows.length} rijen</span>
             </div>
           </CardHeader>
@@ -1416,96 +1390,34 @@ function PrikklokKoppelingTab() {
                   <TableHead className="pl-4 w-28">Prikklok ID</TableHead>
                   <TableHead>Naam (prikklok)</TableHead>
                   <TableHead className="w-36">Status</TableHead>
-                  <TableHead>App-medewerker</TableHead>
-                  <TableHead className="pr-4 text-right w-36">Actie</TableHead>
+                  <TableHead className="pr-4">App-medewerker</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {displayedRows.map((row) => {
-                  const linked = kadasterMap[row.userid] as any;
-                  const selectedUserId = selections[row.userid] || "";
+                  const gevonden = kadasterMap[row.userid] as any;
                   return (
                     <TableRow key={row.userid} data-testid={`row-prikklok-${row.userid}`}>
                       <TableCell className="pl-4 font-mono text-sm font-medium">{row.userid}</TableCell>
                       <TableCell className="text-sm">{row.name || <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell>
-                        {linked ? (
+                        {gevonden ? (
                           <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs border-0">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Gekoppeld
+                            Gevonden
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-xs">
                             <XCircle className="h-3 w-3 mr-1 text-amber-500" />
-                            Niet gekoppeld
+                            Niet gevonden
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {linked ? (
-                          <span className="text-sm font-medium">{linked.fullName || linked.username}</span>
-                        ) : (
-                          <Select
-                            value={selectedUserId}
-                            onValueChange={(v) => setSelections((s) => ({ ...s, [row.userid]: v }))}
-                          >
-                            <SelectTrigger className="w-56 h-8 text-sm" data-testid={`select-koppel-${row.userid}`}>
-                              <SelectValue placeholder="Selecteer medewerker…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {activeUsers.map((u: any) => (
-                                <SelectItem key={u.id} value={u.id}>
-                                  {u.fullName || u.username}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </TableCell>
-                      <TableCell className="pr-4 text-right">
-                        {linked ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-xs text-muted-foreground hover:text-red-600"
-                            disabled={linkMutation.isPending}
-                            data-testid={`button-ontkoppel-${row.userid}`}
-                            onClick={() =>
-                              linkMutation.mutate(
-                                { userId: linked.id, kadasterId: null },
-                                {
-                                  onSuccess: () => toast({ title: "Ontkoppeld", description: `Prikklok ID ${row.userid} is losgekoppeld.` }),
-                                  onError: (err: any) => toast({ title: "Mislukt", description: err.message, variant: "destructive" }),
-                                }
-                              )
-                            }
-                          >
-                            <Link2Off className="h-3.5 w-3.5 mr-1" />
-                            Ontkoppelen
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={!selectedUserId || linkMutation.isPending}
-                            data-testid={`button-koppel-${row.userid}`}
-                            onClick={() =>
-                              linkMutation.mutate(
-                                { userId: selectedUserId, kadasterId: row.userid },
-                                {
-                                  onSuccess: () => {
-                                    toast({ title: "Gekoppeld", description: `Prikklok ID ${row.userid} is gekoppeld.` });
-                                    setSelections((s) => { const ns = { ...s }; delete ns[row.userid]; return ns; });
-                                  },
-                                  onError: (err: any) => toast({ title: "Koppeling mislukt", description: err.message, variant: "destructive" }),
-                                }
-                              )
-                            }
-                          >
-                            <Link2 className="h-3.5 w-3.5 mr-1" />
-                            Koppelen
-                          </Button>
-                        )}
+                      <TableCell className="pr-4">
+                        {gevonden
+                          ? <span className="text-sm font-medium">{gevonden.fullName || gevonden.username}</span>
+                          : <span className="text-xs text-muted-foreground italic">Stel userid in via Personalia</span>
+                        }
                       </TableCell>
                     </TableRow>
                   );
@@ -1533,7 +1445,7 @@ export default function BeheerPage() {
     { key: "rechten", label: "Rechten", icon: Shield },
     { key: "afdelingen", label: "Onderhoud Afdelingen", icon: Building2 },
     { key: "functies", label: "Onderhoud Functies", icon: Briefcase },
-    { key: "prikklok", label: "Prikklok Koppeling", icon: Link2 },
+    { key: "prikklok", label: "Prikklok", icon: Users },
   ];
 
   return (
@@ -1570,7 +1482,7 @@ export default function BeheerPage() {
           {activeTab === "rechten" && <RechtenTab />}
           {activeTab === "afdelingen" && <AfdelingenTab />}
           {activeTab === "functies" && <FunctiesTab />}
-          {activeTab === "prikklok" && <PrikklokKoppelingTab />}
+          {activeTab === "prikklok" && <PrikklokOverzichtTab />}
         </div>
       </div>
     </div>
