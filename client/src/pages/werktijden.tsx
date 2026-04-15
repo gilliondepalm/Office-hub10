@@ -22,7 +22,7 @@ import {
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
   TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2, FileDown,
-  ChevronDown, ChevronRight, Plus, LogIn, ClipboardEdit, CheckCheck, Ban, Printer,
+  ChevronDown, ChevronRight, Plus, LogIn, ClipboardEdit, CheckCheck, Ban, Printer, UserRound,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -1692,20 +1692,27 @@ export default function WerktijdenPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={filterUserid} onValueChange={setFilterUserid}>
-                <SelectTrigger className="w-52" data-testid="select-filter-userid">
-                  <Filter className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Medewerker…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle medewerkers</SelectItem>
-                  {regFilteredUsers.map((u: any) => (
-                    <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                      {u.fullName || u.username} (ID: {u.kadasterId})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isManager ? (
+                <Select value={filterUserid} onValueChange={setFilterUserid}>
+                  <SelectTrigger className="w-52" data-testid="select-filter-userid">
+                    <Filter className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Medewerker…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle medewerkers</SelectItem>
+                    {regFilteredUsers.map((u: any) => (
+                      <SelectItem key={u.kadasterId} value={u.kadasterId}>
+                        {u.fullName || u.username} (ID: {u.kadasterId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/40 text-sm">
+                  <UserRound className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{(user as any)?.fullName || user?.username}</span>
+                </div>
+              )}
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -1859,20 +1866,27 @@ export default function WerktijdenPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={filterUserid} onValueChange={setFilterUserid}>
-                <SelectTrigger className="w-52" data-testid="select-filter-sessies">
-                  <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Medewerker…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle medewerkers</SelectItem>
-                  {sessieFilteredUsers.map((u: any) => (
-                    <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                      {u.fullName || u.username} (ID: {u.kadasterId})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isManager ? (
+                <Select value={filterUserid} onValueChange={setFilterUserid}>
+                  <SelectTrigger className="w-52" data-testid="select-filter-sessies">
+                    <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Medewerker…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle medewerkers</SelectItem>
+                    {sessieFilteredUsers.map((u: any) => (
+                      <SelectItem key={u.kadasterId} value={u.kadasterId}>
+                        {u.fullName || u.username} (ID: {u.kadasterId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/40 text-sm">
+                  <UserRound className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{(user as any)?.fullName || user?.username}</span>
+                </div>
+              )}
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
