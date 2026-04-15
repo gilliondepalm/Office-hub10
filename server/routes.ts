@@ -243,12 +243,13 @@ export async function registerRoutes(
 
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 100,
+    max: 300,
     message: { message: "Te veel verzoeken. Probeer het later opnieuw." },
     standardHeaders: true,
     legacyHeaders: false,
     validate: { xForwardedForHeader: false },
     keyGenerator,
+    skip: (req: any) => !!(req.session as any)?.userId, // ingelogde gebruikers zijn vrijgesteld
   });
 
   app.use("/api/", apiLimiter);
