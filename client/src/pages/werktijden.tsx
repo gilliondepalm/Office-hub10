@@ -1593,7 +1593,7 @@ export default function WerktijdenPage() {
                     {uploading ? "Bezig met verwerken…" : "Sleep een CSV-bestand hierheen of klik om te uploaden"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Prikklok CSV-export — alleen <strong>userid</strong> en <strong>checktime</strong> worden ingelezen
+                    Prikklok CSV-export — alleen <strong>logid</strong>, <strong>userid</strong> en <strong>checktime</strong> worden ingelezen
                   </p>
                 </div>
                 <input
@@ -1621,14 +1621,15 @@ export default function WerktijdenPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     De prikklok exporteert een CSV met de onderstaande kolommen. Alleen{" "}
+                    <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">Logid</span>,{" "}
                     <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">userid</span> en{" "}
-                    <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">checktime</span>{" "}
+                    <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">CheckTime</span>{" "}
                     worden door de app ingelezen — alle overige kolommen worden genegeerd.
                   </p>
                   {/* Kolommen overzicht */}
                   <div className="flex flex-wrap gap-1.5 text-xs">
                     {[
-                      { name: "Logid",       used: false },
+                      { name: "Logid",       used: true  },
                       { name: "userid",      used: true  },
                       { name: "CheckTime",   used: true  },
                       { name: "CheckType",   used: false },
@@ -1660,7 +1661,7 @@ export default function WerktijdenPage() {
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1">Voorbeeld data-rij:</p>
                     <code className="block bg-background border rounded p-2 font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-nowrap">
-                      1,<span className="text-primary font-bold">001</span>,<span className="text-primary font-bold">2025-01-15 08:03:00</span>,0,1,0,0,0,0,0,,0,,0
+                      <span className="text-primary font-bold">42</span>,<span className="text-primary font-bold">001</span>,<span className="text-primary font-bold">2025-01-15 08:03:00</span>,0,1,0,0,0,0,0,,0,,0
                     </code>
                   </div>
                   <p className="text-xs text-muted-foreground">
