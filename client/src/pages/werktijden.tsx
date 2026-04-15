@@ -857,7 +857,9 @@ function AnalyseContent({
 export default function WerktijdenPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const isManager = isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az";
+  const isFullAdmin = isAdminRole(user?.role);
+  const isMgr = user?.role === "manager" || user?.role === "manager_az";
+  const isManager = isFullAdmin || isMgr;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -907,13 +909,24 @@ export default function WerktijdenPage() {
   const [beoordelingNotitie, setBeoordelingNotitie] = useState("");
   const [beoordeelTarget, setBeoordeelTarget] = useState<{ id: string; status: "goedgekeurd" | "afgewezen" } | null>(null);
 
-  // Pre-fill analyse filters for non-managers with their own department + kadasterId
+  // Pre-fill filters based on role
   useEffect(() => {
-    if (!isManager && user) {
-      if ((user as any).department) setFilterAnalyseDept((user as any).department);
-      if ((user as any).kadasterId) setAnalyseUserId((user as any).kadasterId);
+    if (!user) return;
+    const dept = (user as any).department;
+    const kadasterId = (user as any).kadasterId;
+    if (isMgr) {
+      // Managers: lock dept to their own department across all tabs
+      if (dept) {
+        setFilterAnalyseDept(dept);
+        setFilterRegDept(dept);
+        setFilterSessionDept(dept);
+      }
+    } else if (!isFullAdmin) {
+      // Regular employees: lock to own dept + own id in analyse
+      if (dept) setFilterAnalyseDept(dept);
+      if (kadasterId) setAnalyseUserId(kadasterId);
     }
-  }, [isManager, user?.id]);
+  }, [user?.id, user?.role]);
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
@@ -1187,6 +1200,8 @@ export default function WerktijdenPage() {
   // ── Sessies ─────────────────────────────────────────────────────────────────
   const sessies = useMemo(() => buildSessies(records), [records]);
 
+  const managerDept = isMgr ? (user as any)?.department || null : null;
+
   const sessieFilteredUsers = useMemo(() => {
     if (filterSessionDept === "all") return activeUsers;
     return activeUsers.filter((u: any) => u.department === filterSessionDept);
@@ -1200,9 +1215,13 @@ export default function WerktijdenPage() {
         const u = activeUsers.find((u: any) => u.kadasterId === s.userid);
         if (!u || (u as any).department !== filterSessionDept) return false;
       }
+      if (managerDept) {
+        const u = activeUsers.find((u: any) => u.kadasterId === s.userid);
+        if (!u || (u as any).department !== managerDept) return false;
+      }
       return true;
     });
-  }, [sessies, filterUserid, filterDatum, filterSessionDept, activeUsers]);
+  }, [sessies, filterUserid, filterDatum, filterSessionDept, activeUsers, managerDept]);
 
   const analyseFilteredUsers = useMemo(() => {
     if (filterAnalyseDept === "all") return activeUsers;
@@ -1222,9 +1241,13 @@ export default function WerktijdenPage() {
         const u = activeUsers.find((u: any) => u.kadasterId === r.userid);
         if (!u || (u as any).department !== filterRegDept) return false;
       }
+      if (managerDept) {
+        const u = activeUsers.find((u: any) => u.kadasterId === r.userid);
+        if (!u || (u as any).department !== managerDept) return false;
+      }
       return true;
     });
-  }, [records, filterUserid, filterDatum, filterRegDept, activeUsers]);
+  }, [records, filterUserid, filterDatum, filterRegDept, activeUsers, managerDept]);
 
   const filteredEvents = useMemo(() => {
     if (!logboekSearch) return eventLogs;
@@ -1685,7 +1708,7 @@ export default function WerktijdenPage() {
           {/* ── Registraties tab ─────────────────────────────────────────────── */}
           <TabsContent value="registraties" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-2 items-center">
-              {isManager ? (
+              {isFullAdmin ? (
                 <Select
                   value={filterRegDept}
                   onValueChange={(v) => { setFilterRegDept(v); setFilterUserid("all"); }}
@@ -1874,7 +1897,7 @@ export default function WerktijdenPage() {
           {/* ── Sessies tab ──────────────────────────────────────────────────── */}
           <TabsContent value="sessies" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-2 items-center">
-              {isManager ? (
+              {isFullAdmin ? (
                 <Select
                   value={filterSessionDept}
                   onValueChange={(v) => { setFilterSessionDept(v); setFilterUserid("all"); }}
@@ -2129,7 +2152,7 @@ export default function WerktijdenPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex flex-wrap gap-3 items-end">
-                  {isManager ? (
+                  {isFullAdmin ? (
                     <div className="min-w-[180px]">
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Afdeling</label>
                       <Select
