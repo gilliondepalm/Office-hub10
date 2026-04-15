@@ -153,7 +153,31 @@ const helpContent: Record<string, { title: string; content: string }> = {
 \u2022 Vandaag afwezige medewerkers zijn direct zichtbaar op het dashboard.
 \u2022 U kunt direct doorklikken naar de verschillende modules via de zijbalk.
 \u2022 Een rode badge op een module in de zijbalk betekent dat er nieuwe items zijn sinds uw laatste bezoek.
-\u2022 Beheerder en Directeur kunnen de hero-achtergrondafbeelding van het dashboard wijzigen via de foto-knop bovenaan.`,
+\u2022 Beheerder en Directeur kunnen de hero-achtergrondafbeelding van het dashboard wijzigen via de foto-knop bovenaan.
+
+\u2500\u2500 MIJN WERKTIJDEN PRESTATIES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+Dit onderdeel is uitsluitend zichtbaar voor medewerkers (niet voor Beheerder, Manager of Directeur). Het toont een persoonlijk overzicht van de prikklok-naleving over de afgelopen 6 maanden.
+
+Kolommen:
+\u2022 Maand \u2014 de kalendermaand, huidig maand is blauw gemarkeerd.
+\u2022 Niet geklokt \u2014 het aantal werkdagen (ma\u2013vr) waarop u aanwezig was maar \u00e9\u00e9n of meer verplichte bloktijden niet heeft nageleefd. Dit zijn dagen m\u00e9t prikklokregistraties maar met een gemiste blok 1, 2, 3 of 4.
+\u2022 Te laat \u2014 het totaal aantal keren dat een inklokregistratie na 08:00 viel (blok 1-venster: 07:00\u201308:00). Per dag kunnen meerdere te-laat registraties worden geteld.
+\u2022 Te vroeg weg \u2014 het totaal aantal keren dat een uitklokregistratie v\u00f3\u00f3r het blok 4-venster viel (16:45 ma\u2013do / 16:30 vr), zonder goedgekeurde afwezigheid.
+\u2022 Uren \u2014 het gecumuleerde urensaldo (positief = meer gewerkt, negatief = minder gewerkt dan de norm).
+\u2022 Min \u2014 de resterende minuten van het urensaldo.
+
+Kleuren:
+\u2022 Groen = goed (0 overtredingen of positief saldo).
+\u2022 Oranje = aandacht nodig (1\u20132 overtredingen).
+\u2022 Rood = actie vereist (3 of meer overtredingen, of negatief saldo).
+
+Berekeningslogica:
+\u2022 Alleen werkdagen (ma\u2013vr) met prikklokregistraties worden meegeteld.
+\u2022 Goedgekeurde afwezigheidsdagen (vakantie, ziekte, BVVD) tellen niet mee als tekort.
+\u2022 Pauzetijd (12:00\u201313:30) wordt automatisch in mindering gebracht op de gewerkte tijd.
+\u2022 Norm: 8 uur per dag (ma\u2013do) en 7,5 uur per dag (vr).
+\u2022 De gegevens zijn direct afgeleid uit de prikklokregistraties in de Werktijden-module en gebruiken exact dezelfde berekeningslogica als de Analyse-tab aldaar.`,
   },
   "/kalender": {
     title: "Kalender",
@@ -467,14 +491,14 @@ Navigatie:
   },
   "/werktijden": {
     title: "Werktijden",
-    content: `De Werktijden module is het centrale dashboard voor prikklokdata. Importeer CSV-bestanden van het prikkloksysteem, bekijk individuele registraties en werkdagsessies, en analyseer het nalevingsgedrag van medewerkers per periode.
+    content: `De Werktijden module is het centrale dashboard voor prikklokdata. Importeer CSV-bestanden van het prikkloksysteem, bekijk individuele registraties en werkdagsessies, en analyseer het nalevingsgedrag van medewerkers per periode. Medewerkers hebben toegang tot de tab Correcties om correctieverzoeken in te dienen.
 
 ── BOVENSTE KPI-KAARTEN ──────────────────────
 
-• Totaal records — het aantal prikklokregistraties (inklok + uitklok) dat in de database staat.
-• Sessies — het totaal aantal werkdagsessies (één per medewerker per dag met minimaal één inklokregistratie).
-• Verstuur waarschuwing — klikbare kaart die een bericht opstelt op basis van de analyse van de geselecteerde medewerker (zie Analyse). Grayed-out als er geen medewerker in de Analyse-tab is geselecteerd.
-• Laatste import — datum en tijdstip van de meest recente CSV-import.
+• Totaal records \u2014 het aantal prikklokregistraties (inklok + uitklok) dat in de database staat.
+• Sessies \u2014 het totaal aantal werkdagsessies (\u00e9\u00e9n per medewerker per dag met minimaal \u00e9\u00e9n inklokregistratie).
+• Verstuur waarschuwing \u2014 klikbare kaart die een bericht opstelt op basis van de analyse van de geselecteerde medewerker (zie Analyse). Grayed-out als er geen medewerker in de Analyse-tab is geselecteerd.
+• Laatste import \u2014 datum en tijdstip van de meest recente CSV-import.
 
 ── TAB: IMPORT ───────────────────────────────
 
@@ -488,28 +512,30 @@ Sleep een CSV-bestand naar de uploadzone of klik om een bestand te kiezen.
 
 ── TAB: REGISTRATIES ─────────────────────────
 
-Registraties zijn de ruwe prikklokgegevens zelf — elke afzonderlijke inklok- of uitklokregistratie die via een CSV-import is ingeladen. Eén rij = één keer dat iemand een kaart langs de lezer heeft gehaald.
+Registraties zijn de ruwe prikklokgegevens zelf \u2014 elke afzonderlijke inklok- of uitklokregistratie die via een CSV-import is ingeladen. \u00c9\u00e9n rij = \u00e9\u00e9n keer dat iemand een kaart langs de lezer heeft gehaald.
 • Filter op afdeling, medewerker of datum via de filters bovenaan.
 • Kolommen: Log ID, Userid (kadaster-ID), Medewerker, Datum, Tijdstip, Type (inklok/uitklok).
-• Verwijder een registratie via het prullenbak-icoon. Let op: dit kan de sessies en analyse beïnvloeden.
+• Verwijder een registratie via het prullenbak-icoon. Let op: dit kan de sessies en analyse be\u00efnvloeden.
 • Maximaal 500 registraties worden tegelijk getoond; gebruik filters om te verfijnen.
+• Beheerder, Beheerder AZ, Directeur en Manager kunnen registraties exporteren als CSV of afdrukken.
 
 ── TAB: SESSIES ──────────────────────────────
 
-Een sessie combineert alle registraties van één medewerker op één dag tot een werkdagoverzicht.
+Een sessie combineert alle registraties van \u00e9\u00e9n medewerker op \u00e9\u00e9n dag tot een werkdagoverzicht.
 • Filter op afdeling en medewerker via de filters bovenaan.
 • Kolommen: Medewerker, ID, Datum, Weekdag, Eerste inklok, Laatste uitklok, Werktijd, Aantal records, Status.
-• Status onvolledig (oranje badge): een sessie heeft geen sluitend in/out-paar — de medewerker is mogelijk vergeten te klokken.
+• Status onvolledig (oranje badge): een sessie heeft geen sluitend in/out-paar \u2014 de medewerker is mogelijk vergeten te klokken.
+• Beheerder, Beheerder AZ, Directeur en Manager kunnen sessies exporteren als CSV of afdrukken.
 
 ── TAB: LOGBOEK ──────────────────────────────
 
-Het logboek is het verwerkingsdagboek van het importproces — berichten die het systeem aanmaakt tijdens het verwerken van een CSV-import. Het bevat geen werkelijke werktijddata, maar laat zien wat er is gebeurd bij de verwerking: hoeveel regels zijn geaccepteerd, welke zijn afgekeurd en waarom.
+Het logboek is het verwerkingsdagboek van het importproces \u2014 berichten die het systeem aanmaakt tijdens het verwerken van een CSV-import. Het bevat geen werkelijke werktijddata, maar laat zien wat er is gebeurd bij de verwerking.
 • Info: normale verwerkingsstappen (record verwerkt, duplicaat overgeslagen, enz.).
 • Waarschuwing: onverwachte maar verwerkbare situaties (onbekende userid, tijdstip buiten bereik).
 • Fout: registraties die niet konden worden verwerkt (ongeldig tijdstip, ontbrekende kolommen).
-• Zoek op berichttekst, userid of event-type (bijv. typ "warning" voor alle waarschuwingen).
+• Zoek op berichttekst, userid of event-type (bijv. typ \u201cwarning\u201d voor alle waarschuwingen).
 • Filter op een specifieke import door in de Importgeschiedenis op een rij te klikken.
-• Klik op "Vernieuwen" om de meest recente logregels op te halen.
+• Klik op \u201cVernieuwen\u201d om de meest recente logregels op te halen.
 
 Verschil samengevat: Registraties = de inhoud van de import; Logboek = het verhaal van hoe die import is verlopen.
 
@@ -517,46 +543,80 @@ Verschil samengevat: Registraties = de inhoud van de import; Logboek = het verha
 
 Gedetailleerde nalevingsanalyse per medewerker over een gekozen periode.
 
-Stap 1 — Selecteer een medewerker via het dropdown-filter.
-Stap 2 — Stel optioneel een Van- en T/m-datum in.
+Stap 1 \u2014 Selecteer een medewerker via het dropdown-filter.
+Stap 2 \u2014 Stel optioneel een Van- en T/m-datum in.
 
 De analyse toont 5 KPI-kaarten:
-• Verzuim te klokken — dagen waarop de medewerker wel aanwezig was maar een of meer bloktijden niet correct naleefde.
-• Te laat ingeklokt — aantal keren dat de medewerker te laat inklokte (na het toegestane inklokvenstster van 07:00–08:00).
-• Te vroeg uitgeklokt — aantal keren dat de medewerker eerder uitklokte dan het toegestane uiítklokvenstster, zonder goedgekeurde absence.
-• Onvolledig — onvolledige in/out-paren (vergeten te klokken).
-• Variabel saldo — gecumuleerd verschil in minuten/uren ten opzichte van de normwerktijden.
+• Verzuim te klokken \u2014 dagen waarop de medewerker wel aanwezig was (er zijn registraties) maar \u00e9\u00e9n of meer verplichte bloktijden niet correct heeft nageleefd.
+• Te laat ingeklokt \u2014 totaal aantal inklokregistraties na 08:00 (per registratie geteld, niet per dag).
+• Te vroeg uitgeklokt \u2014 totaal aantal uitklokregistraties v\u00f3\u00f3r het blok 4-venster, zonder goedgekeurde afwezigheid (per registratie geteld).
+• Onvolledig \u2014 onvolledige in/out-paren (vergeten te klokken).
+• Variabel saldo \u2014 gecumuleerd verschil in minuten/uren ten opzichte van de normwerktijden. Alleen werkdagen m\u00e9t registraties worden meegerekend; goedgekeurde afwezigheidsdagen tellen als 0.
 
 Werkurenoverzicht:
-• Tabel per werkdag met: datum, weekdag, inklok- en uitkloktijden, blokstatus (✓/✗ per blok), totale werktijd en verschil t.o.v. norm.
-• Gebruik de knop "Toon alleen onvolledig" om snel alle onvolledige registraties te filteren.
+• Tabel per werkdag met: datum, weekdag, inklok- en uitkloktijden, blokstatus (\u2713/\u2717 per blok), totale werktijd en verschil t.o.v. norm.
+• Gebruik de knop \u201cToon alleen onvolledig\u201d om snel alle onvolledige registraties te filteren.
+• Beheerder, Beheerder AZ, Directeur en Manager kunnen de analyse exporteren als CSV of afdrukken.
 
 Bloktijden (norm voor alle medewerkers):
-• Blok 1 — Inklokvenstster: 07:00–08:00
-• Blok 2 — Uitklokvenstster pauze: 11:45–12:00
-• Blok 3 — Terugkeer na pauze: 13:30–14:00
-• Blok 4 — Einde werkdag: 16:45–18:00 (ma–do) / 16:30–18:00 (vr)
-• Pauzetijd (12:00–13:30) telt niet als werktijd.
+• Blok 1 \u2014 Inklokvenstster: 07:00\u201308:00
+• Blok 2 \u2014 Uitklokvenstster pauze: 11:45\u201312:30
+• Blok 3 \u2014 Terugkeer na pauze: 13:30\u201314:30
+• Blok 4 \u2014 Einde werkdag: 16:30\u201318:00 (vr) / 16:45\u201318:00 (ma\u2013do)
+• Pauzetijd (12:00\u201313:30) telt niet als werktijd.
 
 Aanvullende secties:
-• Te laat ingeklokt — volledig overzicht met datum en exacte inklokttijd.
-• Te vroeg uitgeklokt — uitkloktijden vóór het blok 4-venster, exclusief goedgekeurde afwezigheid (persoonlijk verzuim).
-• Te vroeg ingeklokt (vóór 07:00) — alleen weergegeven als dit voorkomt in de geselecteerde periode.
-• Pauze overzicht — alle geregistreerde pauzetijden met duur.
-• Verzuim bloktijden — een dag-voor-dag detailtabel van bloktijdovertredingen.
+• Te laat ingeklokt \u2014 volledig overzicht met datum en exacte inklokttijd.
+• Te vroeg uitgeklokt \u2014 uitkloktijden v\u00f3\u00f3r het blok 4-venster, exclusief goedgekeurde afwezigheid.
+• Te vroeg ingeklokt (v\u00f3\u00f3r 07:00) \u2014 alleen weergegeven als dit voorkomt in de geselecteerde periode.
+• Pauze overzicht \u2014 alle geregistreerde pauzetijden met duur.
+• Verzuim bloktijden \u2014 een dag-voor-dag detailtabel van bloktijdovertredingen.
+
+\u26a0\ufe0f De metrics in de Analyse-tab zijn de bron van de gegevens die op het Dashboard worden getoond in de kaart \u201cMijn Werktijden Prestaties\u201d. Beide gebruiken exact dezelfde berekeningslogica.
+
+── TAB: AFDELINGSOVERZICHT ──────────────────
+
+Geaggregeerd overzicht van alle afdelingen over een gekozen periode.
+• Stel een Van- en Tot-datum in (standaard: laatste 7 dagen).
+• Per afdeling: totaal medewerkers, actief in periode, te laat (keer), te vroeg uitg. (keer), onvolledig (keer).
+• Klik op een afdeling om de individuele medewerkers binnen die afdeling te zien met hun eigen statistieken.
+• Exporteer het overzicht als CSV via de \u201cExport CSV\u201d knop.
+
+── TAB: SIGNALEN ────────────────────────────
+
+Drempelwaarschuwingen \u2014 identificeer automatisch medewerkers die in een gekozen periode de ingestelde drempelwaarden overschrijden.
+• Stel de periode in (Van / Tot) en de drempelwaarden voor: Te laat (aantal keer), Te vroeg uitg. (aantal keer) en Onvolledig (aantal keer).
+• Klik op \u201cAnalyseer\u201d om de berekening te starten.
+• Medewerkers die \u00e9\u00e9n of meer drempelwaarden overschrijden verschijnen in de resultatenlijst met hun exacte tellingen.
+• Gebruik dit tabblad voor periodieke controle en vroegtijdige signalering van patroonafwijkingen.
+
+── TAB: CORRECTIES ──────────────────────────
+
+Medewerkers en managers kunnen correctieverzoeken indienen voor ontbrekende of onjuiste prikklokregistraties.
+
+Voor medewerkers:
+• Klik op \u201cCorrectie aanvragen\u201d om een verzoek in te dienen.
+• Vul in: kadaster-ID, datum, tijdstip en type (inklok of uitklok), plus een reden.
+• Uw eigen verzoeken zijn zichtbaar met de status: In behandeling, Goedgekeurd of Afgewezen.
+
+Voor Beheerder, Beheerder AZ, Directeur en Manager:
+• Alle ingediende correctieverzoeken van alle medewerkers zijn zichtbaar.
+• Keur een verzoek goed via de \u201cGoedkeuren\u201d knop \u2014 de registratie wordt automatisch aangemaakt in de database.
+• Wijs een verzoek af via de \u201cAfwijzen\u201d knop.
+• Goedgekeurde registraties zijn direct zichtbaar in de tabs Registraties en Sessies.
 
 ── VERSTUUR WAARSCHUWING ─────────────────────
 
 Zodra een medewerker in de Analyse-tab is geselecteerd met beschikbare data:
-• Klik op de "Verstuur waarschuwing" kaart (bovenaan de pagina).
+• Klik op de \u201cVerstuur waarschuwing\u201d kaart (bovenaan de pagina).
 • Er opent een dialoogvenster met een automatisch opgesteld bericht dat de geconstateerde overtredingen noemt: ontbrekende kloktijden, verzuim bloktijden, te laat ingeklokt, te vroeg uitgeklokt en negatief uurssaldo.
 • Het bericht is bewerkbaar voor verzending.
-• Na klikken op "Verstuur" ontvangt de medewerker het bericht in zijn/haar berichtenbox (Aankondigingen › Berichten).
+• Na klikken op \u201cVerstuur\u201d ontvangt de medewerker het bericht in zijn/haar berichtenbox (Aankondigingen \u203a Berichten).
 
 ── TOEGANG ───────────────────────────────────
 
-• Alleen toegankelijk voor Beheerder (admin), Beheerder AZ, Directeur en Manager.
-• Gewone medewerkers hebben geen toegang tot deze module.`,
+• Beheerder, Beheerder AZ, Directeur en Manager: volledige toegang tot alle tabs.
+• Medewerker: alleen toegang tot de tab \u201cCorrecties\u201d om correctieverzoeken in te dienen en de eigen verzoeken te bekijken.`,
   },
   "/profiel": {
     title: "Mijn Profiel",
