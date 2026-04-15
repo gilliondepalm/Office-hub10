@@ -2784,23 +2784,18 @@ export default function WerktijdenPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            {isManager && (
-              <div>
-                <label className="text-sm font-medium mb-1 block">Medewerker (Kadaster-ID)</label>
-                <Select value={correctieKadasterId} onValueChange={setCorrectieKadasterId}>
-                  <SelectTrigger data-testid="select-correctie-kadaster">
-                    <SelectValue placeholder="Selecteer medewerker…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeUsers.map((u: any) => (
-                      <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                        {u.fullName || u.username} ({u.kadasterId})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="rounded-md bg-muted/50 px-3 py-2 flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Medewerker</p>
+                <p className="text-sm font-medium truncate">
+                  {(user as any)?.fullName || user?.username}
+                  {(user as any)?.kadasterId && (
+                    <span className="text-muted-foreground font-normal ml-1">({(user as any).kadasterId})</span>
+                  )}
+                </p>
               </div>
-            )}
+            </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Datum</label>
               <input
@@ -2856,9 +2851,9 @@ export default function WerktijdenPage() {
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowCorrectieDialog(false)}>Annuleren</Button>
             <Button
-              disabled={!correctieDatum || !correctieTijdstip || !(correctieKadasterId || user?.kadasterId) || correctieMutation.isPending}
+              disabled={!correctieDatum || !correctieTijdstip || !(user as any)?.kadasterId || correctieMutation.isPending}
               onClick={() => {
-                const kadasId = isManager ? correctieKadasterId : (user?.kadasterId || "");
+                const kadasId = (user as any)?.kadasterId || "";
                 if (!kadasId || !correctieDatum || !correctieTijdstip) return;
                 const dt = new Date(`${correctieDatum}T${correctieTijdstip}:00`);
                 correctieMutation.mutate({
