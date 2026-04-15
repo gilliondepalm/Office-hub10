@@ -1472,12 +1472,14 @@ export default function WerktijdenPage() {
           </Card>
         </div>
 
-        <Tabs defaultValue="import">
+        <Tabs defaultValue={isManager ? "import" : "registraties"}>
           <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="import" data-testid="tab-import">
-              <Upload className="h-4 w-4 mr-1.5" />
-              Import
-            </TabsTrigger>
+            {isManager && (
+              <TabsTrigger value="import" data-testid="tab-import">
+                <Upload className="h-4 w-4 mr-1.5" />
+                Import
+              </TabsTrigger>
+            )}
             <TabsTrigger value="registraties" data-testid="tab-registraties">
               <Database className="h-4 w-4 mr-1.5" />
               Registraties
