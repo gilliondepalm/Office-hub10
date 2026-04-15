@@ -1593,7 +1593,7 @@ export default function WerktijdenPage() {
                     {uploading ? "Bezig met verwerken…" : "Sleep een CSV-bestand hierheen of klik om te uploaden"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Ondersteunde kolommen: userid, checktime/datetime, checktype/type (optioneel)
+                    Prikklok CSV-export — alleen <strong>userid</strong> en <strong>checktime</strong> worden ingelezen
                   </p>
                 </div>
                 <input
@@ -1615,28 +1615,56 @@ export default function WerktijdenPage() {
                 )}
 
                 {/* CSV formaat uitleg */}
-                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Verwacht CSV-formaat</p>
-                  <div className="grid md:grid-cols-2 gap-3 text-xs text-muted-foreground">
-                    <div>
-                      <p className="font-medium mb-1">Met checktype kolom:</p>
-                      <code className="block bg-background border rounded p-2 font-mono text-xs leading-relaxed">
-                        userid,checktime,checktype<br />
-                        1,2025-01-15 08:03:00,in<br />
-                        1,2025-01-15 17:02:00,out
-                      </code>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">Zonder checktype (alternerend):</p>
-                      <code className="block bg-background border rounded p-2 font-mono text-xs leading-relaxed">
-                        userid;datetime<br />
-                        001;15/01/2025 08:03:00<br />
-                        001;15/01/2025 17:02:00
-                      </code>
-                    </div>
+                <div className="rounded-lg bg-muted/40 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prikklok CSV-exportformaat</p>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Separator: komma (,) of puntkomma (;) · Datum: ISO 8601, dd/mm/yyyy of dd-mm-yyyy · Checktype: in/out, 0/1, C/I/C/O
+                    De prikklok exporteert een CSV met de onderstaande kolommen. Alleen{" "}
+                    <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">userid</span> en{" "}
+                    <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">checktime</span>{" "}
+                    worden door de app ingelezen — alle overige kolommen worden genegeerd.
+                  </p>
+                  {/* Kolommen overzicht */}
+                  <div className="flex flex-wrap gap-1.5 text-xs">
+                    {[
+                      { name: "Logid",       used: false },
+                      { name: "userid",      used: true  },
+                      { name: "CheckTime",   used: true  },
+                      { name: "CheckType",   used: false },
+                      { name: "SensorId",    used: false },
+                      { name: "WorkType",    used: false },
+                      { name: "AttFlag",     used: false },
+                      { name: "Checked",     used: false },
+                      { name: "Exported",    used: false },
+                      { name: "OpenDoor",    used: false },
+                      { name: "Reason",      used: false },
+                      { name: "temperature", used: false },
+                      { name: "whynoopen",   used: false },
+                      { name: "mask",        used: false },
+                    ].map((col) => (
+                      <span
+                        key={col.name}
+                        className={`px-2 py-0.5 rounded font-mono ${
+                          col.used
+                            ? "bg-primary/15 text-primary font-semibold ring-1 ring-primary/30"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {col.name}
+                        {col.used && <span className="ml-1 text-[10px] opacity-75">✓</span>}
+                      </span>
+                    ))}
+                  </div>
+                  {/* Voorbeeld rij */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Voorbeeld data-rij:</p>
+                    <code className="block bg-background border rounded p-2 font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-nowrap">
+                      1,<span className="text-primary font-bold">001</span>,<span className="text-primary font-bold">2025-01-15 08:03:00</span>,0,1,0,0,0,0,0,,0,,0
+                    </code>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Separator: komma (,) of puntkomma (;) · Datum: ISO 8601 of dd/mm/yyyy
                   </p>
                 </div>
               </CardContent>
