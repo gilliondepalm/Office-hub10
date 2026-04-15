@@ -171,11 +171,13 @@ const deactivateFormSchema = z.object({
 function EditDialog({
   user,
   departments,
+  allUsers,
   open,
   onOpenChange,
 }: {
   user: User;
   departments: Department[] | undefined;
+  allUsers: User[] | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -215,6 +217,14 @@ function EditDialog({
 
   const mutation = useMutation({
     mutationFn: async (data: z.infer<typeof editFormSchema>) => {
+      if (data.kadasterId) {
+        const duplicate = (allUsers ?? []).find(
+          (u) => u.id !== user.id && (u as any).kadasterId === data.kadasterId
+        );
+        if (duplicate) {
+          throw new Error(`Userid "${data.kadasterId}" is al in gebruik door ${(duplicate as any).voornamen ?? duplicate.username}`);
+        }
+      }
       const fullName = [data.voornamen, data.voorvoegsel, data.achternaam].filter(Boolean).join(" ");
       const { titelsVoor, titelsAchter } = buildTitelPayload(editTitels);
       const payload: Record<string, any> = {
@@ -392,14 +402,13 @@ function EditDialog({
               </FormItem>
             )} />
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Userid</label>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <div className="flex h-9 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground select-all" data-testid="display-userid">
-                    {user.kadasterId || "—"}
-                  </div>
-                </div>
-              </div>
+              <FormField control={form.control} name="kadasterId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Userid</FormLabel>
+                  <FormControl><Input {...field} placeholder="bijv. 1001" data-testid="input-edit-userid" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="cedulaNr" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cedulanr.</FormLabel>
@@ -1484,6 +1493,7 @@ export default function PersonaliaPage() {
         <EditDialog
           user={editUser}
           departments={departments}
+          allUsers={users}
           open={!!editUser}
           onOpenChange={(open) => { if (!open) setEditUser(null); }}
         />

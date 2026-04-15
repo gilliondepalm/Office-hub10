@@ -862,6 +862,15 @@ export async function registerRoutes(
       if (data.active === true) {
         data.endDate = null;
       }
+      if (data.kadasterId) {
+        const allUsers = await storage.getUsers();
+        const conflict = allUsers.find(
+          (u: any) => u.id !== req.params.id && u.kadasterId === data.kadasterId
+        );
+        if (conflict) {
+          return res.status(409).json({ message: `Userid "${data.kadasterId}" is al in gebruik` });
+        }
+      }
       const user = await storage.updateUser(req.params.id, data);
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
