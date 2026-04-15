@@ -1766,6 +1766,7 @@ export default function WerktijdenPage() {
                     <RefreshCw className="h-4 w-4 mr-1.5" />
                     Reset
                   </Button>
+                  {analyseUserId && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -1803,6 +1804,7 @@ export default function WerktijdenPage() {
                     <FileDown className="h-4 w-4 mr-1.5" />
                     Exporteer CSV
                   </Button>
+                  )}
                 </div>
                 {analyseUserId && (
                   <p className="text-xs text-muted-foreground mt-2">
