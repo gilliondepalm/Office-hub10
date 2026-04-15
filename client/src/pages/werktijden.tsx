@@ -2143,6 +2143,7 @@ export default function WerktijdenPage() {
                       <TableHead className="pl-4">Type</TableHead>
                       <TableHead>Tijdstip</TableHead>
                       <TableHead>Userid</TableHead>
+                      <TableHead>Medewerker</TableHead>
                       <TableHead>Checktime</TableHead>
                       <TableHead className="pr-4">Bericht</TableHead>
                     </TableRow>
@@ -2160,6 +2161,14 @@ export default function WerktijdenPage() {
                         <TableCell className="pl-4"><EventTypeBadge type={e.eventType} /></TableCell>
                         <TableCell className="text-xs text-muted-foreground font-mono">{formatTs(e.eventAt)}</TableCell>
                         <TableCell className="text-xs font-mono">{e.userid || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {e.userid
+                            ? activeUsers.find((u: any) => u.kadasterId === e.userid)
+                              ? <span className="font-medium">{getUserName(e.userid)}</span>
+                              : <span className="text-amber-600 dark:text-amber-400 text-xs italic">Niet gekoppeld</span>
+                            : <span className="text-muted-foreground">—</span>
+                          }
+                        </TableCell>
                         <TableCell className="text-xs font-mono">{e.checktime ? formatTs(e.checktime) : "—"}</TableCell>
                         <TableCell className="pr-4 text-sm">{e.bericht}</TableCell>
                       </TableRow>
