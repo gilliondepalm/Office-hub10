@@ -976,11 +976,6 @@ export default function WerktijdenPage() {
     return u ? ((u as any).fullName || u.username) : kadasterId;
   };
 
-  const getUserDept = (kadasterId: string): string => {
-    const u = activeUsers.find((u: any) => u.kadasterId === kadasterId);
-    return (u as any)?.department || "";
-  };
-
   const sendWaarschuwingMutation = useMutation({
     mutationFn: async ({ toUserId, subject, content }: { toUserId: string; subject: string; content: string }) => {
       const res = await fetch("/api/messages", {
@@ -1705,17 +1700,8 @@ export default function WerktijdenPage() {
                 </div>
               )}
               {isManager ? (
-                <Select
-                  value={filterUserid}
-                  onValueChange={(v) => {
-                    setFilterUserid(v);
-                    if (v !== "all") {
-                      const dept = getUserDept(v);
-                      if (dept) setFilterRegDept(dept);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-60" data-testid="select-filter-userid">
+                <Select value={filterUserid} onValueChange={setFilterUserid}>
+                  <SelectTrigger className="w-52" data-testid="select-filter-userid">
                     <Filter className="h-4 w-4 mr-1.5 text-muted-foreground" />
                     <SelectValue placeholder="Medewerker…" />
                   </SelectTrigger>
@@ -1723,7 +1709,7 @@ export default function WerktijdenPage() {
                     <SelectItem value="all">Alle medewerkers</SelectItem>
                     {regFilteredUsers.map((u: any) => (
                       <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                        {u.fullName || u.username} — {u.department}
+                        {u.fullName || u.username} (ID: {u.kadasterId})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1901,17 +1887,8 @@ export default function WerktijdenPage() {
                 </div>
               )}
               {isManager ? (
-                <Select
-                  value={filterUserid}
-                  onValueChange={(v) => {
-                    setFilterUserid(v);
-                    if (v !== "all") {
-                      const dept = getUserDept(v);
-                      if (dept) setFilterSessionDept(dept);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-60" data-testid="select-filter-sessies">
+                <Select value={filterUserid} onValueChange={setFilterUserid}>
+                  <SelectTrigger className="w-52" data-testid="select-filter-sessies">
                     <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
                     <SelectValue placeholder="Medewerker…" />
                   </SelectTrigger>
@@ -1919,7 +1896,7 @@ export default function WerktijdenPage() {
                     <SelectItem value="all">Alle medewerkers</SelectItem>
                     {sessieFilteredUsers.map((u: any) => (
                       <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                        {u.fullName || u.username} — {u.department}
+                        {u.fullName || u.username} (ID: {u.kadasterId})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -2160,18 +2137,11 @@ export default function WerktijdenPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex-1 min-w-[220px]">
+                  <div className="flex-1 min-w-[200px]">
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">Medewerker</label>
                     <Select
                       value={analyseUserId}
-                      onValueChange={(v) => {
-                        setAnalyseUserId(v);
-                        setShowOnlyIncomplete(false);
-                        if (v) {
-                          const dept = getUserDept(v);
-                          if (dept) setFilterAnalyseDept(dept);
-                        }
-                      }}
+                      onValueChange={(v) => { setAnalyseUserId(v); setShowOnlyIncomplete(false); }}
                     >
                       <SelectTrigger data-testid="select-analyse-userid">
                         <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
@@ -2180,7 +2150,7 @@ export default function WerktijdenPage() {
                       <SelectContent>
                         {analyseFilteredUsers.map((u: any) => (
                           <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                            {u.fullName || u.username} — {u.department}
+                            {u.fullName || u.username} (ID: {u.kadasterId})
                           </SelectItem>
                         ))}
                       </SelectContent>
