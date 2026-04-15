@@ -292,6 +292,7 @@ export interface IStorage {
 
   getImportLogs(): Promise<ImportLog[]>;
   createImportLog(log: InsertImportLog): Promise<ImportLog>;
+  deleteImportLog(id: string): Promise<void>;
 
   getPrikklokEventLogs(importId?: string, limit?: number): Promise<PrikklokEventLog[]>;
   createPrikklokEventLogs(events: InsertPrikklokEventLog[]): Promise<void>;
@@ -1646,15 +1647,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWerktijdenByImport(importId: string): Promise<void> {
-    const eventsForImport = await db.select({ checktime: prikklokEventLog.checktime, userid: prikklokEventLog.userid })
-      .from(prikklokEventLog)
-      .where(and(eq(prikklokEventLog.importId, importId), eq(prikklokEventLog.eventType, "info")));
-    for (const ev of eventsForImport) {
-      if (ev.userid && ev.checktime) {
-        await db.delete(werktijden)
-          .where(and(eq(werktijden.userid, ev.userid), eq(werktijden.checktime, ev.checktime)));
-      }
-    }
+    await db.delete(werktijden).where(eq(werktijden.importId, importId));
+  }
+
+  async deleteImportLog(id: string): Promise<void> {
+    await db.delete(werktijden).where(eq(werktijden.importId, id));
+    await db.delete(prikklokEventLog).where(eq(prikklokEventLog.importId, id));
+    await db.delete(importLog).where(eq(importLog.id, id));
   }
 
   async getCorrectieverzoeken(userId?: string): Promise<Correctieverzoek[]> {

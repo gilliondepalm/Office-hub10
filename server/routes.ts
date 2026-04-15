@@ -3628,8 +3628,8 @@ export async function registerRoutes(
         eventLogs.map(e => ({ ...e, importId: importEntry.id }))
       );
 
-      // Sla werktijden records op
-      await storage.bulkCreateWerktijden(deduped);
+      // Sla werktijden records op met importId
+      await storage.bulkCreateWerktijden(deduped.map(r => ({ ...r, importId: importEntry.id })));
 
       res.json({
         importId: importEntry.id,
@@ -3652,6 +3652,18 @@ export async function registerRoutes(
       }
       const logs = await storage.getImportLogs();
       res.json(logs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // DELETE /api/import-logs/:id — Verwijder een import inclusief alle bijbehorende klokregistraties
+  app.delete("/api/import-logs/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || !isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az") {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      await storage.deleteImportLog(req.params.id);
+      res.json({ message: "Import verwijderd" });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

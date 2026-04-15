@@ -677,6 +677,7 @@ export const werktijden = pgTable("werktijden", {
   userid: varchar("userid", { length: 20 }).notNull(),
   checktime: timestamp("checktime").notNull(),
   checktype: text("checktype").notNull().default("in"), // 'in' | 'out'
+  importId: varchar("import_id").references(() => importLog.id),
 });
 export const insertWerktijdenSchema = createInsertSchema(werktijden).omit({ logid: true });
 export type InsertWerktijden = z.infer<typeof insertWerktijdenSchema>;

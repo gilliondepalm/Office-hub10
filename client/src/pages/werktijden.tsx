@@ -18,6 +18,10 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Upload, Database, FileText, AlertTriangle, CheckCircle2,
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
@@ -869,6 +873,7 @@ export default function WerktijdenPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDatum, setFilterDatum] = useState("");
   const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
+  const [deleteConfirmImport, setDeleteConfirmImport] = useState<ImportLogEntry | null>(null);
   const [analyseUserId, setAnalyseUserId]         = useState("");
   const [analyseFrom, setAnalyseFrom]             = useState("");
   const [analyseTo, setAnalyseTo]                 = useState("");
@@ -935,6 +940,23 @@ export default function WerktijdenPage() {
   const { data: importLogs = [], isLoading: logsLoading } = useQuery<ImportLogEntry[]>({
     queryKey: ["/api/import-logs"],
     enabled: isManager,
+  });
+
+  const deleteImportMutation = useMutation({
+    mutationFn: async (importId: string) => {
+      const res = await fetch(`/api/import-logs/${importId}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/import-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/werktijden"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/prikklok-events"] });
+      setSelectedImportId(null);
+      toast({ title: "Import verwijderd", description: "De klokregistraties van deze import zijn ook verwijderd." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Fout bij verwijderen", description: err.message, variant: "destructive" });
+    },
   });
 
   const { data: eventLogs = [], isLoading: eventsLoading } = useQuery<EventLog[]>({
@@ -1706,8 +1728,9 @@ export default function WerktijdenPage() {
                         <TableHead className="text-right">Totaal</TableHead>
                         <TableHead className="text-right">Geldig</TableHead>
                         <TableHead className="text-right">Fouten</TableHead>
-                        <TableHead className="text-right pr-4">Waarschuw.</TableHead>
+                        <TableHead className="text-right">Waarschuw.</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="pr-2 w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1723,8 +1746,20 @@ export default function WerktijdenPage() {
                           <TableCell className="text-right text-sm">{log.totaalRecords}</TableCell>
                           <TableCell className="text-right text-sm text-green-700 dark:text-green-400">{log.geldigeRecords}</TableCell>
                           <TableCell className="text-right text-sm text-red-700 dark:text-red-400">{log.foutRecords}</TableCell>
-                          <TableCell className="text-right text-sm text-amber-700 dark:text-amber-400 pr-4">{log.waarschuwingen}</TableCell>
+                          <TableCell className="text-right text-sm text-amber-700 dark:text-amber-400">{log.waarschuwingen}</TableCell>
                           <TableCell><ImportStatusBadge status={log.status} /></TableCell>
+                          <TableCell className="pr-2" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              disabled={deleteImportMutation.isPending}
+                              onClick={() => setDeleteConfirmImport(log)}
+                              data-testid={`button-delete-import-${log.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1733,6 +1768,36 @@ export default function WerktijdenPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* ── Bevestigingsdialog import verwijderen ─────────────────────────── */}
+          <AlertDialog open={!!deleteConfirmImport} onOpenChange={(open) => { if (!open) setDeleteConfirmImport(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Import verwijderen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Dit verwijdert de import <strong>{deleteConfirmImport?.bestandsnaam || "onbekend bestand"}</strong> van{" "}
+                  {deleteConfirmImport ? formatTs(deleteConfirmImport.importedAt) : ""} inclusief alle{" "}
+                  <strong>{deleteConfirmImport?.geldigeRecords ?? 0} klokregistraties</strong> die hierbij zijn ingeladen.
+                  Dit kan niet ongedaan worden gemaakt.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete-import">Annuleren</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive hover:bg-destructive/90 text-white"
+                  onClick={() => {
+                    if (deleteConfirmImport) {
+                      deleteImportMutation.mutate(deleteConfirmImport.id);
+                      setDeleteConfirmImport(null);
+                    }
+                  }}
+                  data-testid="button-confirm-delete-import"
+                >
+                  Verwijderen
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* ── Registraties tab ─────────────────────────────────────────────── */}
           <TabsContent value="registraties" className="space-y-4 mt-4">
