@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, isNull, isNotNull } from "drizzle-orm";
 import {
   users, events, announcements, departments, absences, absenceCancellations, rewards, applications, appAccess, messages,
   aoProcedures, aoInstructions, positionHistory, personalDevelopment, legislationLinks, caoDocuments, siteSettings,
@@ -1651,7 +1651,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteImportLog(id: string): Promise<void> {
+    // 1. Haal user+datum combinaties op uit het logboek van deze import
+    //    (nodig om ook records zonder importId op te ruimen)
+    const infoEvents = await db.select({
+      userid: prikklokEventLog.userid,
+      checktime: prikklokEventLog.checktime,
+    })
+    .from(prikklokEventLog)
+    .where(and(
+      eq(prikklokEventLog.importId, id),
+      eq(prikklokEventLog.eventType, "info"),
+      isNotNull(prikklokEventLog.userid),
+      isNotNull(prikklokEventLog.checktime),
+    ));
+
+    // 2. Verwijder werktijden met matching importId (nieuwe records)
     await db.delete(werktijden).where(eq(werktijden.importId, id));
+
+    // 3. Verwijder ook records zonder importId die op dezelfde user+datum vallen
+    const userDates = new Set<string>();
+    for (const e of infoEvents) {
+      if (e.userid && e.checktime) {
+        const date = (e.checktime as Date).toISOString().slice(0, 10);
+        userDates.add(`${e.userid}::${date}`);
+      }
+    }
+    for (const ud of Array.from(userDates)) {
+      const [userid, date] = ud.split("::");
+      await db.delete(werktijden).where(and(
+        eq(werktijden.userid, userid),
+        sql`date(${werktijden.checktime}) = ${date}::date`,
+        isNull(werktijden.importId),
+      ));
+    }
+
+    // 4. Verwijder event logs en de import-entry zelf
     await db.delete(prikklokEventLog).where(eq(prikklokEventLog.importId, id));
     await db.delete(importLog).where(eq(importLog.id, id));
   }
