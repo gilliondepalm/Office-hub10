@@ -1443,7 +1443,7 @@ export default function WerktijdenPage() {
                 <SelectContent>
                   <SelectItem value="all">Alle afdelingen</SelectItem>
                   {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
