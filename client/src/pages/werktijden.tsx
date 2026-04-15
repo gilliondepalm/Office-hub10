@@ -1593,7 +1593,7 @@ export default function WerktijdenPage() {
                     {uploading ? "Bezig met verwerken…" : "Sleep een CSV-bestand hierheen of klik om te uploaden"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Ondersteunde kolommen: userid/pin, checktime/datetime, checktype/type (optioneel)
+                    Ondersteunde kolommen: userid, checktime/datetime, checktype/type (optioneel)
                   </p>
                 </div>
                 <input
@@ -1629,7 +1629,7 @@ export default function WerktijdenPage() {
                     <div>
                       <p className="font-medium mb-1">Zonder checktype (alternerend):</p>
                       <code className="block bg-background border rounded p-2 font-mono text-xs leading-relaxed">
-                        pin;datetime<br />
+                        userid;datetime<br />
                         001;15/01/2025 08:03:00<br />
                         001;15/01/2025 17:02:00
                       </code>
