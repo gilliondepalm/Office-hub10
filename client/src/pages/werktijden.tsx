@@ -1474,12 +1474,6 @@ export default function WerktijdenPage() {
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredSessies.length} sessies
               </span>
-              {validationIssues > 0 && (
-                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {validationIssues} onvolledig
-                </Badge>
-              )}
             </div>
 
             <Card className="overflow-hidden">
