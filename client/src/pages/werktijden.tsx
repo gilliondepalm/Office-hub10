@@ -802,6 +802,7 @@ export default function WerktijdenPage() {
   const [analyseFrom, setAnalyseFrom]             = useState("");
   const [analyseTo, setAnalyseTo]                 = useState("");
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
+  const [logboekSearch, setLogboekSearch] = useState("");
   const [filterRegDept, setFilterRegDept] = useState("all");
   const [filterSessionDept, setFilterSessionDept] = useState("all");
   const [showWaarschuwingDialog, setShowWaarschuwingDialog] = useState(false);
@@ -821,12 +822,14 @@ export default function WerktijdenPage() {
     queryFn: async () => {
       const url = selectedImportId
         ? `/api/prikklok-events?importId=${selectedImportId}&limit=500`
-        : `/api/prikklok-events?limit=200`;
+        : `/api/prikklok-events?limit=500`;
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
     enabled: isManager,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -1004,12 +1007,14 @@ export default function WerktijdenPage() {
   }, [records, filterUserid, filterDatum, filterRegDept, activeUsers]);
 
   const filteredEvents = useMemo(() => {
-    if (!searchTerm) return eventLogs;
+    if (!logboekSearch) return eventLogs;
+    const q = logboekSearch.toLowerCase();
     return eventLogs.filter(e =>
-      e.bericht.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.userid && e.userid.includes(searchTerm))
+      e.bericht.toLowerCase().includes(q) ||
+      (e.userid && e.userid.toLowerCase().includes(q)) ||
+      e.eventType.includes(q)
     );
-  }, [eventLogs, searchTerm]);
+  }, [eventLogs, logboekSearch]);
 
   // ── KPI statistieken ─────────────────────────────────────────────────────────
   const today = format(new Date(), "yyyy-MM-dd");
@@ -1542,10 +1547,10 @@ export default function WerktijdenPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  className="pl-9 w-48"
-                  placeholder="Zoek in logboek…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-52"
+                  placeholder="Zoek op bericht of userid…"
+                  value={logboekSearch}
+                  onChange={(e) => setLogboekSearch(e.target.value)}
                   data-testid="input-search-logboek"
                 />
               </div>
