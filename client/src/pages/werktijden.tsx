@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -938,7 +938,6 @@ export default function WerktijdenPage() {
 
   const { data: absences = [] } = useQuery<AbsenceRecord[]>({
     queryKey: ["/api/absences"],
-    enabled: isManager,
   });
 
   const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
@@ -951,6 +950,14 @@ export default function WerktijdenPage() {
   });
 
   const activeUsers = (allUsers as any[]).filter((u: any) => u.active && u.kadasterId);
+
+  // Voor medewerkers: automatisch eigen kadasterId selecteren in de Analyse tab
+  const myKadasterId = (user as any)?.kadasterId || "";
+  useEffect(() => {
+    if (!isManager && myKadasterId) {
+      setAnalyseUserId(myKadasterId);
+    }
+  }, [isManager, myKadasterId]);
 
   const deleteMutation = useMutation({
     mutationFn: async (logid: number) => {
@@ -1380,22 +1387,6 @@ export default function WerktijdenPage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([datum, recs]) => computeDagAnalyse(datum, recs, isDateAbsent(datum)));
   }, [records, analyseUserId, analyseFrom, analyseTo, absences, activeUsers]);
-
-  if (!isManager) {
-    return (
-      <div className="overflow-auto h-full">
-        <PageHero title="Werktijden" subtitle="Prikklok data import & verwerking" imageSrc="/uploads/App_pics/werktijden.png" />
-        <div className="p-6">
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <Database className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p>U heeft geen toegang tot dit module.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="overflow-auto h-full">
