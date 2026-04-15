@@ -2743,7 +2743,6 @@ export default function WerktijdenPage() {
               onClick={() => {
                 const kadasId = isManager ? correctieKadasterId : (user?.kadasterId || "");
                 if (!kadasId || !correctieDatum || !correctieTijdstip) return;
-                const [h, m] = correctieTijdstip.split(":").map(Number);
                 const dt = new Date(`${correctieDatum}T${correctieTijdstip}:00`);
                 correctieMutation.mutate({
                   kadasterId: kadasId,

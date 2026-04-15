@@ -3270,7 +3270,11 @@ export async function registerRoutes(
     try {
       const currentUser = (req as any).user;
       if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
-      const parsed = insertCorrectieverzoekSchema.parse({ ...req.body, ingediendDoor: String(currentUser.id) });
+      const body = { ...req.body, ingediendDoor: String(currentUser.id) };
+      if (body.checktime && typeof body.checktime === "string") {
+        body.checktime = new Date(body.checktime);
+      }
+      const parsed = insertCorrectieverzoekSchema.parse(body);
       const record = await storage.createCorrectieverzoek(parsed);
       res.json(record);
     } catch (err: any) { res.status(400).json({ message: err.message }); }
