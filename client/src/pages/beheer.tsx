@@ -1197,11 +1197,19 @@ function PrikklokKoppelingTab() {
   }, [allUsers]);
 
   function parseCSV(text: string): PrikklokRow[] {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    // Strip UTF-8 BOM if present
+    const clean = text.replace(/^\uFEFF/, "");
+    const lines = clean.split(/\r?\n/).filter((l) => l.trim());
     if (lines.length < 2) return [];
-    const sep = lines[0].includes(";") ? ";" : ",";
-    const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase().replace(/['"]/g, ""));
-    const useridIdx = headers.findIndex((h) => ["userid", "pin", "id", "user_id"].includes(h));
+
+    // Detect separator: tab takes priority (common prikklok TSV export), then semicolon, then comma
+    const firstLine = lines[0];
+    const sep = firstLine.includes("\t") ? "\t"
+              : firstLine.includes(";")  ? ";"
+              : ",";
+
+    const headers = firstLine.split(sep).map((h) => h.trim().toLowerCase().replace(/['"]/g, "").replace(/^\uFEFF/, ""));
+    const useridIdx = headers.findIndex((h) => ["userid", "pin", "id", "user_id", "personeelsnr"].includes(h));
     const nameIdx   = headers.findIndex((h) => ["name", "naam", "fullname", "full_name", "volledige naam"].includes(h));
     if (useridIdx === -1) return [];
     return lines
@@ -1221,9 +1229,13 @@ function PrikklokKoppelingTab() {
       setPrikklokRows(rows);
       setSelections({});
       if (rows.length === 0) {
-        toast({ title: "Geen geldige rijen gevonden", description: "Controleer of het bestand userid/pin en name/naam kolommen bevat.", variant: "destructive" });
+        toast({
+          title: "Geen geldige rijen gevonden",
+          description: "Controleer of het bestand een userid-kolom bevat. Ondersteunde separatoren: tab, puntkomma of komma.",
+          variant: "destructive",
+        });
       } else {
-        toast({ title: `${rows.length} medewerkers geladen` });
+        toast({ title: `${rows.length} medewerkers geladen`, description: "Selecteer hieronder de bijbehorende app-medewerker om te koppelen." });
       }
     };
     reader.readAsText(file, "utf-8");
@@ -1367,7 +1379,7 @@ function PrikklokKoppelingTab() {
               </code>
             </div>
             <p className="text-xs text-muted-foreground">
-              Separator: komma (,) of puntkomma (;)
+              Separator: tab (standaard prikklok-export), komma (,) of puntkomma (;) · Automatisch gedetecteerd
             </p>
           </div>
         </CardContent>
