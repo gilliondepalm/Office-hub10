@@ -488,26 +488,30 @@ Sleep een CSV-bestand naar de uploadzone of klik om een bestand te kiezen.
 
 ── TAB: REGISTRATIES ─────────────────────────
 
-Overzicht van alle individuele prikklokregistraties.
-• Gebruik de zoekbalk, medewerkersfilter of datumfilter om snel te zoeken.
+Registraties zijn de ruwe prikklokgegevens zelf — elke afzonderlijke inklok- of uitklokregistratie die via een CSV-import is ingeladen. Eén rij = één keer dat iemand een kaart langs de lezer heeft gehaald.
+• Filter op afdeling, medewerker of datum via de filters bovenaan.
 • Kolommen: Log ID, Userid (kadaster-ID), Medewerker, Datum, Tijdstip, Type (inklok/uitklok).
-• Verwijder een registratie via het prullenbak-icoon. Let op: dit kan de analyse beïnvloeden.
+• Verwijder een registratie via het prullenbak-icoon. Let op: dit kan de sessies en analyse beïnvloeden.
 • Maximaal 500 registraties worden tegelijk getoond; gebruik filters om te verfijnen.
 
 ── TAB: SESSIES ──────────────────────────────
 
 Een sessie combineert alle registraties van één medewerker op één dag tot een werkdagoverzicht.
+• Filter op afdeling en medewerker via de filters bovenaan.
 • Kolommen: Medewerker, ID, Datum, Weekdag, Eerste inklok, Laatste uitklok, Werktijd, Aantal records, Status.
 • Status onvolledig (oranje badge): een sessie heeft geen sluitend in/out-paar — de medewerker is mogelijk vergeten te klokken.
-• Het totaal onvolledige sessies wordt getoond als waarschuwingsbadge in de filterrij.
 
 ── TAB: LOGBOEK ──────────────────────────────
 
-Toont de verwerkingsberichten van alle imports: info, waarschuwingen en fouten.
-• Info: normale verwerkingsstappen (record ingevoerd, duplicaat overgeslagen, enz.).
-• Waarschuwing: onverwachte maar verwerkbare situaties (onbekende userid, onherkenbaar tijdstip).
-• Fout: registraties die niet konden worden verwerkt.
+Het logboek is het verwerkingsdagboek van het importproces — berichten die het systeem aanmaakt tijdens het verwerken van een CSV-import. Het bevat geen werkelijke werktijddata, maar laat zien wat er is gebeurd bij de verwerking: hoeveel regels zijn geaccepteerd, welke zijn afgekeurd en waarom.
+• Info: normale verwerkingsstappen (record verwerkt, duplicaat overgeslagen, enz.).
+• Waarschuwing: onverwachte maar verwerkbare situaties (onbekende userid, tijdstip buiten bereik).
+• Fout: registraties die niet konden worden verwerkt (ongeldig tijdstip, ontbrekende kolommen).
+• Zoek op berichttekst, userid of event-type (bijv. typ "warning" voor alle waarschuwingen).
 • Filter op een specifieke import door in de Importgeschiedenis op een rij te klikken.
+• Klik op "Vernieuwen" om de meest recente logregels op te halen.
+
+Verschil samengevat: Registraties = de inhoud van de import; Logboek = het verhaal van hoe die import is verlopen.
 
 ── TAB: ANALYSE ──────────────────────────────
 
