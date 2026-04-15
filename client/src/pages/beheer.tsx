@@ -1254,7 +1254,7 @@ function PrikklokKoppelingTab() {
         <CardHeader className="pb-3">
           <p className="font-semibold text-sm">Stap 1 — Importeer prikklok-medewerkers</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Upload een CSV-medewerkerexport van het prikklok-systeem — alleen <strong>userid</strong> en <strong>name</strong> worden ingelezen.
+            Upload een CSV-medewerkerexport van het prikklok-systeem — alleen <strong>userid</strong> en <strong>Name</strong> worden ingelezen.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1266,7 +1266,7 @@ function PrikklokKoppelingTab() {
             <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm font-medium">Sleep een CSV-bestand hierheen of klik om te uploaden</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Prikklok gebruikersexport — alleen <strong>userid</strong> en <strong>name</strong> worden ingelezen
+              Prikklok gebruikersexport — alleen <strong>userid</strong> en <strong>Name</strong> worden ingelezen
             </p>
           </div>
           <input
@@ -1300,23 +1300,51 @@ function PrikklokKoppelingTab() {
             <p className="text-xs text-muted-foreground">
               De prikklok exporteert een CSV met de onderstaande kolommen. Alleen{" "}
               <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">userid</span> en{" "}
-              <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">name</span>{" "}
-              worden door de app ingelezen — alle overige kolommen worden genegeerd.
+              <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">Name</span>{" "}
+              worden door de app ingelezen — alle overige 37 kolommen worden genegeerd.
             </p>
             {/* Kolommen overzicht */}
             <div className="flex flex-wrap gap-1.5 text-xs">
               {[
-                { name: "userid",     used: true  },
-                { name: "name",       used: true  },
-                { name: "privilege",  used: false },
-                { name: "password",   used: false },
-                { name: "group",      used: false },
-                { name: "timezone",   used: false },
-                { name: "timerule",   used: false },
-                { name: "enrolled",   used: false },
-                { name: "starttime",  used: false },
-                { name: "endtime",    used: false },
-                { name: "card",       used: false },
+                { name: "userid",      used: true  },
+                { name: "UserCode",    used: false },
+                { name: "Name",        used: true  },
+                { name: "Sex",         used: false },
+                { name: "Pwd",         used: false },
+                { name: "Deptid",      used: false },
+                { name: "Nation",      used: false },
+                { name: "Birthday",    used: false },
+                { name: "EmployDate",  used: false },
+                { name: "Telephone",   used: false },
+                { name: "Duty",        used: false },
+                { name: "NativePlace", used: false },
+                { name: "IDCard",      used: false },
+                { name: "Address",     used: false },
+                { name: "Mobile",      used: false },
+                { name: "Educated",    used: false },
+                { name: "Polity",      used: false },
+                { name: "Specialty",   used: false },
+                { name: "IsAtt",       used: false },
+                { name: "Isovertime",  used: false },
+                { name: "Isrest",      used: false },
+                { name: "Remark",      used: false },
+                { name: "MgFlag",      used: false },
+                { name: "Cardnum",     used: false },
+                { name: "Picture",     used: false },
+                { name: "UserFlag",    used: false },
+                { name: "Groupid",     used: false },
+                { name: "ClassFlag",   used: false },
+                { name: "OtherInfo",   used: false },
+                { name: "Machineid",   used: false },
+                { name: "Rate",        used: false },
+                { name: "Desempeño",   used: false },
+                { name: "Empleado",    used: false },
+                { name: "MOT",         used: false },
+                { name: "Salary",      used: false },
+                { name: "IsSalary",    used: false },
+                { name: "SalaryRule",  used: false },
+                { name: "QBJob",       used: false },
+                { name: "admingroupid",used: false },
               ].map((col) => (
                 <span
                   key={col.name}
@@ -1333,9 +1361,9 @@ function PrikklokKoppelingTab() {
             </div>
             {/* Voorbeeld rij */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Voorbeeld data-rij:</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Voorbeeld data-rij (verkorte weergave):</p>
               <code className="block bg-background border rounded p-2 font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-nowrap">
-                <span className="text-primary font-bold">001</span>,<span className="text-primary font-bold">Jan Janssen</span>,0,,0,0,0,1,,,
+                <span className="text-primary font-bold">001</span>,,<span className="text-primary font-bold">Jan Janssen</span>,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
               </code>
             </div>
             <p className="text-xs text-muted-foreground">
