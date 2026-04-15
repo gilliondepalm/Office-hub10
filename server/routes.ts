@@ -3640,11 +3640,12 @@ export async function registerRoutes(
         }
 
         // Checktype parsen (null = geen expliciet type, later per blok bepalen)
+        // Numerieke waarden (0, 1, 2, ...) zijn systeem-specifiek en worden genegeerd → blok-gebaseerd
         let checktype: string | null = null;
-        if (rawType) {
-          const t = rawType.toLowerCase();
-          if (["1", "out", "c/o", "o", "uit", "uitklok"].includes(t)) checktype = "out";
-          else if (["0", "in", "c/i", "i", "inklok"].includes(t)) checktype = "in";
+        if (rawType && !/^\d+$/.test(rawType.trim())) {
+          const t = rawType.toLowerCase().trim();
+          if (["out", "c/o", "o", "uit", "uitklok"].includes(t)) checktype = "out";
+          else if (["in", "c/i", "i", "inklok"].includes(t)) checktype = "in";
           else {
             checktype = null; // onbekend type → ook blok-gebaseerd
             waarschuwingen++;
