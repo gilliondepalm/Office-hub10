@@ -19,7 +19,7 @@ import {
   Upload, Database, FileText, AlertTriangle, CheckCircle2,
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
-  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert,
+  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -199,8 +199,9 @@ type DagAnalyse = {
   blok2Ok: boolean;
   blok3Ok: boolean;
   blok4Ok: boolean;
-  teLaat: Array<{ rec: Werktijd; tijd: string }>;
-  teVroeg: Array<{ rec: Werktijd; tijd: string }>;
+  teLaat:     Array<{ rec: Werktijd; tijd: string }>;
+  teVroegIn:  Array<{ rec: Werktijd; tijd: string }>; // IN vóór 07:00
+  teVroegUit: Array<{ rec: Werktijd; tijd: string }>; // OUT vóór blok4, zonder goedgekeurde absence
   isAbsent: boolean;
 };
 
@@ -320,8 +321,9 @@ function computeDagAnalyse(datum: string, recs: Werktijd[], isAbsent: boolean): 
   const blok3Ok = inRecs.some(r => { const s = secOfDay(parseChecktime(r.checktime)); return s >= ANA_BLK3_S && s <= ANA_BLK3_E + 30*60; });
   const blok4Ok = outRecs.some(r => { const s = secOfDay(parseChecktime(r.checktime)); return s >= b4Start - 15*60 && s <= ANA_BLK4_E; });
 
-  const teLaat:  Array<{ rec: Werktijd; tijd: string }> = [];
-  const teVroeg: Array<{ rec: Werktijd; tijd: string }> = [];
+  const teLaat:     Array<{ rec: Werktijd; tijd: string }> = [];
+  const teVroegIn:  Array<{ rec: Werktijd; tijd: string }> = [];
+  const teVroegUit: Array<{ rec: Werktijd; tijd: string }> = [];
 
   for (const r of sorted) {
     const dt   = parseChecktime(r.checktime);
@@ -329,16 +331,16 @@ function computeDagAnalyse(datum: string, recs: Werktijd[], isAbsent: boolean): 
     const tijd = formatTime12(dt);
     if (r.checktype === "in") {
       if (sec < ANA_BLK1_S) {
-        teVroeg.push({ rec: r, tijd });
+        teVroegIn.push({ rec: r, tijd });
       } else if (sec > ANA_BLK1_E && sec < 13 * _H) {
         teLaat.push({ rec: r, tijd });
       } else if (sec > ANA_BLK3_E && sec >= 12 * _H) {
         teLaat.push({ rec: r, tijd });
       }
     } else {
-      // Uitklok te vroeg: voor het blok4-venster (na pauze einde, voor 16:45 / 16:30 vr)
-      if (sec >= ANA_BREAK_E && sec < b4Start) {
-        teVroeg.push({ rec: r, tijd });
+      // Uitklok te vroeg: voor blok4-venster, alleen als er geen goedgekeurde absence is
+      if (!isAbsent && sec >= ANA_BREAK_E && sec < b4Start) {
+        teVroegUit.push({ rec: r, tijd });
       }
     }
   }
@@ -349,7 +351,7 @@ function computeDagAnalyse(datum: string, recs: Werktijd[], isAbsent: boolean): 
     isFriday, pairs, completePairs, incompletePairs, pauze,
     totaalWerktijdSec, targetSec, verschilSec,
     blok1Ok, blok2Ok, blok3Ok, blok4Ok,
-    teLaat, teVroeg, isAbsent,
+    teLaat, teVroegIn, teVroegUit, isAbsent,
   };
 }
 
@@ -389,7 +391,8 @@ function AnalyseContent({
     (!d.blok1Ok || !d.blok2Ok || !d.blok3Ok || !d.blok4Ok)
   );
   const allTeLaat     = data.flatMap(d => d.teLaat.map(t => ({ ...t, dag: d })));
-  const allTeVroeg    = data.flatMap(d => d.teVroeg.map(t => ({ ...t, dag: d })));
+  const allTeVroegIn  = data.flatMap(d => d.teVroegIn.map(t => ({ ...t, dag: d })));
+  const allTeVroegUit = data.flatMap(d => d.teVroegUit.map(t => ({ ...t, dag: d })));
   const allPauzes     = data.filter(d => d.pauze !== null).map(d => ({ pauze: d.pauze!, dag: d }));
   const totalPauzeSec = allPauzes.reduce((s, p) => s + p.pauze.durSec, 0);
   const totalWerktijdSec  = data.reduce((s, d) => s + d.totaalWerktijdSec, 0);
@@ -410,7 +413,7 @@ function AnalyseContent({
   return (
     <div className="space-y-5">
       {/* Samenvatting KPI's */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
@@ -434,6 +437,20 @@ function AnalyseContent({
               <div>
                 <p className="text-xs text-muted-foreground">Te laat ingeklokt</p>
                 <p className="text-2xl font-bold text-amber-600" data-testid="kpi-telaat">{allTeLaat.length}</p>
+                <p className="text-xs text-muted-foreground">keer</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                <LogOut className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Te vroeg uitgeklokt</p>
+                <p className="text-2xl font-bold text-orange-600" data-testid="kpi-tevroeguit">{allTeVroegUit.length}</p>
                 <p className="text-xs text-muted-foreground">keer</p>
               </div>
             </div>
@@ -553,78 +570,114 @@ function AnalyseContent({
         </CardContent>
       </Card>
 
-      {/* Te laat / Te vroeg (naast elkaar) */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <ClockAlert className="h-4 w-4" />
-              Te laat overzichten deze periode:
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {allTeLaat.length === 0 ? (
-              <div className="py-6 text-center text-muted-foreground text-sm">Geen te laat geregistreerd ✓</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
-                    <TableHead className="w-16"><u>Dag</u></TableHead>
-                    <TableHead className="w-28"><u>Datum</u></TableHead>
-                    <TableHead className="pr-4"><u>Tijd</u></TableHead>
+      {/* Te laat ingeklokt */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+            <ClockAlert className="h-4 w-4" />
+            Te laat ingeklokt deze periode:
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {allTeLaat.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground text-sm">Geen te laat geregistreerd ✓</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs">
+                  <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
+                  <TableHead className="w-16"><u>Dag</u></TableHead>
+                  <TableHead className="w-28"><u>Datum</u></TableHead>
+                  <TableHead className="pr-4"><u>Tijd</u></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allTeLaat.map((item, i) => (
+                  <TableRow key={`tl-${item.rec.logid}-${i}`} data-testid={`row-telaat-${item.rec.logid}`}>
+                    <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
+                    <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
+                    <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
+                    <TableCell className="text-sm font-mono font-semibold text-red-600 dark:text-red-400 pr-4">{item.tijd}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allTeLaat.map((item, i) => (
-                    <TableRow key={`tl-${item.rec.logid}-${i}`} data-testid={`row-telaat-${item.rec.logid}`}>
-                      <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
-                      <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
-                      <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
-                      <TableCell className="text-sm font-mono font-semibold text-red-600 dark:text-red-400 pr-4">{item.tijd}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
+      {/* Te vroeg uitgeklokt */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2 text-orange-700 dark:text-orange-400">
+            <LogOut className="h-4 w-4" />
+            Te vroeg uitgeklokt deze periode:
+            <span className="ml-auto text-xs font-normal text-muted-foreground">
+              Zonder goedgekeurd persoonlijk verzuim
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {allTeVroegUit.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground text-sm">Geen te vroeg uitgeklokt ✓</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs">
+                  <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
+                  <TableHead className="w-16"><u>Dag</u></TableHead>
+                  <TableHead className="w-28"><u>Datum</u></TableHead>
+                  <TableHead className="pr-4"><u>Uitkloktijd</u></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allTeVroegUit.map((item, i) => (
+                  <TableRow key={`tvu-${item.rec.logid}-${i}`} data-testid={`row-tevroeguit-${item.rec.logid}`}>
+                    <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
+                    <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
+                    <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
+                    <TableCell className="text-sm font-mono font-semibold text-orange-600 dark:text-orange-400 pr-4">{item.tijd}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Te vroeg ingeklokt (IN vóór 07:00) — alleen tonen als van toepassing */}
+      {allTeVroegIn.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2 text-blue-700 dark:text-blue-400">
               <ClockAlert className="h-4 w-4" />
-              Te vroeg:
+              Te vroeg ingeklokt (vóór 07:00):
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {allTeVroeg.length === 0 ? (
-              <div className="py-6 text-center text-muted-foreground text-sm">Geen te vroeg geregistreerd ✓</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="text-xs">
-                    <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
-                    <TableHead className="w-16"><u>Dag</u></TableHead>
-                    <TableHead className="w-28"><u>Datum</u></TableHead>
-                    <TableHead className="pr-4"><u>Tijd</u></TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow className="text-xs">
+                  <TableHead className="pl-4 w-20"><u>Id</u></TableHead>
+                  <TableHead className="w-16"><u>Dag</u></TableHead>
+                  <TableHead className="w-28"><u>Datum</u></TableHead>
+                  <TableHead className="pr-4"><u>Inkloktijd</u></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allTeVroegIn.map((item, i) => (
+                  <TableRow key={`tvi-${item.rec.logid}-${i}`} data-testid={`row-tevroegin-${item.rec.logid}`}>
+                    <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
+                    <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
+                    <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
+                    <TableCell className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400 pr-4">{item.tijd}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allTeVroeg.map((item, i) => (
-                    <TableRow key={`tv-${item.rec.logid}-${i}`} data-testid={`row-tevroeg-${item.rec.logid}`}>
-                      <TableCell className="pl-4 text-sm font-mono">{item.rec.logid}</TableCell>
-                      <TableCell className="text-sm">{item.dag.weekdagKort}</TableCell>
-                      <TableCell className="text-sm">{item.dag.dagStr}</TableCell>
-                      <TableCell className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400 pr-4">{item.tijd}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Pauze overzichten */}
       <Card>
