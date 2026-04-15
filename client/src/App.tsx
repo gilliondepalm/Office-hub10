@@ -465,6 +465,95 @@ Navigatie:
 \u2022 Gebruik de \u201cPeriode t/m\u201d en \u201cJaarbereik\u201d selectors om een andere maand of periode te bekijken.
 \u2022 Uw eigen productierij is altijd zichtbaar; rijen van collega\u2019s zijn verborgen.`,
   },
+  "/werktijden": {
+    title: "Werktijden",
+    content: `De Werktijden module is het centrale dashboard voor prikklokdata. Importeer CSV-bestanden van het prikkloksysteem, bekijk individuele registraties en werkdagsessies, en analyseer het nalevingsgedrag van medewerkers per periode.
+
+── BOVENSTE KPI-KAARTEN ──────────────────────
+
+• Totaal records — het aantal prikklokregistraties (inklok + uitklok) dat in de database staat.
+• Sessies — het totaal aantal werkdagsessies (één per medewerker per dag met minimaal één inklokregistratie).
+• Verstuur waarschuwing — klikbare kaart die een bericht opstelt op basis van de analyse van de geselecteerde medewerker (zie Analyse). Grayed-out als er geen medewerker in de Analyse-tab is geselecteerd.
+• Laatste import — datum en tijdstip van de meest recente CSV-import.
+
+── TAB: IMPORT ───────────────────────────────
+
+Sleep een CSV-bestand naar de uploadzone of klik om een bestand te kiezen.
+• Ondersteunde kolommen: userid/pin (kadaster-ID), checktime/datetime (tijdstip), checktype/type (optioneel: in/out, 0/1, C/I).
+• Separator: komma (,) of puntkomma (;).
+• Datumformaten: ISO 8601 (yyyy-mm-dd), dd/mm/yyyy of dd-mm-yyyy.
+• Zonder checktype-kolom: de registraties worden als afwisselend in/out verwerkt.
+• Duplicaten worden automatisch overgeslagen op basis van userid + checktime.
+• Importgeschiedenis: een klikbare tabel toont alle eerdere imports met bestandsnaam, tijdstip, aantal records, fouten, waarschuwingen en status. Klik op een rij om het logboek te filteren op die specifieke import.
+
+── TAB: REGISTRATIES ─────────────────────────
+
+Overzicht van alle individuele prikklokregistraties.
+• Gebruik de zoekbalk, medewerkersfilter of datumfilter om snel te zoeken.
+• Kolommen: Log ID, Userid (kadaster-ID), Medewerker, Datum, Tijdstip, Type (inklok/uitklok).
+• Verwijder een registratie via het prullenbak-icoon. Let op: dit kan de analyse beïnvloeden.
+• Maximaal 500 registraties worden tegelijk getoond; gebruik filters om te verfijnen.
+
+── TAB: SESSIES ──────────────────────────────
+
+Een sessie combineert alle registraties van één medewerker op één dag tot een werkdagoverzicht.
+• Kolommen: Medewerker, ID, Datum, Weekdag, Eerste inklok, Laatste uitklok, Werktijd, Aantal records, Status.
+• Status onvolledig (oranje badge): een sessie heeft geen sluitend in/out-paar — de medewerker is mogelijk vergeten te klokken.
+• Het totaal onvolledige sessies wordt getoond als waarschuwingsbadge in de filterrij.
+
+── TAB: LOGBOEK ──────────────────────────────
+
+Toont de verwerkingsberichten van alle imports: info, waarschuwingen en fouten.
+• Info: normale verwerkingsstappen (record ingevoerd, duplicaat overgeslagen, enz.).
+• Waarschuwing: onverwachte maar verwerkbare situaties (onbekende userid, onherkenbaar tijdstip).
+• Fout: registraties die niet konden worden verwerkt.
+• Filter op een specifieke import door in de Importgeschiedenis op een rij te klikken.
+
+── TAB: ANALYSE ──────────────────────────────
+
+Gedetailleerde nalevingsanalyse per medewerker over een gekozen periode.
+
+Stap 1 — Selecteer een medewerker via het dropdown-filter.
+Stap 2 — Stel optioneel een Van- en T/m-datum in.
+
+De analyse toont 5 KPI-kaarten:
+• Verzuim te klokken — dagen waarop de medewerker wel aanwezig was maar een of meer bloktijden niet correct naleefde.
+• Te laat ingeklokt — aantal keren dat de medewerker te laat inklokte (na het toegestane inklokvenstster van 07:00–08:00).
+• Te vroeg uitgeklokt — aantal keren dat de medewerker eerder uitklokte dan het toegestane uiítklokvenstster, zonder goedgekeurde absence.
+• Onvolledig — onvolledige in/out-paren (vergeten te klokken).
+• Variabel saldo — gecumuleerd verschil in minuten/uren ten opzichte van de normwerktijden.
+
+Werkurenoverzicht:
+• Tabel per werkdag met: datum, weekdag, inklok- en uitkloktijden, blokstatus (✓/✗ per blok), totale werktijd en verschil t.o.v. norm.
+• Gebruik de knop "Toon alleen onvolledig" om snel alle onvolledige registraties te filteren.
+
+Bloktijden (norm voor alle medewerkers):
+• Blok 1 — Inklokvenstster: 07:00–08:00
+• Blok 2 — Uitklokvenstster pauze: 11:45–12:00
+• Blok 3 — Terugkeer na pauze: 13:30–14:00
+• Blok 4 — Einde werkdag: 16:45–18:00 (ma–do) / 16:30–18:00 (vr)
+• Pauzetijd (12:00–13:30) telt niet als werktijd.
+
+Aanvullende secties:
+• Te laat ingeklokt — volledig overzicht met datum en exacte inklokttijd.
+• Te vroeg uitgeklokt — uitkloktijden vóór het blok 4-venster, exclusief goedgekeurde afwezigheid (persoonlijk verzuim).
+• Te vroeg ingeklokt (vóór 07:00) — alleen weergegeven als dit voorkomt in de geselecteerde periode.
+• Pauze overzicht — alle geregistreerde pauzetijden met duur.
+• Verzuim bloktijden — een dag-voor-dag detailtabel van bloktijdovertredingen.
+
+── VERSTUUR WAARSCHUWING ─────────────────────
+
+Zodra een medewerker in de Analyse-tab is geselecteerd met beschikbare data:
+• Klik op de "Verstuur waarschuwing" kaart (bovenaan de pagina).
+• Er opent een dialoogvenster met een automatisch opgesteld bericht dat de geconstateerde overtredingen noemt: ontbrekende kloktijden, verzuim bloktijden, te laat ingeklokt, te vroeg uitgeklokt en negatief uurssaldo.
+• Het bericht is bewerkbaar voor verzending.
+• Na klikken op "Verstuur" ontvangt de medewerker het bericht in zijn/haar berichtenbox (Aankondigingen › Berichten).
+
+── TOEGANG ───────────────────────────────────
+
+• Alleen toegankelijk voor Beheerder (admin), Beheerder AZ, Directeur en Manager.
+• Gewone medewerkers hebben geen toegang tot deze module.`,
+  },
   "/profiel": {
     title: "Mijn Profiel",
     content: `Op de profielpagina vindt u uw persoonlijke gegevens en overzichten.
