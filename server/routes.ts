@@ -3013,16 +3013,24 @@ export async function registerRoutes(
       const allAbsences = await storage.getAbsencesByUser(currentUser.id);
       const approvedAbsences = allAbsences.filter((a: any) => a.status === "approved");
 
+      // Constants matching werktijden.tsx exactly
       const _M = 60, _H = 3600;
-      const ANA_BLK1_E    = 8  * _H;
-      const ANA_BLK4_WD   = 16 * _H + 45 * _M;
-      const ANA_BLK4_FR   = 16 * _H + 30 * _M;
-      const ANA_BREAK_S   = 12 * _H;
-      const ANA_BREAK_E   = 13 * _H + 30 * _M;
-      const ANA_TARGET_WD = 8  * _H;
-      const ANA_TARGET_FR = 7  * _H + 30 * _M;
+      const ANA_BLK1_S  = 7  * _H;              // 07:00
+      const ANA_BLK1_E  = 8  * _H;              // 08:00
+      const ANA_BLK2_S  = 11 * _H + 45 * _M;   // 11:45
+      const ANA_BLK2_E  = 12 * _H;              // 12:00
+      const ANA_BLK3_S  = 13 * _H + 30 * _M;   // 13:30
+      const ANA_BLK3_E  = 14 * _H;              // 14:00
+      const ANA_BLK4_WD = 16 * _H + 45 * _M;   // 16:45 Ma-Do
+      const ANA_BLK4_FR = 16 * _H + 30 * _M;   // 16:30 Vr
+      const ANA_BLK4_E  = 18 * _H;              // 18:00
+      const ANA_BREAK_S = 12 * _H;              // 12:00
+      const ANA_BREAK_E = 13 * _H + 30 * _M;   // 13:30
+      const ANA_TARGET_WD = 8  * _H;            // 8u target Ma-Do
+      const ANA_TARGET_FR = 7  * _H + 30 * _M; // 7.5u target Vr
 
       const secOfDay = (dt: Date) => dt.getHours() * 3600 + dt.getMinutes() * 60 + dt.getSeconds();
+      const parseCt  = (ct: any): Date => ct instanceof Date ? ct : new Date(ct);
 
       const hasApprovedAbsence = (dateStr: string): boolean =>
         approvedAbsences.some((a: any) => a.startDate <= dateStr && a.endDate >= dateStr);
@@ -3034,27 +3042,25 @@ export async function registerRoutes(
       }[] = [];
 
       for (let i = 5; i >= 0; i--) {
-        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const year  = monthDate.getFullYear();
-        const month = monthDate.getMonth();
+        const monthDate   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year        = monthDate.getFullYear();
+        const month       = monthDate.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const lastDay = i === 0 ? now.getDate() : daysInMonth;
+        const lastDay     = i === 0 ? now.getDate() : daysInMonth;
 
         const werkdagen: string[] = [];
         for (let day = 1; day <= lastDay; day++) {
           const dow = new Date(year, month, day).getDay();
           if (dow >= 1 && dow <= 5) {
-            werkdagen.push(
-              `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-            );
+            werkdagen.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
           }
         }
 
         const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
         const recordsByDay: Record<string, typeof allRecords> = {};
         for (const r of allRecords) {
-          const ct = r.checktime instanceof Date ? r.checktime : new Date(r.checktime as any);
-          const dk = ct.toISOString().slice(0, 10);
+          const ct = parseCt(r.checktime);
+          const dk = `${ct.getFullYear()}-${String(ct.getMonth() + 1).padStart(2, "0")}-${String(ct.getDate()).padStart(2, "0")}`;
           if (dk.startsWith(monthStr)) {
             if (!recordsByDay[dk]) recordsByDay[dk] = [];
             recordsByDay[dk].push(r);
@@ -3062,57 +3068,69 @@ export async function registerRoutes(
         }
 
         let verzuim = 0, teLaat = 0, teVroegUit = 0, saldoSec = 0;
+
         for (const datum of werkdagen) {
           const dayRecs = recordsByDay[datum] || [];
-          const isFriday = new Date(datum + "T00:00:00").getDay() === 5;
+          // Like werktijden.tsx: only process days that have records
+          if (dayRecs.length === 0) continue;
+
+          const isFriday  = new Date(datum + "T00:00:00").getDay() === 5;
           const targetSec = isFriday ? ANA_TARGET_FR : ANA_TARGET_WD;
+          const b4Start   = isFriday ? ANA_BLK4_FR   : ANA_BLK4_WD;
+          const absent    = hasApprovedAbsence(datum);
 
-          if (dayRecs.length === 0) {
-            if (!hasApprovedAbsence(datum)) {
-              verzuim++;
-              saldoSec -= targetSec;
-            }
-          } else {
-            const b4Start = isFriday ? ANA_BLK4_FR : ANA_BLK4_WD;
-            const sorted  = dayRecs.slice().sort((a, b) => {
-              const at = a.checktime instanceof Date ? a.checktime : new Date(a.checktime as any);
-              const bt = b.checktime instanceof Date ? b.checktime : new Date(b.checktime as any);
-              return at.getTime() - bt.getTime();
-            });
-            const inRecs  = sorted.filter(r => r.checktype === "in");
-            const outRecs = sorted.filter(r => r.checktype === "out");
+          const sorted  = dayRecs.slice().sort((a, b) => parseCt(a.checktime).getTime() - parseCt(b.checktime).getTime());
+          const inRecs  = sorted.filter(r => r.checktype === "in");
+          const outRecs = sorted.filter(r => r.checktype === "out");
 
-            if (inRecs.length > 0) {
-              const firstIn = inRecs[0].checktime instanceof Date ? inRecs[0].checktime : new Date(inRecs[0].checktime as any);
-              const sec = secOfDay(firstIn);
-              if (sec > ANA_BLK1_E && sec < 13 * _H) teLaat++;
-            }
-            if (outRecs.length > 0) {
-              const lastOut = outRecs[outRecs.length - 1].checktime instanceof Date
-                ? outRecs[outRecs.length - 1].checktime
-                : new Date(outRecs[outRecs.length - 1].checktime as any);
-              const sec = secOfDay(lastOut);
-              if (sec >= ANA_BREAK_E && sec < b4Start) teVroegUit++;
-            }
+          // Block compliance — identical to computeDagAnalyse in werktijden.tsx
+          const blok1Ok = inRecs.some(r  => { const s = secOfDay(parseCt(r.checktime));  return s >= ANA_BLK1_S && s <= ANA_BLK1_E; });
+          const blok2Ok = outRecs.some(r => { const s = secOfDay(parseCt(r.checktime));  return s >= ANA_BLK2_S && s <= ANA_BLK2_E + 30 * _M; });
+          const blok3Ok = inRecs.some(r  => { const s = secOfDay(parseCt(r.checktime));  return s >= ANA_BLK3_S && s <= ANA_BLK3_E + 30 * _M; });
+          const blok4Ok = outRecs.some(r => { const s = secOfDay(parseCt(r.checktime));  return s >= b4Start - 15 * _M && s <= ANA_BLK4_E; });
 
-            // Pair in/out records om gewerkte tijd te berekenen
-            let dayWerktijdSec = 0;
-            const inQ  = [...inRecs];
-            const outQ = [...outRecs];
-            while (inQ.length > 0 && outQ.length > 0) {
-              const inTime  = inQ[0].checktime  instanceof Date ? inQ[0].checktime  : new Date(inQ[0].checktime  as any);
-              const outTime = outQ[0].checktime instanceof Date ? outQ[0].checktime : new Date(outQ[0].checktime as any);
-              if (outTime > inTime) {
-                inQ.shift(); outQ.shift();
-                const durSec = (outTime.getTime() - inTime.getTime()) / 1000;
-                const inSec  = secOfDay(inTime);
-                const outSec = secOfDay(outTime);
-                const brkOv  = Math.max(0, Math.min(outSec, ANA_BREAK_E) - Math.max(inSec, ANA_BREAK_S));
-                dayWerktijdSec += Math.max(0, durSec - brkOv);
-              } else {
-                outQ.shift();
-              }
+          // Count complete in-out pairs (like completePairs in frontend)
+          let pairCount = 0;
+          let pendingIn: Date | null = null;
+          let dayWerktijdSec = 0;
+          for (const r of sorted) {
+            const ct = parseCt(r.checktime);
+            if (r.checktype === "in") {
+              pendingIn = ct;
+            } else if (pendingIn !== null) {
+              pairCount++;
+              const durSec = (ct.getTime() - pendingIn.getTime()) / 1000;
+              const inSec  = secOfDay(pendingIn);
+              const outSec = secOfDay(ct);
+              const brkOv  = Math.max(0, Math.min(outSec, ANA_BREAK_E) - Math.max(inSec, ANA_BREAK_S));
+              dayWerktijdSec += Math.max(0, durSec - brkOv);
+              pendingIn = null;
             }
+          }
+
+          // Verzuim: has complete pairs but missed at least one required block (same as werktijden.tsx)
+          if (!absent && pairCount > 0 && (!blok1Ok || !blok2Ok || !blok3Ok || !blok4Ok)) {
+            verzuim++;
+          }
+
+          // Te laat: count per IN record (same as allTeLaat.length in werktijden.tsx)
+          for (const r of inRecs) {
+            const sec = secOfDay(parseCt(r.checktime));
+            if ((sec > ANA_BLK1_E && sec < 13 * _H) || (sec > ANA_BLK3_E && sec >= 12 * _H)) {
+              teLaat++;
+            }
+          }
+
+          // Te vroeg uit: count per OUT record (same as allTeVroegUit.length in werktijden.tsx)
+          for (const r of outRecs) {
+            const sec = secOfDay(parseCt(r.checktime));
+            if (!absent && sec >= ANA_BREAK_E && sec < b4Start) {
+              teVroegUit++;
+            }
+          }
+
+          // Saldo: absent days contribute 0, present days contribute (worked - target)
+          if (!absent) {
             saldoSec += dayWerktijdSec - targetSec;
           }
         }
