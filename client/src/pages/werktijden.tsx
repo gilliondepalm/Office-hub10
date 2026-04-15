@@ -22,7 +22,7 @@ import {
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
   TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2, FileDown,
-  ChevronDown, ChevronRight, Plus, LogIn, ClipboardEdit, CheckCheck, Ban,
+  ChevronDown, ChevronRight, Plus, LogIn, ClipboardEdit, CheckCheck, Ban, Printer,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -113,6 +113,32 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+function printTable(title: string, headers: string[], rows: (string | number | null | undefined)[][], subtitle?: string): void {
+  const esc = (v: string | number | null | undefined) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const thead = headers.map(h => `<th>${esc(h)}</th>`).join("");
+  const tbody = rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+    body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#111}
+    h2{font-size:15px;margin:0 0 4px}
+    p{margin:0 0 10px;font-size:10px;color:#555}
+    table{border-collapse:collapse;width:100%}
+    th{background:#f0f0f0;border:1px solid #ccc;padding:4px 8px;text-align:left;font-size:10px}
+    td{border:1px solid #ddd;padding:3px 8px;font-size:10px}
+    tr:nth-child(even) td{background:#f9f9f9}
+    @media print{body{margin:0}button{display:none}}
+  </style></head><body>
+    <h2>${esc(title)}</h2>${subtitle ? `<p>${esc(subtitle)}</p>` : ""}
+    <table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>
+    <p style="margin-top:10px;font-size:9px;color:#999">Afgedrukt op ${new Date().toLocaleString("nl-NL")}</p>
+  </body></html>`;
+  const w = window.open("", "_blank", "width=900,height=700");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
 }
 
 // ── Sessie berekening ─────────────────────────────────────────────────────────
@@ -1726,6 +1752,30 @@ export default function WerktijdenPage() {
                 <FileDown className="h-4 w-4 mr-1.5" />
                 Exporteer CSV
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={filteredRecords.length === 0}
+                onClick={() => {
+                  printTable(
+                    "Prikklokregistraties",
+                    ["Log ID", "Userid", "Naam", "Datum", "Tijdstip", "Type"],
+                    filteredRecords.map(r => [
+                      r.logid,
+                      r.userid,
+                      getUserName(r.userid),
+                      dateKey(r.checktime).split("-").reverse().join("-"),
+                      formatTs(r.checktime).slice(11),
+                      r.checktype === "in" ? "Inklok" : "Uitklok",
+                    ]),
+                    `${filteredRecords.length} records · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
+                  );
+                }}
+                data-testid="button-print-registraties"
+              >
+                <Printer className="h-4 w-4 mr-1.5" />
+                Afdrukken
+              </Button>
             </div>
 
             <Card className="overflow-hidden">
@@ -1860,6 +1910,33 @@ export default function WerktijdenPage() {
               >
                 <FileDown className="h-4 w-4 mr-1.5" />
                 Exporteer CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={filteredSessies.length === 0}
+                onClick={() => {
+                  printTable(
+                    "Werksessies",
+                    ["Medewerker", "Userid", "Datum", "Weekdag", "Eerste inklok", "Laatste uitklok", "Werktijd (min)", "Records", "Status"],
+                    filteredSessies.map(s => [
+                      getUserName(s.userid),
+                      s.userid,
+                      s.datum.split("-").reverse().join("-"),
+                      s.weekdag,
+                      s.eersteIn ? format(s.eersteIn, "HH:mm") : "—",
+                      s.lastUit ? format(s.lastUit, "HH:mm") : "—",
+                      s.werkminuten,
+                      s.aantalRecords,
+                      s.status,
+                    ]),
+                    `${filteredSessies.length} sessies · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
+                  );
+                }}
+                data-testid="button-print-sessies"
+              >
+                <Printer className="h-4 w-4 mr-1.5" />
+                Afdrukken
               </Button>
             </div>
 
@@ -2106,6 +2183,46 @@ export default function WerktijdenPage() {
                   >
                     <FileDown className="h-4 w-4 mr-1.5" />
                     Exporteer CSV
+                  </Button>
+                  )}
+                  {analyseUserId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!analyseData || analyseData.length === 0}
+                    onClick={() => {
+                      if (!analyseData) return;
+                      const naam = getUserName(analyseUserId);
+                      printTable(
+                        `Analyse prikklok — ${naam}`,
+                        ["Datum", "Dag", "Inklok", "Uitklok", "Werktijd (min)", "Verschil (min)", "B1", "B2", "B3", "B4", "Absent", "Te laat", "Vroeg uit"],
+                        analyseData.map(d => {
+                          const eersteIn = d.pairs.length > 0 && d.pairs[0].inTime ? format(d.pairs[0].inTime, "HH:mm") : "";
+                          const lastOut = d.completePairs.length > 0 && d.completePairs[d.completePairs.length - 1].outTime
+                            ? format(d.completePairs[d.completePairs.length - 1].outTime!, "HH:mm") : "";
+                          return [
+                            d.dagStr,
+                            d.weekdagKort,
+                            eersteIn,
+                            lastOut,
+                            Math.round(d.totaalWerktijdSec / 60),
+                            Math.round(d.verschilSec / 60),
+                            d.blok1Ok ? "✓" : "✗",
+                            d.blok2Ok ? "✓" : "✗",
+                            d.blok3Ok ? "✓" : "✗",
+                            d.blok4Ok ? "✓" : "✗",
+                            d.isAbsent ? "ja" : "",
+                            d.teLaat.length > 0 ? d.teLaat.map((t: any) => t.tijd).join(", ") : "",
+                            d.teVroegUit.length > 0 ? d.teVroegUit.map((t: any) => t.tijd).join(", ") : "",
+                          ];
+                        }),
+                        `${naam}${analyseFrom ? ` · Van ${analyseFrom.split("-").reverse().join("-")}` : ""}${analyseTo ? ` t/m ${analyseTo.split("-").reverse().join("-")}` : ""} · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
+                      );
+                    }}
+                    data-testid="button-print-analyse"
+                  >
+                    <Printer className="h-4 w-4 mr-1.5" />
+                    Afdrukken
                   </Button>
                   )}
                 </div>
