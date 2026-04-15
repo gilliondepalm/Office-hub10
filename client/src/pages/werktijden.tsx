@@ -1421,31 +1421,33 @@ export default function WerktijdenPage() {
               </div>
             </CardContent>
           </Card>
-          <Card
-            className={`cursor-pointer transition-colors ${analyseUserId && analyseData && analyseData.length > 0 ? "hover:bg-amber-50 dark:hover:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "opacity-60 cursor-not-allowed"}`}
-            onClick={() => {
-              if (!analyseUserId || !analyseData || analyseData.length === 0) return;
-              setWaarschuwingTekst(composeWaarschuwing());
-              setShowWaarschuwingDialog(true);
-            }}
-            data-testid="card-verstuur-waarschuwing"
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30">
-                  <Send className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          {isManager && (
+            <Card
+              className={`cursor-pointer transition-colors ${analyseUserId && analyseData && analyseData.length > 0 ? "hover:bg-amber-50 dark:hover:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "opacity-60 cursor-not-allowed"}`}
+              onClick={() => {
+                if (!analyseUserId || !analyseData || analyseData.length === 0) return;
+                setWaarschuwingTekst(composeWaarschuwing());
+                setShowWaarschuwingDialog(true);
+              }}
+              data-testid="card-verstuur-waarschuwing"
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30">
+                    <Send className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Verstuur waarschuwing</p>
+                    <p className="text-xs font-semibold mt-0.5 text-amber-700 dark:text-amber-400">
+                      {analyseUserId && analyseData && analyseData.length > 0
+                        ? `aan ${getUserName(analyseUserId)}`
+                        : "Selecteer medewerker"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Verstuur waarschuwing</p>
-                  <p className="text-xs font-semibold mt-0.5 text-amber-700 dark:text-amber-400">
-                    {analyseUserId && analyseData && analyseData.length > 0
-                      ? `aan ${getUserName(analyseUserId)}`
-                      : "Selecteer medewerker"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -1481,32 +1483,38 @@ export default function WerktijdenPage() {
               Sessies
               {totalSessies > 0 && <Badge className="ml-1.5 text-xs px-1.5 py-0">{totalSessies}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="logboek" data-testid="tab-logboek">
-              <FileText className="h-4 w-4 mr-1.5" />
-              Logboek
-              {(totalWarnings + totalErrors) > 0 && (
-                <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
-                  {totalWarnings + totalErrors}
-                </Badge>
-              )}
-            </TabsTrigger>
+            {isManager && (
+              <TabsTrigger value="logboek" data-testid="tab-logboek">
+                <FileText className="h-4 w-4 mr-1.5" />
+                Logboek
+                {(totalWarnings + totalErrors) > 0 && (
+                  <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
+                    {totalWarnings + totalErrors}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="analyse" data-testid="tab-analyse">
               <BarChart3 className="h-4 w-4 mr-1.5" />
               Analyse
             </TabsTrigger>
-            <TabsTrigger value="afdelingsoverzicht" data-testid="tab-afdelingsoverzicht">
-              <Building2 className="h-4 w-4 mr-1.5" />
-              Afdelingen
-            </TabsTrigger>
-            <TabsTrigger value="signalen" data-testid="tab-signalen">
-              <AlertTriangle className="h-4 w-4 mr-1.5" />
-              Signalen
-              {drempelResults.length > 0 && (
-                <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
-                  {drempelResults.length}
-                </Badge>
-              )}
-            </TabsTrigger>
+            {isManager && (
+              <TabsTrigger value="afdelingsoverzicht" data-testid="tab-afdelingsoverzicht">
+                <Building2 className="h-4 w-4 mr-1.5" />
+                Afdelingen
+              </TabsTrigger>
+            )}
+            {isManager && (
+              <TabsTrigger value="signalen" data-testid="tab-signalen">
+                <AlertTriangle className="h-4 w-4 mr-1.5" />
+                Signalen
+                {drempelResults.length > 0 && (
+                  <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
+                    {drempelResults.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="correcties" data-testid="tab-correcties">
               <ClipboardEdit className="h-4 w-4 mr-1.5" />
               Correcties
