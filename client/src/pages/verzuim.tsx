@@ -23,7 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Clock, CheckCircle, XCircle, AlertCircle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, FileText, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, Palmtree, CalendarDays, Pencil, ClipboardList, Eye, FileBarChart, FileText, Filter, Scissors, Trash2, X, Printer, Ban, ChevronUp, ChevronDown, LockKeyhole } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -1177,6 +1177,11 @@ export default function VerzuimPage() {
   const [newDays, setNewDays] = useState("");
   const [editingSaldoOud, setEditingSaldoOud] = useState<{ id: string; name: string; days: number } | null>(null);
   const [newSaldoOud, setNewSaldoOud] = useState("");
+  const [jaarAfsluitenOpen, setJaarAfsluitenOpen] = useState(false);
+  const [jaarAfsluitenResult, setJaarAfsluitenResult] = useState<{
+    closedYear: number; newYear: number; updatedCount: number;
+    results: { userId: string; userName: string; oudSaldo: number; nieuwSaldo: number }[];
+  } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -1399,6 +1404,23 @@ export default function VerzuimPage() {
     },
   });
 
+  const jaarAfsluitenMutation = useMutation({
+    mutationFn: async (year: number) => {
+      const res = await apiRequest("POST", "/api/vacation/jaar-afsluiten", { year });
+      return res.json() as Promise<{ closedYear: number; newYear: number; updatedCount: number; results: { userId: string; userName: string; oudSaldo: number; nieuwSaldo: number }[] }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vacation-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setJaarAfsluitenOpen(false);
+      setJaarAfsluitenResult(data);
+      toast({ title: `Jaar ${data.closedYear} afgesloten`, description: `Saldo Oud bijgewerkt voor ${data.updatedCount} medewerker(s)` });
+    },
+    onError: (err: any) => {
+      toast({ title: "Afsluiten mislukt", description: err.message || "Onbekende fout", variant: "destructive" });
+    },
+  });
+
   const typeLabels: Record<string, string> = {
     sick: "Ziekte",
     vacation: "Vakantie",
@@ -1421,6 +1443,7 @@ export default function VerzuimPage() {
   const isAdmin = isAdminRole(user?.role);
   const isAdminOrManager = isAdminRole(user?.role) || user?.role === "manager" || user?.role === "manager_az";
   const canVacation = canManageVacation(user?.role);
+  const closingYear = new Date().getFullYear() - 1;
 
   const isPureManager = user?.role === "manager";
   const myDept = user?.department || "";
@@ -1689,9 +1712,99 @@ export default function VerzuimPage() {
                     </Table>
                   )}
                 </div>
+                {/* Jaar Afsluiten sectie */}
+                {canVacation && (
+                  <div className="border-t pt-4 mt-2">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium flex items-center gap-2">
+                          <LockKeyhole className="h-4 w-4 text-muted-foreground" />
+                          Jaar afsluiten
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Berekent het resterende saldo van {closingYear} en slaat dit op als <span className="font-medium">Saldo Oud</span> voor {closingYear + 1}.
+                          Recht en Extra blijven ongewijzigd.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                        onClick={() => setJaarAfsluitenOpen(true)}
+                        data-testid="button-jaar-afsluiten"
+                      >
+                        <LockKeyhole className="h-3.5 w-3.5 mr-1.5" />
+                        Sluit {closingYear} af
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
           )}
+
+          {/* Bevestigingsdialoog Jaar Afsluiten */}
+          {canVacation && (
+            <Dialog open={jaarAfsluitenOpen} onOpenChange={setJaarAfsluitenOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                    Jaar {closingYear} afsluiten
+                  </DialogTitle>
+                  <DialogDescription>
+                    Dit berekent het resterende vakantiesaldo van <strong>{closingYear}</strong> voor alle actieve medewerkers
+                    en slaat dit op als <strong>Saldo Oud</strong> voor {closingYear + 1}.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-300 space-y-1.5">
+                    <p className="font-medium">Wat er wordt gedaan:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-xs">
+                      <li>Resterende vakantiedagen {closingYear} → nieuw Saldo Oud</li>
+                      <li>Bestaande Saldo Oud-waarden worden <span className="font-semibold">overschreven</span></li>
+                      <li>Recht en Extra blijven ongewijzigd</li>
+                      <li>Na afsluiting geldt vakantierecht per 1 januari {closingYear + 1}</li>
+                    </ul>
+                  </div>
+                  {jaarAfsluitenResult && jaarAfsluitenResult.closedYear === closingYear && (
+                    <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 text-sm text-green-800 dark:text-green-300">
+                      <p className="font-medium mb-1">Resultaat laatste afsluiting ({closingYear}):</p>
+                      <div className="max-h-32 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead><tr><th className="text-left pb-1">Medewerker</th><th className="text-right pb-1">Oud</th><th className="text-right pb-1">Nieuw</th></tr></thead>
+                          <tbody>
+                            {jaarAfsluitenResult.results.map(r => (
+                              <tr key={r.userId}>
+                                <td>{r.userName}</td>
+                                <td className="text-right">{r.oudSaldo}</td>
+                                <td className="text-right font-medium">{r.nieuwSaldo}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button variant="outline" size="sm" onClick={() => setJaarAfsluitenOpen(false)} data-testid="button-jaar-afsluiten-cancel">
+                      Annuleren
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                      onClick={() => jaarAfsluitenMutation.mutate(closingYear)}
+                      disabled={jaarAfsluitenMutation.isPending}
+                      data-testid="button-jaar-afsluiten-confirm"
+                    >
+                      {jaarAfsluitenMutation.isPending ? "Bezig…" : `Jaar ${closingYear} afsluiten`}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
           {isAdminOrManager && (
             <Dialog open={registerOpen} onOpenChange={(v) => { setRegisterOpen(v); if (!v) { setRegError(null); } }}>
               <DialogTrigger asChild>
