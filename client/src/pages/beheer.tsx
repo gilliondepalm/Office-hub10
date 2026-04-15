@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { PageHero } from "@/components/page-hero";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -24,9 +24,13 @@ import {
   Avatar, AvatarFallback, AvatarImage,
 } from "@/components/ui/avatar";
 import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
   Shield, Save, Users, Camera, ImageIcon, KeyRound,
   Building2, Briefcase, Plus, Trash2, Pencil,
   FileText, Upload, ArrowUp, ArrowDown, ListOrdered, ExternalLink,
+  Link2, Link2Off, CheckCircle2, XCircle,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1166,6 +1170,269 @@ function RangDialog({
   );
 }
 
+// ─── Prikklok Koppeling Tab ───────────────────────────────────────────────────
+
+interface PrikklokRow {
+  userid: string;
+  name: string;
+}
+
+function PrikklokKoppelingTab() {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [prikklokRows, setPrikklokRows] = useState<PrikklokRow[]>([]);
+  const [selections, setSelections] = useState<Record<string, string>>({});
+  const [showOnlyUnlinked, setShowOnlyUnlinked] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const { data: allUsers = [] } = useQuery<SafeUser[]>({ queryKey: ["/api/users"] });
+  const activeUsers = useMemo(() => (allUsers as any[]).filter((u) => u.active), [allUsers]);
+
+  const kadasterMap = useMemo(() => {
+    const m: Record<string, SafeUser> = {};
+    for (const u of allUsers as any[]) {
+      if (u.kadasterId) m[u.kadasterId] = u as SafeUser;
+    }
+    return m;
+  }, [allUsers]);
+
+  function parseCSV(text: string): PrikklokRow[] {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    const sep = lines[0].includes(";") ? ";" : ",";
+    const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase().replace(/['"]/g, ""));
+    const useridIdx = headers.findIndex((h) => ["userid", "pin", "id", "user_id"].includes(h));
+    const nameIdx   = headers.findIndex((h) => ["name", "naam", "fullname", "full_name", "volledige naam"].includes(h));
+    if (useridIdx === -1) return [];
+    return lines
+      .slice(1)
+      .map((line) => {
+        const cols = line.split(sep).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+        return { userid: cols[useridIdx] || "", name: nameIdx >= 0 ? cols[nameIdx] || "" : "" };
+      })
+      .filter((r) => r.userid);
+  }
+
+  function handleFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCSV(text);
+      setPrikklokRows(rows);
+      setSelections({});
+      if (rows.length === 0) {
+        toast({ title: "Geen geldige rijen gevonden", description: "Controleer of het bestand userid/pin en name/naam kolommen bevat.", variant: "destructive" });
+      } else {
+        toast({ title: `${rows.length} medewerkers geladen` });
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  const linkMutation = useMutation({
+    mutationFn: async ({ userId, kadasterId }: { userId: string; kadasterId: string | null }) =>
+      apiRequest("PATCH", `/api/users/${userId}`, { kadasterId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
+  });
+
+  const linkedCount   = prikklokRows.filter((r) => kadasterMap[r.userid]).length;
+  const unlinkedCount = prikklokRows.length - linkedCount;
+
+  const displayedRows = useMemo(() => {
+    let rows = showOnlyUnlinked ? prikklokRows.filter((r) => !kadasterMap[r.userid]) : prikklokRows;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      rows = rows.filter((r) => r.userid.toLowerCase().includes(q) || r.name.toLowerCase().includes(q));
+    }
+    return rows;
+  }, [prikklokRows, showOnlyUnlinked, search, kadasterMap]);
+
+  return (
+    <div className="space-y-6">
+      {/* Upload */}
+      <Card>
+        <CardHeader className="pb-3">
+          <p className="font-semibold text-sm">Stap 1 — Importeer prikklok-medewerkers</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Upload een CSV van het prikklok-systeem. Vereiste kolommen: <code className="bg-muted px-1 rounded">userid</code> of <code className="bg-muted px-1 rounded">pin</code>, en <code className="bg-muted px-1 rounded">name</code> of <code className="bg-muted px-1 rounded">naam</code>. Separator: komma of puntkomma.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div
+            className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            data-testid="dropzone-prikklok-csv"
+          >
+            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm font-medium">Sleep een CSV-bestand hierheen of klik om te uploaden</p>
+            <p className="text-xs text-muted-foreground mt-1">Voorbeeld kolommen: userid, name</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt"
+            className="hidden"
+            data-testid="input-prikklok-csv"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+          />
+          {prikklokRows.length > 0 && (
+            <div className="flex gap-3 text-xs text-center">
+              <div className="flex-1 rounded-lg bg-muted/50 py-2">
+                <div className="font-semibold text-base">{prikklokRows.length}</div>
+                <div className="text-muted-foreground">Geladen</div>
+              </div>
+              <div className="flex-1 rounded-lg bg-green-50 dark:bg-green-950/20 py-2">
+                <div className="font-semibold text-base text-green-700 dark:text-green-400">{linkedCount}</div>
+                <div className="text-muted-foreground">Gekoppeld</div>
+              </div>
+              <div className="flex-1 rounded-lg bg-amber-50 dark:bg-amber-950/20 py-2">
+                <div className="font-semibold text-base text-amber-700 dark:text-amber-400">{unlinkedCount}</div>
+                <div className="text-muted-foreground">Niet gekoppeld</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Matching tabel */}
+      {prikklokRows.length > 0 && (
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-3">
+            <p className="font-semibold text-sm">Stap 2 — Koppel aan app-medewerkers</p>
+            <div className="flex flex-wrap gap-2 mt-2 items-center">
+              <Input
+                placeholder="Zoek op ID of naam…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-52 h-8 text-sm"
+                data-testid="input-search-prikklok"
+              />
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer ml-1">
+                <Checkbox
+                  checked={showOnlyUnlinked}
+                  onCheckedChange={(v) => setShowOnlyUnlinked(!!v)}
+                  data-testid="checkbox-show-unlinked"
+                />
+                Toon alleen niet-gekoppeld
+              </label>
+              <span className="text-xs text-muted-foreground ml-auto">{displayedRows.length} rijen</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-4 w-28">Prikklok ID</TableHead>
+                  <TableHead>Naam (prikklok)</TableHead>
+                  <TableHead className="w-36">Status</TableHead>
+                  <TableHead>App-medewerker</TableHead>
+                  <TableHead className="pr-4 text-right w-36">Actie</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayedRows.map((row) => {
+                  const linked = kadasterMap[row.userid] as any;
+                  const selectedUserId = selections[row.userid] || "";
+                  return (
+                    <TableRow key={row.userid} data-testid={`row-prikklok-${row.userid}`}>
+                      <TableCell className="pl-4 font-mono text-sm font-medium">{row.userid}</TableCell>
+                      <TableCell className="text-sm">{row.name || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell>
+                        {linked ? (
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs border-0">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Gekoppeld
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            <XCircle className="h-3 w-3 mr-1 text-amber-500" />
+                            Niet gekoppeld
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {linked ? (
+                          <span className="text-sm font-medium">{linked.fullName || linked.username}</span>
+                        ) : (
+                          <Select
+                            value={selectedUserId}
+                            onValueChange={(v) => setSelections((s) => ({ ...s, [row.userid]: v }))}
+                          >
+                            <SelectTrigger className="w-56 h-8 text-sm" data-testid={`select-koppel-${row.userid}`}>
+                              <SelectValue placeholder="Selecteer medewerker…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeUsers.map((u: any) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.fullName || u.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                      <TableCell className="pr-4 text-right">
+                        {linked ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-muted-foreground hover:text-red-600"
+                            disabled={linkMutation.isPending}
+                            data-testid={`button-ontkoppel-${row.userid}`}
+                            onClick={() =>
+                              linkMutation.mutate(
+                                { userId: linked.id, kadasterId: null },
+                                {
+                                  onSuccess: () => toast({ title: "Ontkoppeld", description: `Prikklok ID ${row.userid} is losgekoppeld.` }),
+                                  onError: (err: any) => toast({ title: "Mislukt", description: err.message, variant: "destructive" }),
+                                }
+                              )
+                            }
+                          >
+                            <Link2Off className="h-3.5 w-3.5 mr-1" />
+                            Ontkoppelen
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={!selectedUserId || linkMutation.isPending}
+                            data-testid={`button-koppel-${row.userid}`}
+                            onClick={() =>
+                              linkMutation.mutate(
+                                { userId: selectedUserId, kadasterId: row.userid },
+                                {
+                                  onSuccess: () => {
+                                    toast({ title: "Gekoppeld", description: `Prikklok ID ${row.userid} is gekoppeld.` });
+                                    setSelections((s) => { const ns = { ...s }; delete ns[row.userid]; return ns; });
+                                  },
+                                  onError: (err: any) => toast({ title: "Koppeling mislukt", description: err.message, variant: "destructive" }),
+                                }
+                              )
+                            }
+                          >
+                            <Link2 className="h-3.5 w-3.5 mr-1" />
+                            Koppelen
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            {displayedRows.length === 0 && (
+              <div className="py-10 text-center text-muted-foreground text-sm">
+                Geen rijen gevonden
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BeheerPage() {
@@ -1175,6 +1442,7 @@ export default function BeheerPage() {
     { key: "rechten", label: "Rechten", icon: Shield },
     { key: "afdelingen", label: "Onderhoud Afdelingen", icon: Building2 },
     { key: "functies", label: "Onderhoud Functies", icon: Briefcase },
+    { key: "prikklok", label: "Prikklok Koppeling", icon: Link2 },
   ];
 
   return (
@@ -1211,6 +1479,7 @@ export default function BeheerPage() {
           {activeTab === "rechten" && <RechtenTab />}
           {activeTab === "afdelingen" && <AfdelingenTab />}
           {activeTab === "functies" && <FunctiesTab />}
+          {activeTab === "prikklok" && <PrikklokKoppelingTab />}
         </div>
       </div>
     </div>
