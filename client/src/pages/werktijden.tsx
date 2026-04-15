@@ -802,6 +802,7 @@ export default function WerktijdenPage() {
   const [analyseFrom, setAnalyseFrom]             = useState("");
   const [analyseTo, setAnalyseTo]                 = useState("");
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
+  const [filterRegDept, setFilterRegDept] = useState("all");
   const [filterSessionDept, setFilterSessionDept] = useState("all");
   const [showWaarschuwingDialog, setShowWaarschuwingDialog] = useState(false);
   const [waarschuwingTekst, setWaarschuwingTekst] = useState("");
@@ -985,17 +986,22 @@ export default function WerktijdenPage() {
     });
   }, [sessies, filterUserid, filterDatum, filterSessionDept, activeUsers]);
 
+  const regFilteredUsers = useMemo(() => {
+    if (filterRegDept === "all") return activeUsers;
+    return activeUsers.filter((u: any) => u.department === filterRegDept);
+  }, [activeUsers, filterRegDept]);
+
   const filteredRecords = useMemo(() => {
     return records.filter(r => {
       if (filterUserid !== "all" && r.userid !== filterUserid) return false;
       if (filterDatum && !dateKey(r.checktime).includes(filterDatum)) return false;
-      if (searchTerm) {
-        const name = getUserName(r.userid).toLowerCase();
-        if (!name.includes(searchTerm.toLowerCase()) && !r.userid.includes(searchTerm)) return false;
+      if (filterRegDept !== "all") {
+        const u = activeUsers.find((u: any) => u.kadasterId === r.userid);
+        if (!u || (u as any).department !== filterRegDept) return false;
       }
       return true;
     });
-  }, [records, filterUserid, filterDatum, searchTerm]);
+  }, [records, filterUserid, filterDatum, filterRegDept, activeUsers]);
 
   const filteredEvents = useMemo(() => {
     if (!searchTerm) return eventLogs;
@@ -1328,16 +1334,21 @@ export default function WerktijdenPage() {
           {/* ── Registraties tab ─────────────────────────────────────────────── */}
           <TabsContent value="registraties" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-2 items-center">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9 w-48"
-                  placeholder="Zoek medewerker…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  data-testid="input-search-registraties"
-                />
-              </div>
+              <Select
+                value={filterRegDept}
+                onValueChange={(v) => { setFilterRegDept(v); setFilterUserid("all"); }}
+              >
+                <SelectTrigger className="w-48" data-testid="select-filter-dept-registraties">
+                  <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Kies afdeling…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle afdelingen</SelectItem>
+                  {departments.map((d) => (
+                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filterUserid} onValueChange={setFilterUserid}>
                 <SelectTrigger className="w-52" data-testid="select-filter-userid">
                   <Filter className="h-4 w-4 mr-1.5 text-muted-foreground" />
@@ -1345,7 +1356,7 @@ export default function WerktijdenPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Alle medewerkers</SelectItem>
-                  {activeUsers.map((u: any) => (
+                  {regFilteredUsers.map((u: any) => (
                     <SelectItem key={u.kadasterId} value={u.kadasterId}>
                       {u.fullName || u.username} (ID: {u.kadasterId})
                     </SelectItem>
