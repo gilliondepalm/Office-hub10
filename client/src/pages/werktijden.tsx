@@ -1825,7 +1825,7 @@ export default function WerktijdenPage() {
                       <TableHead>Datum</TableHead>
                       <TableHead>Tijdstip</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead className="text-right pr-4">Acties</TableHead>
+                      {isManager && <TableHead className="text-right pr-4">Acties</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1844,18 +1844,20 @@ export default function WerktijdenPage() {
                             {r.checktype === "in" ? "Inklok" : "Uitklok"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right pr-4">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => deleteMutation.mutate(r.logid)}
-                            disabled={deleteMutation.isPending}
-                            data-testid={`button-delete-reg-${r.logid}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
+                        {isManager && (
+                          <TableCell className="text-right pr-4">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => deleteMutation.mutate(r.logid)}
+                              disabled={deleteMutation.isPending}
+                              data-testid={`button-delete-reg-${r.logid}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
