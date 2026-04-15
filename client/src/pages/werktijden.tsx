@@ -1042,7 +1042,7 @@ export default function WerktijdenPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Laatste import</p>
                   <p className="text-sm font-semibold truncate max-w-[120px]" data-testid="stat-last-import">
-                    {lastImport ? format(new Date(lastImport.importedAt), "dd-MM HH:mm", { locale: nl }) : "—"}
+                    {lastImport ? format(new Date(lastImport.importedAt), "dd-MM hh:mm aa") : "—"}
                   </p>
                 </div>
               </div>
