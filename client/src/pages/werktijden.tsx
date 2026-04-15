@@ -21,7 +21,7 @@ import {
   Upload, Database, FileText, AlertTriangle, CheckCircle2,
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
-  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2,
+  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2, FileDown,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -99,6 +99,19 @@ function formatMinuten(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return `${h}u ${m.toString().padStart(2, "0")}m`;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: (string | number | boolean | null | undefined)[][]): void {
+  const escape = (v: string | number | boolean | null | undefined): string => {
+    const s = v === null || v === undefined ? "" : String(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [headers.map(escape).join(","), ...rows.map(r => r.map(escape).join(","))];
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Sessie berekening ─────────────────────────────────────────────────────────
@@ -1387,6 +1400,29 @@ export default function WerktijdenPage() {
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredRecords.length} records
               </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={filteredRecords.length === 0}
+                onClick={() => {
+                  const today = format(new Date(), "yyyy-MM-dd");
+                  downloadCsv(`registraties_${today}.csv`,
+                    ["Log ID", "Userid", "Naam", "Datum", "Tijdstip", "Type"],
+                    filteredRecords.map(r => [
+                      r.logid,
+                      r.userid,
+                      getUserName(r.userid),
+                      dateKey(r.checktime).split("-").reverse().join("-"),
+                      formatTs(r.checktime).slice(11),
+                      r.checktype === "in" ? "Inklok" : "Uitklok",
+                    ])
+                  );
+                }}
+                data-testid="button-export-registraties"
+              >
+                <FileDown className="h-4 w-4 mr-1.5" />
+                Exporteer CSV
+              </Button>
             </div>
 
             <Card className="overflow-hidden">
@@ -1496,6 +1532,32 @@ export default function WerktijdenPage() {
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredSessies.length} sessies
               </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={filteredSessies.length === 0}
+                onClick={() => {
+                  const today = format(new Date(), "yyyy-MM-dd");
+                  downloadCsv(`sessies_${today}.csv`,
+                    ["Medewerker", "Userid", "Datum", "Weekdag", "Eerste inklok", "Laatste uitklok", "Werktijd (min)", "Aantal records", "Status"],
+                    filteredSessies.map(s => [
+                      getUserName(s.userid),
+                      s.userid,
+                      s.datum.split("-").reverse().join("-"),
+                      s.weekdag,
+                      s.eersteIn ? format(s.eersteIn, "HH:mm:ss") : "",
+                      s.lastUit ? format(s.lastUit, "HH:mm:ss") : "",
+                      s.werkminuten,
+                      s.aantalRecords,
+                      s.status,
+                    ])
+                  );
+                }}
+                data-testid="button-export-sessies"
+              >
+                <FileDown className="h-4 w-4 mr-1.5" />
+                Exporteer CSV
+              </Button>
             </div>
 
             <Card className="overflow-hidden">
@@ -1703,6 +1765,43 @@ export default function WerktijdenPage() {
                   >
                     <RefreshCw className="h-4 w-4 mr-1.5" />
                     Reset
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!analyseData || analyseData.length === 0}
+                    onClick={() => {
+                      if (!analyseData) return;
+                      const naam = getUserName(analyseUserId).replace(/\s+/g, "_");
+                      const today = format(new Date(), "yyyy-MM-dd");
+                      downloadCsv(`analyse_${naam}_${today}.csv`,
+                        ["Datum", "Weekdag", "Inklok", "Uitklok", "Werktijd (min)", "Verschil (min)", "Blok1 OK", "Blok2 OK", "Blok3 OK", "Blok4 OK", "Absent", "Te laat", "Te vroeg uitklok"],
+                        analyseData.map(d => {
+                          const eersteIn = d.pairs.length > 0 && d.pairs[0].inTime ? format(d.pairs[0].inTime, "HH:mm:ss") : "";
+                          const lastOut  = d.completePairs.length > 0 && d.completePairs[d.completePairs.length - 1].outTime
+                            ? format(d.completePairs[d.completePairs.length - 1].outTime!, "HH:mm:ss") : "";
+                          return [
+                            d.dagStr,
+                            d.weekdagKort,
+                            eersteIn,
+                            lastOut,
+                            Math.round(d.totaalWerktijdSec / 60),
+                            Math.round(d.verschilSec / 60),
+                            d.blok1Ok ? "ja" : "nee",
+                            d.blok2Ok ? "ja" : "nee",
+                            d.blok3Ok ? "ja" : "nee",
+                            d.blok4Ok ? "ja" : "nee",
+                            d.isAbsent ? "ja" : "nee",
+                            d.teLaat.length > 0 ? "ja" : "nee",
+                            d.teVroegUit.length > 0 ? "ja" : "nee",
+                          ];
+                        })
+                      );
+                    }}
+                    data-testid="button-export-analyse"
+                  >
+                    <FileDown className="h-4 w-4 mr-1.5" />
+                    Exporteer CSV
                   </Button>
                 </div>
                 {analyseUserId && (
