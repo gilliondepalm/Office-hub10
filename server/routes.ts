@@ -3290,7 +3290,7 @@ export async function registerRoutes(
       if (!["goedgekeurd", "afgewezen"].includes(status)) return res.status(400).json({ message: "Ongeldig status" });
       const updated = await storage.updateCorrectieverzoek(req.params.id, {
         status,
-        beoordeeldDoor: Number(currentUser.id),
+        beoordeeldDoor: String(currentUser.id),
         beoordeeldAt: new Date(),
         beoordelingNotitie: beoordelingNotitie || null,
       });
