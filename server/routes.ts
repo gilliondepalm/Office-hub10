@@ -3000,6 +3000,106 @@ export async function registerRoutes(
   });
 
   // ── Werktijden ─────────────────────────────────────────────────────────────
+
+  // GET /api/werktijden/my-performance — Maandelijkse prikklokperformance voor ingelogde medewerker
+  app.get("/api/werktijden/my-performance", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
+      const kadasterId = currentUser.kadasterId;
+      if (!kadasterId) return res.json({ months: [] });
+
+      const allRecords = await storage.getWerktijden(kadasterId);
+      const allAbsences = await storage.getAbsencesByUser(currentUser.id);
+      const approvedAbsences = allAbsences.filter((a: any) => a.status === "approved");
+
+      const _M = 60, _H = 3600;
+      const ANA_BLK1_E  = 8  * _H;
+      const ANA_BLK4_WD = 16 * _H + 45 * _M;
+      const ANA_BLK4_FR = 16 * _H + 30 * _M;
+      const ANA_BREAK_E = 13 * _H + 30 * _M;
+
+      const secOfDay = (dt: Date) => dt.getHours() * 3600 + dt.getMinutes() * 60 + dt.getSeconds();
+
+      const hasApprovedAbsence = (dateStr: string): boolean =>
+        approvedAbsences.some((a: any) => a.startDate <= dateStr && a.endDate >= dateStr);
+
+      const now = new Date();
+      const monthsResult: {
+        month: string; label: string; werkdagen: number;
+        verzuim: number; teLaat: number; teVroegUit: number;
+      }[] = [];
+
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year  = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const lastDay = i === 0 ? now.getDate() : daysInMonth;
+
+        const werkdagen: string[] = [];
+        for (let day = 1; day <= lastDay; day++) {
+          const dow = new Date(year, month, day).getDay();
+          if (dow >= 1 && dow <= 5) {
+            werkdagen.push(
+              `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+            );
+          }
+        }
+
+        const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
+        const recordsByDay: Record<string, typeof allRecords> = {};
+        for (const r of allRecords) {
+          const ct = r.checktime instanceof Date ? r.checktime : new Date(r.checktime as any);
+          const dk = ct.toISOString().slice(0, 10);
+          if (dk.startsWith(monthStr)) {
+            if (!recordsByDay[dk]) recordsByDay[dk] = [];
+            recordsByDay[dk].push(r);
+          }
+        }
+
+        let verzuim = 0, teLaat = 0, teVroegUit = 0;
+        for (const datum of werkdagen) {
+          const dayRecs = recordsByDay[datum] || [];
+          if (dayRecs.length === 0) {
+            if (!hasApprovedAbsence(datum)) verzuim++;
+          } else {
+            const isFriday = new Date(datum + "T00:00:00").getDay() === 5;
+            const b4Start  = isFriday ? ANA_BLK4_FR : ANA_BLK4_WD;
+            const sorted   = dayRecs.slice().sort((a, b) => {
+              const at = a.checktime instanceof Date ? a.checktime : new Date(a.checktime as any);
+              const bt = b.checktime instanceof Date ? b.checktime : new Date(b.checktime as any);
+              return at.getTime() - bt.getTime();
+            });
+            const inRecs  = sorted.filter(r => r.checktype === "in");
+            const outRecs = sorted.filter(r => r.checktype === "out");
+            if (inRecs.length > 0) {
+              const firstIn = inRecs[0].checktime instanceof Date ? inRecs[0].checktime : new Date(inRecs[0].checktime as any);
+              const sec = secOfDay(firstIn);
+              if (sec > ANA_BLK1_E && sec < 13 * _H) teLaat++;
+            }
+            if (outRecs.length > 0) {
+              const lastOut = outRecs[outRecs.length - 1].checktime instanceof Date
+                ? outRecs[outRecs.length - 1].checktime
+                : new Date(outRecs[outRecs.length - 1].checktime as any);
+              const sec = secOfDay(lastOut);
+              if (sec >= ANA_BREAK_E && sec < b4Start) teVroegUit++;
+            }
+          }
+        }
+
+        monthsResult.push({
+          month: monthStr,
+          label: monthDate.toLocaleDateString("nl-NL", { month: "long", year: "numeric" }),
+          werkdagen: werkdagen.length,
+          verzuim, teLaat, teVroegUit,
+        });
+      }
+
+      res.json({ months: monthsResult });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   app.get("/api/werktijden", requireAuth, async (req, res) => {
     try {
       const currentUser = (req as any).user;
