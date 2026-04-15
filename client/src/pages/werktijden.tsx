@@ -22,6 +22,7 @@ import {
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
   TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2, FileDown,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -227,6 +228,25 @@ type AbsenceRecord = {
   endDate: string;
   status: string;
   type: string;
+};
+
+type DeptDagStats = {
+  datum: string;
+  weekdag: string;
+  aanwezig: number;
+  teLaat: number;
+  teVroegUit: number;
+  onvolledig: number;
+};
+
+type AfdelingStats = {
+  naam: string;
+  totaalMedewerkers: number;
+  actiefInPeriode: number;
+  teLaat: number;
+  teVroegUit: number;
+  onvolledig: number;
+  perDag: DeptDagStats[];
 };
 
 // ── Analyse helpers ───────────────────────────────────────────────────────────
@@ -821,6 +841,12 @@ export default function WerktijdenPage() {
   const [filterSessionDept, setFilterSessionDept] = useState("all");
   const [showWaarschuwingDialog, setShowWaarschuwingDialog] = useState(false);
   const [waarschuwingTekst, setWaarschuwingTekst] = useState("");
+  const [overzichtFrom, setOverzichtFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    return format(d, "yyyy-MM-dd");
+  });
+  const [overzichtTo, setOverzichtTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [expandedDept, setExpandedDept] = useState<string | null>(null);
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
@@ -1035,6 +1061,79 @@ export default function WerktijdenPage() {
     );
   }, [eventLogs, logboekSearch]);
 
+  // ── Afdelingsoverzicht ────────────────────────────────────────────────────────
+  const afdelingsOverzicht = useMemo((): AfdelingStats[] => {
+    if (!departments.length || !records.length) return [];
+    return departments.map(dept => {
+      const deptUsers = activeUsers.filter((u: any) => u.department === dept.name);
+      const deptKadasIds = new Set(deptUsers.map((u: any) => u.kadasterId));
+      const deptRecs = records.filter(r => {
+        if (!deptKadasIds.has(r.userid)) return false;
+        const dk = dateKey(r.checktime);
+        if (overzichtFrom && dk < overzichtFrom) return false;
+        if (overzichtTo && dk > overzichtTo) return false;
+        return true;
+      });
+      if (!deptRecs.length) return null;
+
+      const byDay: Record<string, Werktijd[]> = {};
+      for (const r of deptRecs) {
+        const k = dateKey(r.checktime);
+        if (!byDay[k]) byDay[k] = [];
+        byDay[k].push(r);
+      }
+
+      const perDag: DeptDagStats[] = Object.entries(byDay)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([datum, dayRecs]) => {
+          const d = new Date(datum + "T00:00:00");
+          const isFriday = d.getDay() === 5;
+          const outThresholdMin = isFriday ? toMinutes(16, 30) : toMinutes(16, 45);
+          const byUser: Record<string, Werktijd[]> = {};
+          for (const r of dayRecs) {
+            if (!byUser[r.userid]) byUser[r.userid] = [];
+            byUser[r.userid].push(r);
+          }
+          let aanwezig = 0, teLaat = 0, teVroegUit = 0, onvolledig = 0;
+          for (const [userid, userRecs] of Object.entries(byUser)) {
+            const inRecs = userRecs.filter(r => r.checktype === "in");
+            const outRecs = userRecs.filter(r => r.checktype === "out");
+            if (!inRecs.length) continue;
+            aanwezig++;
+            const sortedIn = [...inRecs].sort((a, b) => parseChecktime(a.checktime).getTime() - parseChecktime(b.checktime).getTime());
+            const eersteIn = parseChecktime(sortedIn[0].checktime);
+            if (eersteIn.getHours() * 60 + eersteIn.getMinutes() > toMinutes(8, 0)) teLaat++;
+            if (outRecs.length > 0) {
+              const sortedOut = [...outRecs].sort((a, b) => parseChecktime(a.checktime).getTime() - parseChecktime(b.checktime).getTime());
+              const lastUit = parseChecktime(sortedOut[sortedOut.length - 1].checktime);
+              const outMin = lastUit.getHours() * 60 + lastUit.getMinutes();
+              const userObj = deptUsers.find((u: any) => u.kadasterId === userid);
+              const userId = (userObj as any)?.id as number | undefined;
+              const isAbsent = userId ? absences.some((a: AbsenceRecord) =>
+                a.userId === userId && a.status === "approved" &&
+                datum >= a.startDate.slice(0, 10) && datum <= a.endDate.slice(0, 10)
+              ) : false;
+              if (!isAbsent && outMin < outThresholdMin) teVroegUit++;
+            } else {
+              onvolledig++;
+            }
+          }
+          return { datum, weekdag: format(d, "EEE", { locale: nl }), aanwezig, teLaat, teVroegUit, onvolledig };
+        });
+
+      const actiefInPeriode = new Set(deptRecs.map(r => r.userid)).size;
+      return {
+        naam: dept.name,
+        totaalMedewerkers: deptUsers.length,
+        actiefInPeriode,
+        teLaat: perDag.reduce((s, d) => s + d.teLaat, 0),
+        teVroegUit: perDag.reduce((s, d) => s + d.teVroegUit, 0),
+        onvolledig: perDag.reduce((s, d) => s + d.onvolledig, 0),
+        perDag,
+      };
+    }).filter(Boolean) as AfdelingStats[];
+  }, [records, departments, activeUsers, absences, overzichtFrom, overzichtTo]);
+
   // ── KPI statistieken ─────────────────────────────────────────────────────────
   const today = format(new Date(), "yyyy-MM-dd");
   const totalSessies = sessies.length;
@@ -1204,6 +1303,10 @@ export default function WerktijdenPage() {
             <TabsTrigger value="analyse" data-testid="tab-analyse">
               <BarChart3 className="h-4 w-4 mr-1.5" />
               Analyse
+            </TabsTrigger>
+            <TabsTrigger value="afdelingsoverzicht" data-testid="tab-afdelingsoverzicht">
+              <Building2 className="h-4 w-4 mr-1.5" />
+              Afdelingen
             </TabsTrigger>
           </TabsList>
 
@@ -1850,6 +1953,203 @@ export default function WerktijdenPage() {
               />
             )}
           </TabsContent>
+
+          {/* ── Afdelingsoverzicht tab ───────────────────────────────────────── */}
+          <TabsContent value="afdelingsoverzicht" className="space-y-4 mt-4">
+            {/* Filter rij */}
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Van</label>
+                <input
+                  type="date"
+                  value={overzichtFrom}
+                  onChange={e => setOverzichtFrom(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-40"
+                  data-testid="input-overzicht-from"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Tot en met</label>
+                <input
+                  type="date"
+                  value={overzichtTo}
+                  onChange={e => setOverzichtTo(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-40"
+                  data-testid="input-overzicht-to"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const d = new Date(); d.setDate(d.getDate() - 6);
+                  setOverzichtFrom(format(d, "yyyy-MM-dd"));
+                  setOverzichtTo(format(new Date(), "yyyy-MM-dd"));
+                  setExpandedDept(null);
+                }}
+                data-testid="button-overzicht-reset"
+              >
+                <RefreshCw className="h-4 w-4 mr-1.5" />
+                Laatste 7 dagen
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={afdelingsOverzicht.length === 0}
+                onClick={() => {
+                  const today2 = format(new Date(), "yyyy-MM-dd");
+                  downloadCsv(`afdelingsoverzicht_${today2}.csv`,
+                    ["Afdeling", "Medewerkers", "Actief in periode", "Te laat (keer)", "Vroeg uit (keer)", "Onvolledig (keer)"],
+                    afdelingsOverzicht.map(d => [d.naam, d.totaalMedewerkers, d.actiefInPeriode, d.teLaat, d.teVroegUit, d.onvolledig])
+                  );
+                }}
+                data-testid="button-export-overzicht"
+              >
+                <FileDown className="h-4 w-4 mr-1.5" />
+                Exporteer CSV
+              </Button>
+              <span className="text-sm text-muted-foreground ml-1">
+                {afdelingsOverzicht.length} afdeling(en)
+              </span>
+            </div>
+
+            {/* Geen data */}
+            {afdelingsOverzicht.length === 0 ? (
+              <Card>
+                <CardContent className="py-16 text-center text-muted-foreground">
+                  <Building2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Geen prikklokdata voor de geselecteerde periode</p>
+                  <p className="text-sm mt-1">Importeer eerst prikklokdata of kies een andere datumperiode</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Samenvattingstabel */}
+                <Card className="overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="w-8" />
+                        <TableHead>Afdeling</TableHead>
+                        <TableHead className="text-right">Medewerkers</TableHead>
+                        <TableHead className="text-right">Actief</TableHead>
+                        <TableHead className="text-right">
+                          <span className="text-amber-700 dark:text-amber-400">Te laat</span>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <span className="text-orange-700 dark:text-orange-400">Vroeg uit</span>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <span className="text-red-700 dark:text-red-400">Onvolledig</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {afdelingsOverzicht.map(dept => (
+                        <TableRow
+                          key={dept.naam}
+                          className="cursor-pointer hover:bg-muted/40"
+                          onClick={() => setExpandedDept(expandedDept === dept.naam ? null : dept.naam)}
+                          data-testid={`row-dept-${dept.naam}`}
+                        >
+                          <TableCell className="pl-3">
+                            {expandedDept === dept.naam
+                              ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              {dept.naam}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right text-sm">{dept.totaalMedewerkers}</TableCell>
+                          <TableCell className="text-right text-sm">{dept.actiefInPeriode}</TableCell>
+                          <TableCell className="text-right">
+                            {dept.teLaat > 0
+                              ? <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100">{dept.teLaat}×</Badge>
+                              : <span className="text-sm text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {dept.teVroegUit > 0
+                              ? <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">{dept.teVroegUit}×</Badge>
+                              : <span className="text-sm text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {dept.onvolledig > 0
+                              ? <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">{dept.onvolledig}×</Badge>
+                              : <span className="text-sm text-muted-foreground">—</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+
+                {/* Dagdetails van geselecteerde afdeling */}
+                {expandedDept && (() => {
+                  const dept = afdelingsOverzicht.find(d => d.naam === expandedDept);
+                  if (!dept) return null;
+                  return (
+                    <Card className="overflow-hidden">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Building2 className="h-5 w-5 text-primary" />
+                          {dept.naam} — dagindeling
+                          <span className="font-normal text-sm text-muted-foreground ml-1">
+                            ({dept.perDag.length} dag{dept.perDag.length !== 1 ? "en" : ""})
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/20">
+                            <TableHead>Datum</TableHead>
+                            <TableHead>Dag</TableHead>
+                            <TableHead className="text-right">Aanwezig</TableHead>
+                            <TableHead className="text-right">
+                              <span className="text-amber-700 dark:text-amber-400">Te laat</span>
+                            </TableHead>
+                            <TableHead className="text-right">
+                              <span className="text-orange-700 dark:text-orange-400">Vroeg uit</span>
+                            </TableHead>
+                            <TableHead className="text-right">
+                              <span className="text-red-700 dark:text-red-400">Onvolledig</span>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dept.perDag.map(dag => (
+                            <TableRow key={dag.datum} className="text-sm" data-testid={`row-dag-${dag.datum}`}>
+                              <TableCell>{dag.datum.split("-").reverse().join("-")}</TableCell>
+                              <TableCell className="text-muted-foreground capitalize">{dag.weekdag}</TableCell>
+                              <TableCell className="text-right font-medium">{dag.aanwezig}</TableCell>
+                              <TableCell className="text-right">
+                                {dag.teLaat > 0
+                                  ? <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100 text-xs">{dag.teLaat}</Badge>
+                                  : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {dag.teVroegUit > 0
+                                  ? <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100 text-xs">{dag.teVroegUit}</Badge>
+                                  : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {dag.onvolledig > 0
+                                  ? <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100 text-xs">{dag.onvolledig}</Badge>
+                                  : <span className="text-muted-foreground">—</span>}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Card>
+                  );
+                })()}
+              </>
+            )}
+          </TabsContent>
+
         </Tabs>
       </div>
 
