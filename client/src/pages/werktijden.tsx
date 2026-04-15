@@ -1685,7 +1685,7 @@ export default function WerktijdenPage() {
                       {importLogs.map((log) => (
                         <TableRow
                           key={log.id}
-                          className={`cursor-pointer transition-colors ${selectedImportId === log.id ? "bg-primary/15 dark:bg-primary/20 ring-1 ring-inset ring-primary/30" : "hover:bg-muted/30"}`}
+                          className={`cursor-pointer transition-colors ${selectedImportId === log.id ? "bg-primary/25 dark:bg-primary/35 ring-2 ring-inset ring-primary/50 font-medium" : "hover:bg-muted/30"}`}
                           onClick={() => setSelectedImportId(selectedImportId === log.id ? null : log.id)}
                           data-testid={`row-import-${log.id}`}
                         >
