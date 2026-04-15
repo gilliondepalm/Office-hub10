@@ -1331,6 +1331,107 @@ export async function registerRoutes(
   });
 
   // ── Jaar Afsluiten ─────────────────────────────────────────────────────────
+  // GET /api/vacation/jaar-afsluiten-preview?year=N
+  // Berekent een vooruitblik: welk saldo wordt het nieuwe Saldo Oud? (geen opslag)
+  app.get("/api/vacation/jaar-afsluiten-preview", requireAuth, async (req, res) => {
+    const currentUser = req.user as any;
+    if (!canManageVacation(currentUser?.role)) {
+      return res.status(403).json({ message: "Geen toegang" });
+    }
+    try {
+      const closingYear = parseInt(req.query.year as string);
+      const thisYear = new Date().getFullYear();
+
+      if (!closingYear || isNaN(closingYear)) {
+        return res.status(400).json({ message: "Ongeldig jaar opgegeven" });
+      }
+      if (closingYear >= thisYear) {
+        return res.status(400).json({
+          message: `Jaar ${closingYear} is nog niet voorbij. Afsluiten is pas mogelijk vanaf 1 januari ${closingYear + 1}.`,
+        });
+      }
+
+      const allUsers    = await storage.getUsers();
+      const allAbsences = await storage.getAbsences();
+
+      const yearSnipperdagen   = await storage.getSnipperdagen(closingYear);
+      const snipperdagenCount  = yearSnipperdagen.length;
+
+      const [holidaysPrev, holidaysCurr] = await Promise.all([
+        storage.getOfficialHolidays(closingYear - 1),
+        storage.getOfficialHolidays(closingYear),
+      ]);
+      const publicHolidaySet = new Set<string>(
+        [...holidaysPrev, ...holidaysCurr].map(h => h.date)
+      );
+
+      const countWeekdays = (startStr: string, endStr: string): number => {
+        const start   = new Date(startStr + "T00:00:00");
+        const end     = new Date(endStr   + "T00:00:00");
+        let count     = 0;
+        const current = new Date(start);
+        while (current <= end) {
+          const day     = current.getDay();
+          const dateStr = current.toISOString().split("T")[0];
+          if (day !== 0 && day !== 6 && !publicHolidaySet.has(dateStr)) count++;
+          current.setDate(current.getDate() + 1);
+        }
+        return count;
+      };
+
+      const countDays = (list: typeof allAbsences) => {
+        let days = 0;
+        for (const a of list) {
+          if (a.halfDay === "am" || a.halfDay === "pm") {
+            days += 0.5;
+          } else {
+            days += countWeekdays(a.startDate, a.endDate);
+          }
+        }
+        return days;
+      };
+
+      const results: { userId: string; userName: string; oudSaldo: number; nieuwSaldo: number }[] = [];
+
+      for (const u of allUsers.filter(u => u.active)) {
+        const approved = allAbsences.filter(a =>
+          a.userId === u.id &&
+          new Date(a.startDate).getFullYear() === closingYear &&
+          a.status === "approved" &&
+          (a.type === "vacation" ||
+            ((a.type === "personal" || a.type === "other") && (a as any).deductVacation === true) ||
+            (a.type === "persoonlijk" && (a as any).persoonlijkBesluit === "ongeoorloofd"))
+        );
+        const rejectedPast = allAbsences.filter(a =>
+          a.userId === u.id &&
+          a.type === "persoonlijk" &&
+          a.status === "rejected" &&
+          new Date(a.startDate).getFullYear() === closingYear
+        );
+
+        let extra = 0;
+        if (u.birthDate) {
+          const age = closingYear - new Date(u.birthDate).getFullYear();
+          if (age >= 60 && age < 65) extra = age - 59;
+        }
+
+        const recht    = u.vacationDaysTotal    ?? 25;
+        const saldoOud = u.vacationDaysSaldoOud ?? 0;
+        const totaal   = recht + saldoOud + extra;
+
+        const gebruiktDagen  = countDays(approved) + countDays(rejectedPast);
+        const resterend      = totaal - gebruiktDagen - snipperdagenCount;
+        const nieuwSaldo     = Math.max(0, Math.round(resterend * 2) / 2);
+
+        results.push({ userId: u.id, userName: u.fullName, oudSaldo: saldoOud, nieuwSaldo });
+      }
+
+      res.json({ closingYear, results });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Fout bij ophalen preview" });
+    }
+  });
+
   // POST /api/vacation/jaar-afsluiten
   // Berekent het resterende vakantiesaldo per medewerker voor het afgesloten jaar
   // en slaat dit op als het nieuwe 'Saldo Oud' voor het volgende jaar.

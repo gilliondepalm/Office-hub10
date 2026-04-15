@@ -1404,6 +1404,20 @@ export default function VerzuimPage() {
     },
   });
 
+  const previewYear = new Date().getFullYear() - 1;
+  const { data: jaarAfsluitenPreview, isLoading: previewLoading } = useQuery<{
+    closingYear: number;
+    results: { userId: string; userName: string; oudSaldo: number; nieuwSaldo: number }[];
+  }>({
+    queryKey: ["/api/vacation/jaar-afsluiten-preview", previewYear],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/vacation/jaar-afsluiten-preview?year=${previewYear}`);
+      return res.json();
+    },
+    enabled: jaarAfsluitenOpen,
+    staleTime: 0,
+  });
+
   const jaarAfsluitenMutation = useMutation({
     mutationFn: async (year: number) => {
       const res = await apiRequest("POST", "/api/vacation/jaar-afsluiten", { year });
@@ -1746,7 +1760,7 @@ export default function VerzuimPage() {
           {/* Bevestigingsdialoog Jaar Afsluiten */}
           {canVacation && (
             <Dialog open={jaarAfsluitenOpen} onOpenChange={setJaarAfsluitenOpen}>
-              <DialogContent className="max-w-lg">
+              <DialogContent className="max-w-xl">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -1766,6 +1780,35 @@ export default function VerzuimPage() {
                       <li>Recht en Extra blijven ongewijzigd</li>
                       <li>Na afsluiting geldt vakantierecht per 1 januari {closingYear + 1}</li>
                     </ul>
+                  </div>
+                  <div className="rounded-md border border-border bg-muted/30 p-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Vooruitblik: verwacht nieuw Saldo Oud per medewerker</p>
+                    {previewLoading ? (
+                      <p className="text-xs text-muted-foreground" data-testid="preview-loading">Berekenen…</p>
+                    ) : jaarAfsluitenPreview ? (
+                      <div className="max-h-40 overflow-y-auto" data-testid="preview-table">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-muted-foreground">
+                              <th className="text-left pb-1.5 font-medium">Medewerker</th>
+                              <th className="text-right pb-1.5 font-medium">Huidig saldo oud</th>
+                              <th className="text-right pb-1.5 font-medium">Nieuw saldo oud</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/50">
+                            {jaarAfsluitenPreview.results.map(r => (
+                              <tr key={r.userId} data-testid={`preview-row-${r.userId}`}>
+                                <td className="py-1">{r.userName}</td>
+                                <td className="text-right py-1 text-muted-foreground">{r.oudSaldo}</td>
+                                <td className="text-right py-1 font-semibold">{r.nieuwSaldo}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Geen data beschikbaar</p>
+                    )}
                   </div>
                   {jaarAfsluitenResult && jaarAfsluitenResult.closedYear === closingYear && (
                     <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 text-sm text-green-800 dark:text-green-300">
