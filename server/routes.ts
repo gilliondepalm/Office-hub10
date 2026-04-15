@@ -3007,17 +3007,20 @@ export async function registerRoutes(
       const currentUser = (req as any).user;
       if (!currentUser) return res.status(401).json({ message: "Niet ingelogd" });
       const kadasterId = currentUser.kadasterId;
-      if (!kadasterId) return res.json({ months: [] });
 
-      const allRecords = await storage.getWerktijden(kadasterId);
+      // If no kadasterId, still return months with empty data (don't hide the card)
+      const allRecords = kadasterId ? await storage.getWerktijden(kadasterId) : [];
       const allAbsences = await storage.getAbsencesByUser(currentUser.id);
       const approvedAbsences = allAbsences.filter((a: any) => a.status === "approved");
 
       const _M = 60, _H = 3600;
-      const ANA_BLK1_E  = 8  * _H;
-      const ANA_BLK4_WD = 16 * _H + 45 * _M;
-      const ANA_BLK4_FR = 16 * _H + 30 * _M;
-      const ANA_BREAK_E = 13 * _H + 30 * _M;
+      const ANA_BLK1_E    = 8  * _H;
+      const ANA_BLK4_WD   = 16 * _H + 45 * _M;
+      const ANA_BLK4_FR   = 16 * _H + 30 * _M;
+      const ANA_BREAK_S   = 12 * _H;
+      const ANA_BREAK_E   = 13 * _H + 30 * _M;
+      const ANA_TARGET_WD = 8  * _H;
+      const ANA_TARGET_FR = 7  * _H + 30 * _M;
 
       const secOfDay = (dt: Date) => dt.getHours() * 3600 + dt.getMinutes() * 60 + dt.getSeconds();
 
@@ -3027,7 +3030,7 @@ export async function registerRoutes(
       const now = new Date();
       const monthsResult: {
         month: string; label: string; werkdagen: number;
-        verzuim: number; teLaat: number; teVroegUit: number;
+        verzuim: number; teLaat: number; teVroegUit: number; saldoMinuten: number;
       }[] = [];
 
       for (let i = 5; i >= 0; i--) {
@@ -3058,21 +3061,27 @@ export async function registerRoutes(
           }
         }
 
-        let verzuim = 0, teLaat = 0, teVroegUit = 0;
+        let verzuim = 0, teLaat = 0, teVroegUit = 0, saldoSec = 0;
         for (const datum of werkdagen) {
           const dayRecs = recordsByDay[datum] || [];
+          const isFriday = new Date(datum + "T00:00:00").getDay() === 5;
+          const targetSec = isFriday ? ANA_TARGET_FR : ANA_TARGET_WD;
+
           if (dayRecs.length === 0) {
-            if (!hasApprovedAbsence(datum)) verzuim++;
+            if (!hasApprovedAbsence(datum)) {
+              verzuim++;
+              saldoSec -= targetSec;
+            }
           } else {
-            const isFriday = new Date(datum + "T00:00:00").getDay() === 5;
-            const b4Start  = isFriday ? ANA_BLK4_FR : ANA_BLK4_WD;
-            const sorted   = dayRecs.slice().sort((a, b) => {
+            const b4Start = isFriday ? ANA_BLK4_FR : ANA_BLK4_WD;
+            const sorted  = dayRecs.slice().sort((a, b) => {
               const at = a.checktime instanceof Date ? a.checktime : new Date(a.checktime as any);
               const bt = b.checktime instanceof Date ? b.checktime : new Date(b.checktime as any);
               return at.getTime() - bt.getTime();
             });
             const inRecs  = sorted.filter(r => r.checktype === "in");
             const outRecs = sorted.filter(r => r.checktype === "out");
+
             if (inRecs.length > 0) {
               const firstIn = inRecs[0].checktime instanceof Date ? inRecs[0].checktime : new Date(inRecs[0].checktime as any);
               const sec = secOfDay(firstIn);
@@ -3085,6 +3094,26 @@ export async function registerRoutes(
               const sec = secOfDay(lastOut);
               if (sec >= ANA_BREAK_E && sec < b4Start) teVroegUit++;
             }
+
+            // Pair in/out records om gewerkte tijd te berekenen
+            let dayWerktijdSec = 0;
+            const inQ  = [...inRecs];
+            const outQ = [...outRecs];
+            while (inQ.length > 0 && outQ.length > 0) {
+              const inTime  = inQ[0].checktime  instanceof Date ? inQ[0].checktime  : new Date(inQ[0].checktime  as any);
+              const outTime = outQ[0].checktime instanceof Date ? outQ[0].checktime : new Date(outQ[0].checktime as any);
+              if (outTime > inTime) {
+                inQ.shift(); outQ.shift();
+                const durSec = (outTime.getTime() - inTime.getTime()) / 1000;
+                const inSec  = secOfDay(inTime);
+                const outSec = secOfDay(outTime);
+                const brkOv  = Math.max(0, Math.min(outSec, ANA_BREAK_E) - Math.max(inSec, ANA_BREAK_S));
+                dayWerktijdSec += Math.max(0, durSec - brkOv);
+              } else {
+                outQ.shift();
+              }
+            }
+            saldoSec += dayWerktijdSec - targetSec;
           }
         }
 
@@ -3093,6 +3122,7 @@ export async function registerRoutes(
           label: monthDate.toLocaleDateString("nl-NL", { month: "long", year: "numeric" }),
           werkdagen: werkdagen.length,
           verzuim, teLaat, teVroegUit,
+          saldoMinuten: Math.round(saldoSec / 60),
         });
       }
 

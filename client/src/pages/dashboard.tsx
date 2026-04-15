@@ -16,6 +16,7 @@ import {
   Timer,
   LogOut,
   Activity,
+  Hourglass,
 } from "lucide-react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -177,6 +178,7 @@ export default function DashboardPage() {
       verzuim: number;
       teLaat: number;
       teVroegUit: number;
+      saldoMinuten: number;
     }[];
   }>({
     queryKey: ["/api/werktijden/my-performance"],
@@ -622,19 +624,23 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="grid grid-cols-4 gap-2 px-1 pb-1">
+                  <div className="grid grid-cols-5 gap-1.5 px-1 pb-1">
                     <span className="text-xs font-medium text-muted-foreground">Maand</span>
                     <div className="flex items-center gap-1 justify-center">
-                      <CalendarX className="h-3.5 w-3.5 text-muted-foreground" />
+                      <CalendarX className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs font-medium text-muted-foreground text-center">Niet geklokt</span>
                     </div>
                     <div className="flex items-center gap-1 justify-center">
-                      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Timer className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs font-medium text-muted-foreground text-center">Te laat</span>
                     </div>
                     <div className="flex items-center gap-1 justify-center">
-                      <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+                      <LogOut className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs font-medium text-muted-foreground text-center">Te vroeg weg</span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-center">
+                      <Hourglass className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground text-center">Uren saldo</span>
                     </div>
                   </div>
                   {performanceData.months.map((m) => {
@@ -652,11 +658,23 @@ export default function DashboardPage() {
                         </div>
                       );
                     };
+                    const formatSaldo = (min: number) => {
+                      const abs = Math.abs(min);
+                      const h = Math.floor(abs / 60);
+                      const m2 = abs % 60;
+                      const sign = min >= 0 ? "+" : "−";
+                      if (h === 0) return `${sign}${m2}m`;
+                      if (m2 === 0) return `${sign}${h}u`;
+                      return `${sign}${h}u${m2}m`;
+                    };
+                    const saldoColor = m.saldoMinuten >= 0
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800"
+                      : "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800";
                     const isCurrentMonth = m.month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
                     return (
                       <div
                         key={m.month}
-                        className={`grid grid-cols-4 gap-2 items-center rounded-lg px-2 py-2 ${isCurrentMonth ? "bg-blue-50/60 dark:bg-blue-900/10 border border-blue-200/60 dark:border-blue-800/40" : "bg-muted/30"}`}
+                        className={`grid grid-cols-5 gap-1.5 items-center rounded-lg px-2 py-2 ${isCurrentMonth ? "bg-blue-50/60 dark:bg-blue-900/10 border border-blue-200/60 dark:border-blue-800/40" : "bg-muted/30"}`}
                         data-testid={`perf-month-${m.month}`}
                       >
                         <div>
@@ -666,11 +684,16 @@ export default function DashboardPage() {
                         {badge(m.verzuim, `perf-verzuim-${m.month}`)}
                         {badge(m.teLaat, `perf-telaat-${m.month}`)}
                         {badge(m.teVroegUit, `perf-tevroeg-${m.month}`)}
+                        <div className="flex justify-center" data-testid={`perf-saldo-${m.month}`}>
+                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md border text-sm font-semibold ${saldoColor}`}>
+                            {formatSaldo(m.saldoMinuten)}
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
                   <p className="text-xs text-muted-foreground pt-1 px-1">
-                    Groen = 0 &nbsp;·&nbsp; Oranje = 1–2 &nbsp;·&nbsp; Rood = 3+
+                    Groen = goed &nbsp;·&nbsp; Oranje = aandacht nodig &nbsp;·&nbsp; Rood = actie vereist
                   </p>
                 </div>
               )}
