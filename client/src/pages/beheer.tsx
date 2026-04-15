@@ -1254,7 +1254,7 @@ function PrikklokKoppelingTab() {
         <CardHeader className="pb-3">
           <p className="font-semibold text-sm">Stap 1 — Importeer prikklok-medewerkers</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Upload een CSV van het prikklok-systeem. Vereiste kolommen: <code className="bg-muted px-1 rounded">userid</code> of <code className="bg-muted px-1 rounded">pin</code>, en <code className="bg-muted px-1 rounded">name</code> of <code className="bg-muted px-1 rounded">naam</code>. Separator: komma of puntkomma.
+            Upload een CSV-medewerkerexport van het prikklok-systeem — alleen <strong>userid</strong> en <strong>name</strong> worden ingelezen.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1265,7 +1265,9 @@ function PrikklokKoppelingTab() {
           >
             <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm font-medium">Sleep een CSV-bestand hierheen of klik om te uploaden</p>
-            <p className="text-xs text-muted-foreground mt-1">Voorbeeld kolommen: userid, name</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Prikklok gebruikersexport — alleen <strong>userid</strong> en <strong>name</strong> worden ingelezen
+            </p>
           </div>
           <input
             ref={fileInputRef}
@@ -1291,6 +1293,55 @@ function PrikklokKoppelingTab() {
               </div>
             </div>
           )}
+
+          {/* CSV formaat uitleg */}
+          <div className="rounded-lg bg-muted/40 p-4 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Prikklok CSV-exportformaat (medewerkers)</p>
+            <p className="text-xs text-muted-foreground">
+              De prikklok exporteert een CSV met de onderstaande kolommen. Alleen{" "}
+              <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">userid</span> en{" "}
+              <span className="font-semibold text-foreground bg-primary/10 px-1 rounded">name</span>{" "}
+              worden door de app ingelezen — alle overige kolommen worden genegeerd.
+            </p>
+            {/* Kolommen overzicht */}
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              {[
+                { name: "userid",     used: true  },
+                { name: "name",       used: true  },
+                { name: "privilege",  used: false },
+                { name: "password",   used: false },
+                { name: "group",      used: false },
+                { name: "timezone",   used: false },
+                { name: "timerule",   used: false },
+                { name: "enrolled",   used: false },
+                { name: "starttime",  used: false },
+                { name: "endtime",    used: false },
+                { name: "card",       used: false },
+              ].map((col) => (
+                <span
+                  key={col.name}
+                  className={`px-2 py-0.5 rounded font-mono ${
+                    col.used
+                      ? "bg-primary/15 text-primary font-semibold ring-1 ring-primary/30"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {col.name}
+                  {col.used && <span className="ml-1 text-[10px] opacity-75">✓</span>}
+                </span>
+              ))}
+            </div>
+            {/* Voorbeeld rij */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Voorbeeld data-rij:</p>
+              <code className="block bg-background border rounded p-2 font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-nowrap">
+                <span className="text-primary font-bold">001</span>,<span className="text-primary font-bold">Jan Janssen</span>,0,,0,0,0,1,,,
+              </code>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Separator: komma (,) of puntkomma (;)
+            </p>
+          </div>
         </CardContent>
       </Card>
 
