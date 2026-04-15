@@ -17,7 +17,7 @@ A comprehensive office dashboard application with 9 modules and granular permiss
 4. **Organisatie** - Department management with tabs: Afdelingen (department cards with manager info), AO-Procedures (admin-managed procedures with step-by-step instructions per department), Organogram (visual org chart), CAO Info (collective labor agreement overview), Wetgeving (legislation links grouped by category)
 5. **Personalia** - Employee directory with roles and departments
 6. **Verzuim** - Absence/leave management with approval workflow, BVVD (bijzonder verlof) with predefined reasons, vacation day balance tracking per employee with Recht (entitlement per Jan 1), Saldo Oud (previous year balance), Totaal (recht + saldo oud), and Saldo Nieuw (remaining after deductions), admin "Vakantierecht Instellen" dialog to set Recht and Saldo Oud per employee, snipperdagen (mandatory days off deducted from all employees' vacation balance)
-7. **Beloningen** - Four sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures 5-6 competencies per functie with optional normering descriptions per score level 1-5, each scored 1-5 with auto-calculated total and average, functie dropdown populated from configured functies, competency dropdown with collapsible normering), Jaarplan (yearly planning per employee with afspraken/start/einde/voortgang/status tracking, grouped by employee with color-coded status badges), and Beloning (yearly awards: "Afdeling van het Jaar" and "Manager van het Jaar" displayed in two columns per year with year navigation)
+7. **Beloningen** - Four sub-tabs: Functioneringsgesprekken (performance reviews with database storage and year-based filtering), Beoordelingsgesprekken (competency-based assessments where admin configures 5-6 competencies per functie with optional normering descriptions per score level 1-5, each scored 1-5 with auto-calculated total and average, functie dropdown populated from configured functies, competency dropdown with collapsible normering), Jaarplan (yearly planning per afdeling with afspraken/start/einde/status tracking, grouped by afdeling with color-coded status badges; each plan card has collapsible "Activiteiten" section with: Planonderdelen (optional sub-sections, each with own acties and collapsed by default), loose acties (directly on the plan), and each actie has an inline status selector; canEdit guards on admin/manager roles), and Beloning (yearly awards: "Afdeling van het Jaar" and "Manager van het Jaar" displayed in two columns per year with year navigation)
 8. **Applicaties** - Application access management with user permissions
 9. **Rapporten** - Printable reports with 4 tabs: Medewerker info (Kadaster ID, Naam, Cedulanr., Telefoonnr., Mobielnr., Adres), Verjaardagen (birthdays sorted by month/day), Jubilea (years of service with milestone highlights), Medewerker status (all employees active/inactive)
 10. **Beheer** - Admin-only management with 4 tabs: Rechten (toggle module access per user), Onderhoud Afdelingen (department CRUD), Onderhoud Functies (job function CRUD with PDF attachments and salary scale), Prikklok Koppeling (CSV import from prikklok system; links prikklok userid to app employee via kadasterId field; supports comma/semicolon separators, userid/pin/id and name/naam columns; shows linked/unlinked stats; per-row link and unlink actions)
@@ -133,6 +133,20 @@ All routes prefixed with `/api/` and require authentication except login.
 - POST /api/trend-kartografen-hist/import - Import CSV for trend kartografen (admin/manager)
 - GET /api/trend-km-buiten - Trend KM buiten (landmeters) data (all rows)
 - POST /api/trend-km-buiten/import - Import CSV for trend KM buiten (admin/manager)
+- GET /api/jaarplan?year=YYYY&afdeling=... - Jaarplan items (admin sees all, manager sees own dept)
+- POST /api/jaarplan - Create jaarplan item (admin/manager): { afdeling, year, afspraken, startDatum?, eindDatum?, status }
+- PATCH /api/jaarplan/:id - Update jaarplan item (admin/manager)
+- DELETE /api/jaarplan/:id - Delete jaarplan item and all onderdelen/acties (admin/manager)
+- GET /api/jaarplan/:id/acties - Acties for a jaarplan item
+- POST /api/jaarplan/:id/acties - Add actie to jaarplan item (admin/manager): { datum, actie }
+- PATCH /api/jaarplan/acties/:actieId - Update actie status (admin/manager): { status }
+- DELETE /api/jaarplan/acties/:actieId - Delete actie (admin/manager)
+- GET /api/jaarplan/:id/onderdelen - Planonderdelen for a jaarplan item
+- POST /api/jaarplan/:id/onderdelen - Add planonderdeel (admin/manager): { naam }
+- PATCH /api/jaarplan/onderdelen/:id - Rename planonderdeel (admin/manager): { naam }
+- DELETE /api/jaarplan/onderdelen/:id - Delete planonderdeel and its acties (admin/manager)
+- GET /api/jaarplan/onderdelen/:id/acties - Acties for a planonderdeel
+- POST /api/jaarplan/onderdelen/:id/acties - Add actie to planonderdeel (admin/manager): { datum, actie, jaarplanId }
 
 ## Productiestatistieken Module
 - All 6 trend tabs (BalieMedewerkerTab, BalieM3Tab, TrendOrAlgemeenTab, TrendOrNotarisTab, TrendKartografenTab, LandmetersTab) fetch live data from DB via useQuery

@@ -301,11 +301,22 @@ export const jaarplanItems = pgTable("jaarplan_items", {
 
 export const insertJaarplanItemSchema = createInsertSchema(jaarplanItems).omit({ id: true, createdAt: true, updatedAt: true });
 
+export const jaarplanOnderdelen = pgTable("jaarplan_onderdelen", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  jaarplanId: varchar("jaarplan_id").references(() => jaarplanItems.id).notNull(),
+  naam: text("naam").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertJaarplanOnderdeelSchema = createInsertSchema(jaarplanOnderdelen).omit({ id: true, createdAt: true });
+
 export const jaarplanActies = pgTable("jaarplan_acties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   jaarplanId: varchar("jaarplan_id").references(() => jaarplanItems.id).notNull(),
+  onderdeelId: varchar("onderdeel_id").references(() => jaarplanOnderdelen.id),
   datum: date("datum").notNull(),
   actie: text("actie").notNull(),
+  status: text("status").default("niet gestart"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -359,6 +370,8 @@ export type InsertBeoordelingScore = z.infer<typeof insertBeoordelingScoreSchema
 export type BeoordelingScore = typeof beoordelingScores.$inferSelect;
 export type InsertJaarplanItem = z.infer<typeof insertJaarplanItemSchema>;
 export type JaarplanItem = typeof jaarplanItems.$inferSelect;
+export type InsertJaarplanOnderdeel = z.infer<typeof insertJaarplanOnderdeelSchema>;
+export type JaarplanOnderdeel = typeof jaarplanOnderdelen.$inferSelect;
 export type InsertJaarplanActie = z.infer<typeof insertJaarplanActieSchema>;
 export type JaarplanActie = typeof jaarplanActies.$inferSelect;
 

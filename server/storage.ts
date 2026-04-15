@@ -3,7 +3,7 @@ import { eq, desc, sql, and } from "drizzle-orm";
 import {
   users, events, announcements, departments, absences, absenceCancellations, rewards, applications, appAccess, messages,
   aoProcedures, aoInstructions, positionHistory, personalDevelopment, legislationLinks, caoDocuments, siteSettings,
-  functioneringReviews, competencies, beoordelingReviews, beoordelingScores, jaarplanItems, jaarplanActies,
+  functioneringReviews, competencies, beoordelingReviews, beoordelingScores, jaarplanItems, jaarplanOnderdelen, jaarplanActies,
   werktijden, overuurAanvragen, importLog, prikklokEventLog, correctieverzoeken,
   type Werktijden, type InsertWerktijden,
   type OveruurAanvraag, type InsertOveruurAanvraag,
@@ -31,6 +31,7 @@ import {
   type BeoordelingReview, type InsertBeoordelingReview,
   type BeoordelingScore, type InsertBeoordelingScore,
   type JaarplanItem, type InsertJaarplanItem,
+  type JaarplanOnderdeel, type InsertJaarplanOnderdeel,
   type JaarplanActie, type InsertJaarplanActie,
   type HelpContent, type InsertHelpContent,
   type OfficialHoliday, type InsertOfficialHoliday,
@@ -188,8 +189,14 @@ export interface IStorage {
   createJaarplanItem(item: InsertJaarplanItem): Promise<JaarplanItem>;
   updateJaarplanItem(id: string, data: Partial<InsertJaarplanItem>): Promise<JaarplanItem>;
   deleteJaarplanItem(id: string): Promise<void>;
+  getJaarplanOnderdelen(jaarplanId: string): Promise<JaarplanOnderdeel[]>;
+  createJaarplanOnderdeel(onderdeel: InsertJaarplanOnderdeel): Promise<JaarplanOnderdeel>;
+  updateJaarplanOnderdeel(id: string, naam: string): Promise<JaarplanOnderdeel>;
+  deleteJaarplanOnderdeel(id: string): Promise<void>;
   getJaarplanActies(jaarplanId: string): Promise<JaarplanActie[]>;
+  getJaarplanActiesByOnderdeel(onderdeelId: string): Promise<JaarplanActie[]>;
   createJaarplanActie(actie: InsertJaarplanActie): Promise<JaarplanActie>;
+  updateJaarplanActie(id: string, data: Partial<InsertJaarplanActie>): Promise<JaarplanActie>;
   deleteJaarplanActie(id: string): Promise<void>;
 
   getAllHelpContent(): Promise<HelpContent[]>;
@@ -1132,7 +1139,29 @@ export class DatabaseStorage implements IStorage {
 
   async deleteJaarplanItem(id: string): Promise<void> {
     await db.delete(jaarplanActies).where(eq(jaarplanActies.jaarplanId, id));
+    await db.delete(jaarplanOnderdelen).where(eq(jaarplanOnderdelen.jaarplanId, id));
     await db.delete(jaarplanItems).where(eq(jaarplanItems.id, id));
+  }
+
+  async getJaarplanOnderdelen(jaarplanId: string): Promise<JaarplanOnderdeel[]> {
+    return await db.select().from(jaarplanOnderdelen)
+      .where(eq(jaarplanOnderdelen.jaarplanId, jaarplanId))
+      .orderBy(jaarplanOnderdelen.createdAt);
+  }
+
+  async createJaarplanOnderdeel(onderdeel: InsertJaarplanOnderdeel): Promise<JaarplanOnderdeel> {
+    const [created] = await db.insert(jaarplanOnderdelen).values(onderdeel).returning();
+    return created;
+  }
+
+  async updateJaarplanOnderdeel(id: string, naam: string): Promise<JaarplanOnderdeel> {
+    const [updated] = await db.update(jaarplanOnderdelen).set({ naam }).where(eq(jaarplanOnderdelen.id, id)).returning();
+    return updated;
+  }
+
+  async deleteJaarplanOnderdeel(id: string): Promise<void> {
+    await db.delete(jaarplanActies).where(eq(jaarplanActies.onderdeelId, id));
+    await db.delete(jaarplanOnderdelen).where(eq(jaarplanOnderdelen.id, id));
   }
 
   async getJaarplanActies(jaarplanId: string): Promise<JaarplanActie[]> {
@@ -1141,9 +1170,20 @@ export class DatabaseStorage implements IStorage {
       .orderBy(jaarplanActies.datum);
   }
 
+  async getJaarplanActiesByOnderdeel(onderdeelId: string): Promise<JaarplanActie[]> {
+    return await db.select().from(jaarplanActies)
+      .where(eq(jaarplanActies.onderdeelId, onderdeelId))
+      .orderBy(jaarplanActies.datum);
+  }
+
   async createJaarplanActie(actie: InsertJaarplanActie): Promise<JaarplanActie> {
     const [created] = await db.insert(jaarplanActies).values(actie).returning();
     return created;
+  }
+
+  async updateJaarplanActie(id: string, data: Partial<InsertJaarplanActie>): Promise<JaarplanActie> {
+    const [updated] = await db.update(jaarplanActies).set(data).where(eq(jaarplanActies.id, id)).returning();
+    return updated;
   }
 
   async deleteJaarplanActie(id: string): Promise<void> {

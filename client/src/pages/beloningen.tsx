@@ -20,12 +20,12 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Award, Star, TrendingUp, ClipboardCheck, UserCheck, Gift, Printer, Save, ChevronLeft, ChevronRight, ChevronDown, Eye, FileText, Trash2, Settings, PlusCircle, X, Pencil, Building2 } from "lucide-react";
+import { Plus, Award, Star, TrendingUp, ClipboardCheck, UserCheck, Gift, Printer, Save, ChevronLeft, ChevronRight, ChevronDown, Eye, FileText, Trash2, Settings, PlusCircle, X, Pencil, Building2, Layers, FolderOpen } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
-import type { Reward, User, FunctioneringReview, Competency, BeoordelingReview, BeoordelingScore, JaarplanItem, JaarplanActie, YearlyAward } from "@shared/schema";
+import type { Reward, User, FunctioneringReview, Competency, BeoordelingReview, BeoordelingScore, JaarplanItem, JaarplanActie, JaarplanOnderdeel, YearlyAward } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@shared/schema";
 import { formatDate } from "@/lib/dateUtils";
@@ -1975,6 +1975,174 @@ const statusOptions = [
   { value: "geannuleerd", label: "Geannuleerd", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
 ];
 
+function ActieRow({ actie, canEdit, onDelete, onStatusChange }: {
+  actie: JaarplanActie;
+  canEdit: boolean;
+  onDelete: () => void;
+  onStatusChange: (status: string) => void;
+}) {
+  const statusOpt = statusOptions.find(s => s.value === (actie.status ?? "niet gestart")) || statusOptions[0];
+  return (
+    <div className="flex items-start gap-2 text-xs py-1.5" data-testid={`jaarplan-actie-${actie.id}`}>
+      <span className="text-muted-foreground whitespace-nowrap font-medium min-w-[80px]">{formatDate(actie.datum)}</span>
+      <p className="flex-1 whitespace-pre-wrap">{actie.actie}</p>
+      {canEdit ? (
+        <Select value={actie.status ?? "niet gestart"} onValueChange={onStatusChange}>
+          <SelectTrigger className={`h-5 w-auto text-[10px] px-1.5 py-0 border-0 ${statusOpt.color}`} data-testid={`select-actie-status-${actie.id}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Badge variant="outline" className={`text-[9px] ${statusOpt.color}`}>{statusOpt.label}</Badge>
+      )}
+      {canEdit && (
+        <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={onDelete} data-testid={`button-delete-actie-${actie.id}`}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function ActieForm({ onSave, onCancel, isPending, testPrefix }: {
+  onSave: (datum: string, tekst: string) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  testPrefix: string;
+}) {
+  const [datum, setDatum] = useState(new Date().toISOString().slice(0, 10));
+  const [tekst, setTekst] = useState("");
+  return (
+    <div className="bg-muted/40 rounded-md p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="h-7 text-xs w-36" data-testid={`input-actie-datum-${testPrefix}`} />
+        <span className="text-xs text-muted-foreground">datum van de actie</span>
+      </div>
+      <Textarea value={tekst} onChange={e => setTekst(e.target.value)} placeholder="Beschrijf de ondernomen actie..." rows={2} className="text-xs" data-testid={`input-actie-tekst-${testPrefix}`} />
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel}>Annuleren</Button>
+        <Button size="sm" className="h-7 text-xs" onClick={() => { if (tekst.trim()) { onSave(datum, tekst); setTekst(""); setDatum(new Date().toISOString().slice(0, 10)); } }} disabled={!tekst.trim() || isPending} data-testid={`button-save-actie-${testPrefix}`}>
+          <Save className="h-3 w-3 mr-1" />Opslaan
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OnderdeelSection({ onderdeel, jaarplanId, canEdit, onDelete }: {
+  onderdeel: JaarplanOnderdeel;
+  jaarplanId: string;
+  canEdit: boolean;
+  onDelete: () => void;
+}) {
+  const { toast } = useToast();
+  const [expanded, setExpanded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editNaam, setEditNaam] = useState(onderdeel.naam);
+
+  const { data: acties = [] } = useQuery<JaarplanActie[]>({
+    queryKey: ["/api/jaarplan/onderdelen", onderdeel.id, "acties"],
+    queryFn: async () => {
+      const res = await fetch(`/api/jaarplan/onderdelen/${onderdeel.id}/acties`, { credentials: "include" });
+      if (!res.ok) throw new Error("Ophalen mislukt");
+      return res.json();
+    },
+    enabled: expanded,
+  });
+
+  const addActieMutation = useMutation({
+    mutationFn: ({ datum, tekst }: { datum: string; tekst: string }) =>
+      apiRequest("POST", `/api/jaarplan/onderdelen/${onderdeel.id}/acties`, { datum, actie: tekst, jaarplanId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/jaarplan/onderdelen", onderdeel.id, "acties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", jaarplanId, "acties"] });
+      setShowForm(false);
+      toast({ title: "Actie toegevoegd" });
+    },
+    onError: () => toast({ title: "Toevoegen mislukt", variant: "destructive" }),
+  });
+
+  const deleteActieMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/jaarplan/acties/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jaarplan/onderdelen", onderdeel.id, "acties"] }),
+  });
+
+  const updateActieStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => apiRequest("PATCH", `/api/jaarplan/acties/${id}`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jaarplan/onderdelen", onderdeel.id, "acties"] }),
+    onError: () => toast({ title: "Bijwerken mislukt", variant: "destructive" }),
+  });
+
+  const renameOnderdeelMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/jaarplan/onderdelen/${onderdeel.id}`, { naam: editNaam }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", jaarplanId, "onderdelen"] });
+      setEditing(false);
+      toast({ title: "Planonderdeel bijgewerkt" });
+    },
+    onError: () => toast({ title: "Bijwerken mislukt", variant: "destructive" }),
+  });
+
+  return (
+    <div className="border rounded-md" data-testid={`onderdeel-${onderdeel.id}`}>
+      <div className="flex items-center gap-1 px-2 py-1.5 bg-muted/30 rounded-t-md">
+        <button className="flex items-center gap-1 flex-1 min-w-0 text-xs font-semibold hover:text-foreground transition-colors text-left" onClick={() => setExpanded(v => !v)} data-testid={`button-toggle-onderdeel-${onderdeel.id}`}>
+          {expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+          <FolderOpen className="h-3 w-3 shrink-0 text-primary" />
+          {editing ? (
+            <span onClick={e => e.stopPropagation()} className="flex items-center gap-1 flex-1">
+              <Input value={editNaam} onChange={e => setEditNaam(e.target.value)} className="h-6 text-xs py-0 px-1" data-testid={`input-onderdeel-naam-${onderdeel.id}`} />
+              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={e => { e.stopPropagation(); renameOnderdeelMutation.mutate(); }} disabled={!editNaam.trim() || renameOnderdeelMutation.isPending}><Save className="h-3 w-3" /></Button>
+              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={e => { e.stopPropagation(); setEditing(false); setEditNaam(onderdeel.naam); }}><X className="h-3 w-3" /></Button>
+            </span>
+          ) : (
+            <span className="truncate">{onderdeel.naam}</span>
+          )}
+        </button>
+        {canEdit && !editing && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={e => { e.stopPropagation(); setEditing(true); }} data-testid={`button-rename-onderdeel-${onderdeel.id}`}><Pencil className="h-2.5 w-2.5" /></Button>
+            <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={e => { e.stopPropagation(); onDelete(); }} data-testid={`button-delete-onderdeel-${onderdeel.id}`}><Trash2 className="h-2.5 w-2.5" /></Button>
+          </div>
+        )}
+      </div>
+      {expanded && (
+        <div className="p-2 space-y-1">
+          {acties.length > 0 ? (
+            <div className="divide-y divide-border/40">
+              {acties.map(actie => (
+                <ActieRow key={actie.id} actie={actie} canEdit={canEdit}
+                  onDelete={() => deleteActieMutation.mutate(actie.id)}
+                  onStatusChange={status => updateActieStatusMutation.mutate({ id: actie.id, status })}
+                />
+              ))}
+            </div>
+          ) : !showForm && (
+            <p className="text-xs text-muted-foreground italic">Nog geen acties</p>
+          )}
+          {canEdit && showForm && (
+            <ActieForm
+              testPrefix={onderdeel.id}
+              isPending={addActieMutation.isPending}
+              onSave={(datum, tekst) => addActieMutation.mutate({ datum, tekst })}
+              onCancel={() => setShowForm(false)}
+            />
+          )}
+          {canEdit && !showForm && (
+            <Button variant="ghost" size="sm" className="h-6 text-xs px-2 mt-1" onClick={() => setShowForm(true)} data-testid={`button-add-actie-onderdeel-${onderdeel.id}`}>
+              <Plus className="h-3 w-3 mr-1" />Actie toevoegen
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
   item: JaarplanItem;
   canEdit: boolean;
@@ -1984,8 +2152,8 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
   const { toast } = useToast();
   const [showActies, setShowActies] = useState(false);
   const [showActieForm, setShowActieForm] = useState(false);
-  const [newActieDatum, setNewActieDatum] = useState(new Date().toISOString().slice(0, 10));
-  const [newActieTekst, setNewActieTekst] = useState("");
+  const [showOnderdeelForm, setShowOnderdeelForm] = useState(false);
+  const [newOnderdeelNaam, setNewOnderdeelNaam] = useState("");
 
   const { data: acties = [] } = useQuery<JaarplanActie[]>({
     queryKey: ["/api/jaarplan", item.id, "acties"],
@@ -1994,14 +2162,24 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
       if (!res.ok) throw new Error("Ophalen mislukt");
       return res.json();
     },
+    enabled: showActies,
+  });
+
+  const { data: onderdelen = [] } = useQuery<JaarplanOnderdeel[]>({
+    queryKey: ["/api/jaarplan", item.id, "onderdelen"],
+    queryFn: async () => {
+      const res = await fetch(`/api/jaarplan/${item.id}/onderdelen`, { credentials: "include" });
+      if (!res.ok) throw new Error("Ophalen mislukt");
+      return res.json();
+    },
+    enabled: showActies,
   });
 
   const addActieMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/jaarplan/${item.id}/acties`, { datum: newActieDatum, actie: newActieTekst }),
+    mutationFn: ({ datum, tekst }: { datum: string; tekst: string }) =>
+      apiRequest("POST", `/api/jaarplan/${item.id}/acties`, { datum, actie: tekst }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "acties"] });
-      setNewActieTekst("");
-      setNewActieDatum(new Date().toISOString().slice(0, 10));
       setShowActieForm(false);
       toast({ title: "Actie toegevoegd" });
     },
@@ -2013,7 +2191,32 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "acties"] }),
   });
 
+  const updateActieStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => apiRequest("PATCH", `/api/jaarplan/acties/${id}`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "acties"] }),
+    onError: () => toast({ title: "Bijwerken mislukt", variant: "destructive" }),
+  });
+
+  const addOnderdeelMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/jaarplan/${item.id}/onderdelen`, { naam: newOnderdeelNaam }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "onderdelen"] });
+      setNewOnderdeelNaam("");
+      setShowOnderdeelForm(false);
+      toast({ title: "Planonderdeel toegevoegd" });
+    },
+    onError: () => toast({ title: "Toevoegen mislukt", variant: "destructive" }),
+  });
+
+  const deleteOnderdeelMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/jaarplan/onderdelen/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jaarplan", item.id, "onderdelen"] }),
+    onError: () => toast({ title: "Verwijderen mislukt", variant: "destructive" }),
+  });
+
   const statusOpt = statusOptions.find(s => s.value === item.status) || statusOptions[0];
+  const looseActies = acties.filter(a => !a.onderdeelId);
+  const totalCount = acties.length + onderdelen.length;
 
   return (
     <div className="border rounded-lg p-3" data-testid={`jaarplan-plan-${item.id}`}>
@@ -2046,85 +2249,74 @@ function JaarplanItemCard({ item, canEdit, onEdit, onDelete }: {
         <div className="flex items-center justify-between">
           <button
             className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => { setShowActies(v => !v); if (showActies) setShowActieForm(false); }}
+            onClick={() => { setShowActies(v => !v); if (showActies) { setShowActieForm(false); setShowOnderdeelForm(false); } }}
             data-testid={`button-toggle-acties-${item.id}`}
           >
             {showActies ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Acties ({acties.length})
+            Activiteiten ({totalCount})
           </button>
           {canEdit && showActies && (
-            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setShowActieForm(v => !v)} data-testid={`button-add-actie-${item.id}`}>
-              <Plus className="h-3 w-3 mr-1" />
-              Actie toevoegen
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => { setShowOnderdeelForm(v => !v); setShowActieForm(false); }} data-testid={`button-add-onderdeel-${item.id}`}>
+                <Layers className="h-3 w-3 mr-1" />
+                Planonderdeel
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => { setShowActieForm(v => !v); setShowOnderdeelForm(false); }} data-testid={`button-add-actie-${item.id}`}>
+                <Plus className="h-3 w-3 mr-1" />
+                Actie
+              </Button>
+            </div>
           )}
         </div>
 
-        {showActies && showActieForm && canEdit && (
-          <div className="bg-muted/40 rounded-md p-2 space-y-2">
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={newActieDatum}
-                onChange={e => setNewActieDatum(e.target.value)}
-                className="h-7 text-xs w-36"
-                data-testid={`input-actie-datum-${item.id}`}
-              />
-              <span className="text-xs text-muted-foreground">datum van de actie</span>
-            </div>
-            <Textarea
-              value={newActieTekst}
-              onChange={e => setNewActieTekst(e.target.value)}
-              placeholder="Beschrijf de ondernomen actie..."
-              rows={2}
-              className="text-xs"
-              data-testid={`input-actie-tekst-${item.id}`}
-            />
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowActieForm(false); setNewActieTekst(""); }}>
-                Annuleren
-              </Button>
-              <Button
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => addActieMutation.mutate()}
-                disabled={!newActieTekst.trim() || addActieMutation.isPending}
-                data-testid={`button-save-actie-${item.id}`}
-              >
-                <Save className="h-3 w-3 mr-1" />
-                Opslaan
-              </Button>
-            </div>
+        {showActies && showOnderdeelForm && canEdit && (
+          <div className="bg-muted/40 rounded-md p-2 flex items-center gap-2">
+            <Input value={newOnderdeelNaam} onChange={e => setNewOnderdeelNaam(e.target.value)} placeholder="Naam planonderdeel..." className="h-7 text-xs flex-1" data-testid={`input-onderdeel-naam-new-${item.id}`} />
+            <Button size="sm" className="h-7 text-xs" onClick={() => addOnderdeelMutation.mutate()} disabled={!newOnderdeelNaam.trim() || addOnderdeelMutation.isPending} data-testid={`button-save-onderdeel-${item.id}`}>
+              <Save className="h-3 w-3 mr-1" />Opslaan
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setShowOnderdeelForm(false); setNewOnderdeelNaam(""); }}>
+              <X className="h-3 w-3" />
+            </Button>
           </div>
         )}
 
-        {showActies && acties.length > 0 && (
-          <div className="space-y-0">
-            {acties.map((actie, idx) => (
-              <div
-                key={actie.id}
-                className={`flex items-start gap-2 text-xs py-1.5 ${idx < acties.length - 1 ? "border-b border-border/40" : ""}`}
-                data-testid={`jaarplan-actie-${actie.id}`}
-              >
-                <span className="text-muted-foreground whitespace-nowrap font-medium min-w-[80px]">{formatDate(actie.datum)}</span>
-                <p className="flex-1 whitespace-pre-wrap">{actie.actie}</p>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0 shrink-0"
-                    onClick={() => deleteActieMutation.mutate(actie.id)}
-                    data-testid={`button-delete-actie-${actie.id}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+        {showActies && showActieForm && canEdit && (
+          <ActieForm
+            testPrefix={item.id}
+            isPending={addActieMutation.isPending}
+            onSave={(datum, tekst) => addActieMutation.mutate({ datum, tekst })}
+            onCancel={() => setShowActieForm(false)}
+          />
+        )}
+
+        {showActies && onderdelen.length > 0 && (
+          <div className="space-y-1.5">
+            {onderdelen.map(ond => (
+              <OnderdeelSection
+                key={ond.id}
+                onderdeel={ond}
+                jaarplanId={item.id}
+                canEdit={canEdit}
+                onDelete={() => deleteOnderdeelMutation.mutate(ond.id)}
+              />
             ))}
           </div>
         )}
-        {showActies && acties.length === 0 && !showActieForm && (
-          <p className="text-xs text-muted-foreground italic">Nog geen acties geregistreerd</p>
+
+        {showActies && looseActies.length > 0 && (
+          <div className="divide-y divide-border/40">
+            {looseActies.map(actie => (
+              <ActieRow key={actie.id} actie={actie} canEdit={canEdit}
+                onDelete={() => deleteActieMutation.mutate(actie.id)}
+                onStatusChange={status => updateActieStatusMutation.mutate({ id: actie.id, status })}
+              />
+            ))}
+          </div>
+        )}
+
+        {showActies && totalCount === 0 && !showActieForm && !showOnderdeelForm && (
+          <p className="text-xs text-muted-foreground italic">Nog geen activiteiten geregistreerd</p>
         )}
       </div>
     </div>
