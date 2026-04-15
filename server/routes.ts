@@ -3442,13 +3442,23 @@ export async function registerRoutes(
       const allUsers = await storage.getUsers();
       const knownUserids = new Set(allUsers.map((u: any) => u.kadasterId).filter(Boolean));
 
-      const records: { userid: string; checktime: Date; checktype: string }[] = [];
       const eventLogs: { eventType: string; userid?: string; checktime?: Date; bericht: string }[] = [];
       let foutRecords = 0;
       let waarschuwingen = 0;
 
-      // Per-user per-dag teller voor alternerende in/out
-      const userDayCounter: Record<string, number> = {};
+      // Blokdefinities: doeltijd in seconden van de dag + verwacht type
+      // blok1=inklok (07:30), blok2=uitklok (11:52), blok3=inklok (13:45), blok4=uitklok (17:22 ma-do / 17:07 vr)
+      const _H = 3600, _M = 60;
+      const getBlokken = (isFriday: boolean) => [
+        { target: 7*_H + 30*_M,  type: "in"  },  // blok1 center 07:30
+        { target: 11*_H + 52*_M, type: "out" },  // blok2 center 11:52
+        { target: 13*_H + 45*_M, type: "in"  },  // blok3 center 13:45
+        { target: isFriday ? 17*_H + 15*_M : 17*_H + 22*_M, type: "out" }, // blok4
+      ];
+
+      // Stap 1: parseer alle regels, records zonder expliciet type worden later verwerkt
+      type ParsedRec = { userid: string; checktime: Date; checktype: string | null; lineNum: number };
+      const parsedRecs: ParsedRec[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
@@ -3479,22 +3489,17 @@ export async function registerRoutes(
           continue;
         }
 
-        // Checktype parsen
-        let checktype = "in";
+        // Checktype parsen (null = geen expliciet type, later per blok bepalen)
+        let checktype: string | null = null;
         if (rawType) {
           const t = rawType.toLowerCase();
           if (["1", "out", "c/o", "o", "uit", "uitklok"].includes(t)) checktype = "out";
           else if (["0", "in", "c/i", "i", "inklok"].includes(t)) checktype = "in";
           else {
+            checktype = null; // onbekend type → ook blok-gebaseerd
             waarschuwingen++;
-            eventLogs.push({ eventType: "warning", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: onbekend checktype "${rawType}", als "in" geïnterpreteerd` });
+            eventLogs.push({ eventType: "warning", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: onbekend checktype "${rawType}", wordt blok-gebaseerd bepaald` });
           }
-        } else {
-          // Alternerende in/out per user per dag
-          const dayKey = `${rawUserId}::${checktime.toISOString().slice(0, 10)}`;
-          const count = userDayCounter[dayKey] ?? 0;
-          checktype = count % 2 === 0 ? "in" : "out";
-          userDayCounter[dayKey] = count + 1;
         }
 
         // Valideer userid
@@ -3510,8 +3515,68 @@ export async function registerRoutes(
           eventLogs.push({ eventType: "warning", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: tijdstip ${checktime.toTimeString().slice(0, 5)} valt buiten normaal bereik (05:00–22:00)` });
         }
 
-        records.push({ userid: rawUserId, checktime, checktype });
-        eventLogs.push({ eventType: "info", userid: rawUserId, checktime, bericht: `Rij ${i + 1}: ${rawUserId} ${checktype} ${checktime.toISOString()}` });
+        parsedRecs.push({ userid: rawUserId, checktime, checktype, lineNum: i + 1 });
+      }
+
+      // Stap 2: wijs types toe aan records zonder expliciet type via blok-matching
+      // Groepeer per user+dag, sorteer op tijd, dan match naar dichtstbijzijnde vrije blok
+      const dayGroups: Record<string, ParsedRec[]> = {};
+      for (const r of parsedRecs) {
+        const key = `${r.userid}::${r.checktime.toISOString().slice(0, 10)}`;
+        if (!dayGroups[key]) dayGroups[key] = [];
+        dayGroups[key].push(r);
+      }
+
+      for (const group of Object.values(dayGroups)) {
+        group.sort((a, b) => a.checktime.getTime() - b.checktime.getTime());
+        const isFriday = group[0].checktime.getDay() === 5;
+        const blokken = getBlokken(isFriday);
+        const assigned = new Set<number>(); // welke blok-indices al bezet zijn
+
+        // Verwerk records op tijd-volgorde; expliciet-getypte records claimen ook een blok
+        for (const r of group) {
+          const sec = r.checktime.getHours() * _H + r.checktime.getMinutes() * _M + r.checktime.getSeconds();
+
+          if (r.checktype !== null) {
+            // Expliciet type: markeer de dichtstbijzijnde passende blok als bezet
+            let nearest = -1, minDist = Infinity;
+            for (let b = 0; b < blokken.length; b++) {
+              if (!assigned.has(b) && blokken[b].type === r.checktype) {
+                const dist = Math.abs(sec - blokken[b].target);
+                if (dist < minDist) { minDist = dist; nearest = b; }
+              }
+            }
+            if (nearest >= 0) assigned.add(nearest);
+          } else {
+            // Geen expliciet type: dichtstbijzijnde vrije blok bepaalt het type
+            let nearest = -1, minDist = Infinity;
+            for (let b = 0; b < blokken.length; b++) {
+              if (!assigned.has(b)) {
+                const dist = Math.abs(sec - blokken[b].target);
+                if (dist < minDist) { minDist = dist; nearest = b; }
+              }
+            }
+            if (nearest >= 0) {
+              r.checktype = blokken[nearest].type;
+              assigned.add(nearest);
+            } else {
+              // Alle blokken bezet: gebruik alternerend op basis van aantal al toegewezen
+              r.checktype = assigned.size % 2 === 0 ? "in" : "out";
+            }
+          }
+        }
+      }
+
+      // Stap 3: zet parsedRecs om naar definitieve records (zelfde volgorde als CSV)
+      const records: { userid: string; checktime: Date; checktype: string }[] = parsedRecs.map(r => ({
+        userid: r.userid,
+        checktime: r.checktime,
+        checktype: r.checktype ?? "in",
+      }));
+
+      // Logregels aanmaken
+      for (const r of parsedRecs) {
+        eventLogs.push({ eventType: "info", userid: r.userid, checktime: r.checktime, bericht: `Rij ${r.lineNum}: ${r.userid} ${r.checktype} ${r.checktime.toISOString()}` });
       }
 
       // ── Duplicaten detecteren ───────────────────────────────────────────────
