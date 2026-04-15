@@ -22,7 +22,7 @@ import {
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
   TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2, FileDown,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Plus, LogIn,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -847,6 +847,11 @@ export default function WerktijdenPage() {
   });
   const [overzichtTo, setOverzichtTo] = useState(format(new Date(), "yyyy-MM-dd"));
   const [expandedDept, setExpandedDept] = useState<string | null>(null);
+  const [showHandmatigDialog, setShowHandmatigDialog] = useState(false);
+  const [handmatigUserId, setHandmatigUserId] = useState("");
+  const [handmatigDatum, setHandmatigDatum] = useState("");
+  const [handmatigTijdstip, setHandmatigTijdstip] = useState("08:00");
+  const [handmatigType, setHandmatigType] = useState<"in" | "out">("in");
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
@@ -925,6 +930,32 @@ export default function WerktijdenPage() {
       setShowWaarschuwingDialog(false);
     },
     onError: (err: any) => toast({ title: "Fout bij verzenden", description: err.message, variant: "destructive" }),
+  });
+
+  const handmatigMutation = useMutation({
+    mutationFn: async (data: { userid: string; datum: string; tijdstip: string; checktype: string }) => {
+      const res = await fetch("/api/werktijden", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message || "Opslaan mislukt");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/werktijden"] });
+      toast({ title: "Registratie toegevoegd", description: `${handmatigType === "in" ? "Inklok" : "Uitklok"} voor ${getUserName(handmatigUserId)} opgeslagen` });
+      setShowHandmatigDialog(false);
+      setHandmatigUserId("");
+      setHandmatigDatum("");
+      setHandmatigTijdstip("08:00");
+      setHandmatigType("in");
+    },
+    onError: (err: any) => toast({ title: "Fout bij opslaan", description: err.message, variant: "destructive" }),
   });
 
   function composeWaarschuwing(): string {
@@ -1500,6 +1531,17 @@ export default function WerktijdenPage() {
                   data-testid="input-filter-datum"
                 />
               </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setHandmatigDatum(format(new Date(), "yyyy-MM-dd"));
+                  setShowHandmatigDialog(true);
+                }}
+                data-testid="button-handmatig-registratie"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Registratie toevoegen
+              </Button>
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredRecords.length} records
               </span>
@@ -2152,6 +2194,98 @@ export default function WerktijdenPage() {
 
         </Tabs>
       </div>
+
+      {/* ── Handmatige registratie dialog ───────────────────────────────────── */}
+      <Dialog open={showHandmatigDialog} onOpenChange={setShowHandmatigDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Registratie handmatig toevoegen
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Medewerker</label>
+              <Select value={handmatigUserId} onValueChange={setHandmatigUserId}>
+                <SelectTrigger data-testid="select-handmatig-user">
+                  <SelectValue placeholder="Kies medewerker…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeUsers.map((u: any) => (
+                    <SelectItem key={u.kadasterId} value={u.kadasterId}>
+                      {u.fullName || u.username} (ID: {u.kadasterId})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Datum</label>
+                <Input
+                  type="date"
+                  value={handmatigDatum}
+                  onChange={e => setHandmatigDatum(e.target.value)}
+                  data-testid="input-handmatig-datum"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Tijdstip</label>
+                <Input
+                  type="time"
+                  value={handmatigTijdstip}
+                  onChange={e => setHandmatigTijdstip(e.target.value)}
+                  data-testid="input-handmatig-tijdstip"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Type</label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setHandmatigType("in")}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-md border py-2.5 text-sm font-medium transition-colors ${handmatigType === "in" ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted"}`}
+                  data-testid="button-type-in"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Inklok (IN)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHandmatigType("out")}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-md border py-2.5 text-sm font-medium transition-colors ${handmatigType === "out" ? "border-destructive bg-destructive text-destructive-foreground" : "border-input hover:bg-muted"}`}
+                  data-testid="button-type-out"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Uitklok (OUT)
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+              Let op: handmatige registraties worden direct opgeslagen en zijn zichtbaar in de Registraties- en Sessies-tab.
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowHandmatigDialog(false)}
+              data-testid="button-handmatig-annuleer"
+            >
+              Annuleer
+            </Button>
+            <Button
+              disabled={!handmatigUserId || !handmatigDatum || !handmatigTijdstip || handmatigMutation.isPending}
+              onClick={() => handmatigMutation.mutate({ userid: handmatigUserId, datum: handmatigDatum, tijdstip: handmatigTijdstip, checktype: handmatigType })}
+              data-testid="button-handmatig-opslaan"
+            >
+              <Clock className="h-4 w-4 mr-1.5" />
+              {handmatigMutation.isPending ? "Opslaan…" : "Registratie opslaan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Waarschuwing dialog ─────────────────────────────────────────────── */}
       <Dialog open={showWaarschuwingDialog} onOpenChange={setShowWaarschuwingDialog}>

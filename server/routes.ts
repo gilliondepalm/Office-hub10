@@ -3028,6 +3028,30 @@ export async function registerRoutes(
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // POST /api/werktijden — Handmatige registratie toevoegen
+  app.post("/api/werktijden", requireAuth, async (req, res) => {
+    try {
+      const currentUser = (req as any).user;
+      if (!currentUser || (!isAdminRole(currentUser.role) && currentUser.role !== "manager" && currentUser.role !== "manager_az")) {
+        return res.status(403).json({ message: "Geen toegang" });
+      }
+      const { userid, datum, tijdstip, checktype } = req.body;
+      if (!userid || !datum || !tijdstip || !checktype) {
+        return res.status(400).json({ message: "Vereiste velden ontbreken: userid, datum, tijdstip, checktype" });
+      }
+      if (checktype !== "in" && checktype !== "out") {
+        return res.status(400).json({ message: "checktype moet 'in' of 'out' zijn" });
+      }
+      const checktimeStr = `${datum}T${tijdstip}:00`;
+      const checktime = new Date(checktimeStr);
+      if (isNaN(checktime.getTime())) {
+        return res.status(400).json({ message: "Ongeldige datum/tijdcombinatie" });
+      }
+      const record = await storage.createWerktijden({ userid, checktime, checktype });
+      res.status(201).json(record);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // ── Prikklok Import ────────────────────────────────────────────────────────
   // POST /api/werktijden/import — Verwerkt CSV-upload van prikklokdata
   app.post("/api/werktijden/import", requireAuth, uploadCsv.single("bestand"), async (req, res) => {
