@@ -1730,17 +1730,19 @@ export default function WerktijdenPage() {
                   data-testid="input-filter-datum"
                 />
               </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setHandmatigDatum(format(new Date(), "yyyy-MM-dd"));
-                  setShowHandmatigDialog(true);
-                }}
-                data-testid="button-handmatig-registratie"
-              >
-                <Plus className="h-4 w-4 mr-1.5" />
-                Registratie toevoegen
-              </Button>
+              {isManager && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setHandmatigDatum(format(new Date(), "yyyy-MM-dd"));
+                    setShowHandmatigDialog(true);
+                  }}
+                  data-testid="button-handmatig-registratie"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Registratie toevoegen
+                </Button>
+              )}
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredRecords.length} records
               </span>
