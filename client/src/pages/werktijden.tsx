@@ -15,11 +15,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Upload, Database, FileText, AlertTriangle, CheckCircle2,
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
-  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut,
+  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -800,6 +802,8 @@ export default function WerktijdenPage() {
   const [analyseFrom, setAnalyseFrom]             = useState("");
   const [analyseTo, setAnalyseTo]                 = useState("");
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
+  const [showWaarschuwingDialog, setShowWaarschuwingDialog] = useState(false);
+  const [waarschuwingTekst, setWaarschuwingTekst] = useState("");
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
@@ -851,6 +855,75 @@ export default function WerktijdenPage() {
     const u = activeUsers.find((u: any) => u.kadasterId === kadasterId);
     return u ? ((u as any).fullName || u.username) : kadasterId;
   };
+
+  const sendWaarschuwingMutation = useMutation({
+    mutationFn: async ({ toUserId, subject, content }: { toUserId: string; subject: string; content: string }) => {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ toUserId, subject, content }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.message || "Verzenden mislukt");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Waarschuwing verstuurd", description: `Bericht verstuurd aan ${getUserName(analyseUserId)}` });
+      setShowWaarschuwingDialog(false);
+    },
+    onError: (err: any) => toast({ title: "Fout bij verzenden", description: err.message, variant: "destructive" }),
+  });
+
+  function composeWaarschuwing(): string {
+    if (!analyseData || !analyseUserId) return "";
+    const naam = getUserName(analyseUserId);
+    const verzuimDagen = analyseData.filter(d =>
+      !d.isAbsent && d.completePairs.length > 0 &&
+      (!d.blok1Ok || !d.blok2Ok || !d.blok3Ok || !d.blok4Ok)
+    );
+    const allTeLaat    = analyseData.flatMap(d => d.teLaat.map(t => ({ ...t, dag: d })));
+    const allTeVroegUit = analyseData.flatMap(d => d.teVroegUit.map(t => ({ ...t, dag: d })));
+    const allIncomplete = analyseData.reduce((s, d) => s + d.incompletePairs.length, 0);
+    const variabelSaldoSec = analyseData.reduce((s, d) => s + (d.isAbsent ? 0 : d.verschilSec), 0);
+
+    const periodeStr = analyseFrom && analyseTo
+      ? `${analyseFrom.split("-").reverse().join("-")} t/m ${analyseTo.split("-").reverse().join("-")}`
+      : analyseFrom ? `vanaf ${analyseFrom.split("-").reverse().join("-")}`
+      : analyseTo   ? `t/m ${analyseTo.split("-").reverse().join("-")}`
+      : "de geanalyseerde periode";
+
+    const punten: string[] = [];
+    if (allIncomplete > 0) {
+      punten.push(`• Ontbrekende kloktijden: ${allIncomplete} onvolledige registratie(s). Gelieve uw in- of uitklokregistraties te controleren.`);
+    }
+    if (verzuimDagen.length > 0) {
+      const dagstr = verzuimDagen.map(d => `${d.weekdagKort} ${d.dagStr}`).join(", ");
+      punten.push(`• Verzuim te klokken (bloktijden niet nageleefd): ${verzuimDagen.length} dag(en) — ${dagstr}.`);
+    }
+    if (allTeLaat.length > 0) {
+      const items = allTeLaat.map(t => `${t.dag.weekdagKort} ${t.dag.dagStr} (${t.tijd})`).join(", ");
+      punten.push(`• Te laat ingeklokt: ${allTeLaat.length} keer — ${items}.`);
+    }
+    if (allTeVroegUit.length > 0) {
+      const items = allTeVroegUit.map(t => `${t.dag.weekdagKort} ${t.dag.dagStr} (${t.tijd})`).join(", ");
+      punten.push(`• Te vroeg uitgeklokt: ${allTeVroegUit.length} keer — ${items}.`);
+    }
+    if (variabelSaldoSec < 0) {
+      const mins = Math.abs(Math.round(variabelSaldoSec / 60));
+      const u = Math.floor(mins / 60);
+      const m = mins % 60;
+      const saldoStr = u > 0 ? `${u}u ${m.toString().padStart(2, "0")}min` : `${m} min`;
+      punten.push(`• Negatief uurssaldo: ${saldoStr} te weinig gewerkt in de periode.`);
+    }
+
+    if (punten.length === 0) {
+      return `Beste ${naam},\n\nWij hebben uw prikklokregistraties over ${periodeStr} doorgenomen. Er zijn geen bijzonderheden geconstateerd.\n\nMet vriendelijke groet,\nHRM`;
+    }
+    return `Beste ${naam},\n\nNaar aanleiding van uw prikklokregistraties over ${periodeStr} willen wij u informeren over de volgende aandachtspunten:\n\n${punten.join("\n\n")}\n\nWij verzoeken u dit te bespreken met uw leidinggevende.\n\nMet vriendelijke groet,\nHRM`;
+  }
 
   // ── Upload ──────────────────────────────────────────────────────────────────
   async function handleFileUpload(file: File) {
@@ -1020,15 +1093,27 @@ export default function WerktijdenPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors ${analyseUserId && analyseData && analyseData.length > 0 ? "hover:bg-amber-50 dark:hover:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "opacity-60 cursor-not-allowed"}`}
+            onClick={() => {
+              if (!analyseUserId || !analyseData || analyseData.length === 0) return;
+              setWaarschuwingTekst(composeWaarschuwing());
+              setShowWaarschuwingDialog(true);
+            }}
+            data-testid="card-verstuur-waarschuwing"
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  <Send className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Waarschuwingen</p>
-                  <p className="text-2xl font-bold" data-testid="stat-warnings">{totalWarnings}</p>
+                  <p className="text-xs text-muted-foreground">Verstuur waarschuwing</p>
+                  <p className="text-xs font-semibold mt-0.5 text-amber-700 dark:text-amber-400">
+                    {analyseUserId && analyseData && analyseData.length > 0
+                      ? `aan ${getUserName(analyseUserId)}`
+                      : "Selecteer medewerker"}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -1616,6 +1701,59 @@ export default function WerktijdenPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Waarschuwing dialog ─────────────────────────────────────────────── */}
+      <Dialog open={showWaarschuwingDialog} onOpenChange={setShowWaarschuwingDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Send className="h-5 w-5" />
+              Waarschuwing versturen
+              {analyseUserId && <span className="font-normal text-sm text-muted-foreground ml-1">— {getUserName(analyseUserId)}</span>}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Controleer en pas het bericht aan indien gewenst, dan klik op Verstuur.
+            </p>
+            <Textarea
+              className="min-h-[280px] font-mono text-sm"
+              value={waarschuwingTekst}
+              onChange={(e) => setWaarschuwingTekst(e.target.value)}
+              data-testid="textarea-waarschuwing"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowWaarschuwingDialog(false)}
+              data-testid="button-waarschuwing-annuleer"
+            >
+              Annuleer
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={sendWaarschuwingMutation.isPending || !waarschuwingTekst.trim()}
+              onClick={() => {
+                const userObj = activeUsers.find((u: any) => u.kadasterId === analyseUserId);
+                if (!userObj) return;
+                const periodeStr = analyseFrom && analyseTo
+                  ? `${analyseFrom.split("-").reverse().join("-")} t/m ${analyseTo.split("-").reverse().join("-")}`
+                  : "werktijden";
+                sendWaarschuwingMutation.mutate({
+                  toUserId: (userObj as any).id,
+                  subject: `Waarschuwing werktijden — ${periodeStr}`,
+                  content: waarschuwingTekst,
+                });
+              }}
+              data-testid="button-waarschuwing-verstuur"
+            >
+              <Send className="h-4 w-4 mr-1.5" />
+              {sendWaarschuwingMutation.isPending ? "Versturen…" : "Verstuur"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
