@@ -1746,53 +1746,57 @@ export default function WerktijdenPage() {
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredRecords.length} records
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={filteredRecords.length === 0}
-                onClick={() => {
-                  const today = format(new Date(), "yyyy-MM-dd");
-                  downloadCsv(`registraties_${today}.csv`,
-                    ["Log ID", "Userid", "Naam", "Datum", "Tijdstip", "Type"],
-                    filteredRecords.map(r => [
-                      r.logid,
-                      r.userid,
-                      getUserName(r.userid),
-                      dateKey(r.checktime).split("-").reverse().join("-"),
-                      formatTs(r.checktime).slice(11),
-                      r.checktype === "in" ? "Inklok" : "Uitklok",
-                    ])
-                  );
-                }}
-                data-testid="button-export-registraties"
-              >
-                <FileDown className="h-4 w-4 mr-1.5" />
-                Exporteer CSV
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={filteredRecords.length === 0}
-                onClick={() => {
-                  printTable(
-                    "Prikklokregistraties",
-                    ["Log ID", "Userid", "Naam", "Datum", "Tijdstip", "Type"],
-                    filteredRecords.map(r => [
-                      r.logid,
-                      r.userid,
-                      getUserName(r.userid),
-                      dateKey(r.checktime).split("-").reverse().join("-"),
-                      formatTs(r.checktime).slice(11),
-                      r.checktype === "in" ? "Inklok" : "Uitklok",
-                    ]),
-                    `${filteredRecords.length} records · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
-                  );
-                }}
-                data-testid="button-print-registraties"
-              >
-                <Printer className="h-4 w-4 mr-1.5" />
-                Afdrukken
-              </Button>
+              {isManager && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={filteredRecords.length === 0}
+                    onClick={() => {
+                      const today = format(new Date(), "yyyy-MM-dd");
+                      downloadCsv(`registraties_${today}.csv`,
+                        ["Log ID", "Userid", "Naam", "Datum", "Tijdstip", "Type"],
+                        filteredRecords.map(r => [
+                          r.logid,
+                          r.userid,
+                          getUserName(r.userid),
+                          dateKey(r.checktime).split("-").reverse().join("-"),
+                          formatTs(r.checktime).slice(11),
+                          r.checktype === "in" ? "Inklok" : "Uitklok",
+                        ])
+                      );
+                    }}
+                    data-testid="button-export-registraties"
+                  >
+                    <FileDown className="h-4 w-4 mr-1.5" />
+                    Exporteer CSV
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={filteredRecords.length === 0}
+                    onClick={() => {
+                      printTable(
+                        "Prikklokregistraties",
+                        ["Log ID", "Userid", "Naam", "Datum", "Tijdstip", "Type"],
+                        filteredRecords.map(r => [
+                          r.logid,
+                          r.userid,
+                          getUserName(r.userid),
+                          dateKey(r.checktime).split("-").reverse().join("-"),
+                          formatTs(r.checktime).slice(11),
+                          r.checktype === "in" ? "Inklok" : "Uitklok",
+                        ]),
+                        `${filteredRecords.length} records · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
+                      );
+                    }}
+                    data-testid="button-print-registraties"
+                  >
+                    <Printer className="h-4 w-4 mr-1.5" />
+                    Afdrukken
+                  </Button>
+                </>
+              )}
             </div>
 
             <Card className="overflow-hidden">
@@ -1916,59 +1920,63 @@ export default function WerktijdenPage() {
               <span className="text-sm text-muted-foreground ml-1">
                 {filteredSessies.length} sessies
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={filteredSessies.length === 0}
-                onClick={() => {
-                  const today = format(new Date(), "yyyy-MM-dd");
-                  downloadCsv(`sessies_${today}.csv`,
-                    ["Medewerker", "Userid", "Datum", "Weekdag", "Eerste inklok", "Laatste uitklok", "Werktijd (min)", "Aantal records", "Status"],
-                    filteredSessies.map(s => [
-                      getUserName(s.userid),
-                      s.userid,
-                      s.datum.split("-").reverse().join("-"),
-                      s.weekdag,
-                      s.eersteIn ? format(s.eersteIn, "HH:mm:ss") : "",
-                      s.lastUit ? format(s.lastUit, "HH:mm:ss") : "",
-                      s.werkminuten,
-                      s.aantalRecords,
-                      s.status,
-                    ])
-                  );
-                }}
-                data-testid="button-export-sessies"
-              >
-                <FileDown className="h-4 w-4 mr-1.5" />
-                Exporteer CSV
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={filteredSessies.length === 0}
-                onClick={() => {
-                  printTable(
-                    "Werksessies",
-                    ["Medewerker", "Userid", "Datum", "Weekdag", "Eerste inklok", "Laatste uitklok", "Werktijd (min)", "Records", "Status"],
-                    filteredSessies.map(s => [
-                      getUserName(s.userid),
-                      s.userid,
-                      s.datum.split("-").reverse().join("-"),
-                      s.weekdag,
-                      s.eersteIn ? format(s.eersteIn, "HH:mm") : "—",
-                      s.lastUit ? format(s.lastUit, "HH:mm") : "—",
-                      s.werkminuten,
-                      s.aantalRecords,
-                      s.status,
-                    ]),
-                    `${filteredSessies.length} sessies · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
-                  );
-                }}
-                data-testid="button-print-sessies"
-              >
-                <Printer className="h-4 w-4 mr-1.5" />
-                Afdrukken
-              </Button>
+              {isManager && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={filteredSessies.length === 0}
+                    onClick={() => {
+                      const today = format(new Date(), "yyyy-MM-dd");
+                      downloadCsv(`sessies_${today}.csv`,
+                        ["Medewerker", "Userid", "Datum", "Weekdag", "Eerste inklok", "Laatste uitklok", "Werktijd (min)", "Aantal records", "Status"],
+                        filteredSessies.map(s => [
+                          getUserName(s.userid),
+                          s.userid,
+                          s.datum.split("-").reverse().join("-"),
+                          s.weekdag,
+                          s.eersteIn ? format(s.eersteIn, "HH:mm:ss") : "",
+                          s.lastUit ? format(s.lastUit, "HH:mm:ss") : "",
+                          s.werkminuten,
+                          s.aantalRecords,
+                          s.status,
+                        ])
+                      );
+                    }}
+                    data-testid="button-export-sessies"
+                  >
+                    <FileDown className="h-4 w-4 mr-1.5" />
+                    Exporteer CSV
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={filteredSessies.length === 0}
+                    onClick={() => {
+                      printTable(
+                        "Werksessies",
+                        ["Medewerker", "Userid", "Datum", "Weekdag", "Eerste inklok", "Laatste uitklok", "Werktijd (min)", "Records", "Status"],
+                        filteredSessies.map(s => [
+                          getUserName(s.userid),
+                          s.userid,
+                          s.datum.split("-").reverse().join("-"),
+                          s.weekdag,
+                          s.eersteIn ? format(s.eersteIn, "HH:mm") : "—",
+                          s.lastUit ? format(s.lastUit, "HH:mm") : "—",
+                          s.werkminuten,
+                          s.aantalRecords,
+                          s.status,
+                        ]),
+                        `${filteredSessies.length} sessies · Export ${format(new Date(), "dd-MM-yyyy HH:mm")}`
+                      );
+                    }}
+                    data-testid="button-print-sessies"
+                  >
+                    <Printer className="h-4 w-4 mr-1.5" />
+                    Afdrukken
+                  </Button>
+                </>
+              )}
             </div>
 
             <Card className="overflow-hidden">
@@ -2177,7 +2185,7 @@ export default function WerktijdenPage() {
                     <RefreshCw className="h-4 w-4 mr-1.5" />
                     Reset
                   </Button>
-                  {analyseUserId && (
+                  {isManager && analyseUserId && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -2216,7 +2224,7 @@ export default function WerktijdenPage() {
                     Exporteer CSV
                   </Button>
                   )}
-                  {analyseUserId && (
+                  {isManager && analyseUserId && (
                   <Button
                     variant="outline"
                     size="sm"
