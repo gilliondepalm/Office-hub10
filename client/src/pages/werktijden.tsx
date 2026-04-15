@@ -249,6 +249,16 @@ type AfdelingStats = {
   perDag: DeptDagStats[];
 };
 
+type DrempelResultaat = {
+  kadasterId: string;
+  naam: string;
+  teLaatCount: number;
+  teVroegUitCount: number;
+  onvolledigCount: number;
+  negativeSaldoSec: number;
+  analyseData: DagAnalyse[];
+};
+
 // ── Analyse helpers ───────────────────────────────────────────────────────────
 function secOfDay(d: Date): number {
   return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
@@ -852,6 +862,14 @@ export default function WerktijdenPage() {
   const [handmatigDatum, setHandmatigDatum] = useState("");
   const [handmatigTijdstip, setHandmatigTijdstip] = useState("08:00");
   const [handmatigType, setHandmatigType] = useState<"in" | "out">("in");
+  const [drempelFrom, setDrempelFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 29);
+    return format(d, "yyyy-MM-dd");
+  });
+  const [drempelTo, setDrempelTo] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [drempelTeLaat, setDrempelTeLaat] = useState(3);
+  const [drempelTeVroegUit, setDrempelTeVroegUit] = useState(3);
+  const [drempelOnvolledig, setDrempelOnvolledig] = useState(2);
 
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
@@ -1002,6 +1020,31 @@ export default function WerktijdenPage() {
 
     if (punten.length === 0) {
       return `Beste ${naam},\n\nWij hebben uw prikklokregistraties over ${periodeStr} doorgenomen. Er zijn geen bijzonderheden geconstateerd.\n\nMet vriendelijke groet,\nHRM`;
+    }
+    return `Beste ${naam},\n\nNaar aanleiding van uw prikklokregistraties over ${periodeStr} willen wij u informeren over de volgende aandachtspunten:\n\n${punten.join("\n\n")}\n\nWij verzoeken u dit te bespreken met uw leidinggevende.\n\nMet vriendelijke groet,\nHRM`;
+  }
+
+  function composeWaarschuwingVanDrempel(result: DrempelResultaat, from: string, to: string): string {
+    const naam = result.naam;
+    const periodeStr = from && to
+      ? `${from.split("-").reverse().join("-")} t/m ${to.split("-").reverse().join("-")}`
+      : "de geanalyseerde periode";
+    const punten: string[] = [];
+    if (result.onvolledigCount > 0) {
+      punten.push(`• Ontbrekende kloktijden: ${result.onvolledigCount} onvolledige registratie(s). Gelieve uw in- of uitklokregistraties te controleren.`);
+    }
+    if (result.teLaatCount > 0) {
+      const items = result.analyseData.flatMap(d => d.teLaat.map(t => `${d.weekdagKort} ${d.dagStr} (${t.tijd})`)).join(", ");
+      punten.push(`• Te laat ingeklokt: ${result.teLaatCount} keer — ${items}.`);
+    }
+    if (result.teVroegUitCount > 0) {
+      const items = result.analyseData.flatMap(d => d.teVroegUit.map(t => `${d.weekdagKort} ${d.dagStr} (${t.tijd})`)).join(", ");
+      punten.push(`• Te vroeg uitgeklokt: ${result.teVroegUitCount} keer — ${items}.`);
+    }
+    if (result.negativeSaldoSec < 0) {
+      const mins = Math.abs(Math.round(result.negativeSaldoSec / 60));
+      const u = Math.floor(mins / 60); const m = mins % 60;
+      punten.push(`• Negatief uurssaldo: ${u > 0 ? `${u}u ${m.toString().padStart(2,"0")}min` : `${m} min`} te weinig gewerkt.`);
     }
     return `Beste ${naam},\n\nNaar aanleiding van uw prikklokregistraties over ${periodeStr} willen wij u informeren over de volgende aandachtspunten:\n\n${punten.join("\n\n")}\n\nWij verzoeken u dit te bespreken met uw leidinggevende.\n\nMet vriendelijke groet,\nHRM`;
   }
@@ -1164,6 +1207,43 @@ export default function WerktijdenPage() {
       };
     }).filter(Boolean) as AfdelingStats[];
   }, [records, departments, activeUsers, absences, overzichtFrom, overzichtTo]);
+
+  // ── Drempelwaarschuwingen scan ────────────────────────────────────────────────
+  const drempelResults = useMemo((): DrempelResultaat[] => {
+    if (!records.length || !activeUsers.length) return [];
+    return (activeUsers as any[]).flatMap(u => {
+      const kadasterId: string = u.kadasterId;
+      const userId: number = u.id;
+      const userRecs = records.filter(r => {
+        if (r.userid !== kadasterId) return false;
+        const dk = dateKey(r.checktime);
+        if (drempelFrom && dk < drempelFrom) return false;
+        if (drempelTo && dk > drempelTo) return false;
+        return true;
+      });
+      if (!userRecs.length) return [];
+      const byDay: Record<string, Werktijd[]> = {};
+      for (const r of userRecs) {
+        const k = dateKey(r.checktime);
+        if (!byDay[k]) byDay[k] = [];
+        byDay[k].push(r);
+      }
+      const isDateAbsent = (datum: string) =>
+        absences.some((a: AbsenceRecord) =>
+          a.userId === userId && a.status === "approved" &&
+          datum >= a.startDate.slice(0, 10) && datum <= a.endDate.slice(0, 10)
+        );
+      const ana = Object.entries(byDay)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([datum, recs]) => computeDagAnalyse(datum, recs, isDateAbsent(datum)));
+      const teLaatCount = ana.reduce((s, d) => s + d.teLaat.length, 0);
+      const teVroegUitCount = ana.reduce((s, d) => s + d.teVroegUit.length, 0);
+      const onvolledigCount = ana.reduce((s, d) => s + d.incompletePairs.length, 0);
+      const negativeSaldoSec = ana.reduce((s, d) => s + (d.isAbsent ? 0 : d.verschilSec), 0);
+      if (teLaatCount < drempelTeLaat && teVroegUitCount < drempelTeVroegUit && onvolledigCount < drempelOnvolledig) return [];
+      return [{ kadasterId, naam: u.fullName || u.username, teLaatCount, teVroegUitCount, onvolledigCount, negativeSaldoSec, analyseData: ana }];
+    });
+  }, [records, activeUsers, absences, drempelFrom, drempelTo, drempelTeLaat, drempelTeVroegUit, drempelOnvolledig]);
 
   // ── KPI statistieken ─────────────────────────────────────────────────────────
   const today = format(new Date(), "yyyy-MM-dd");
@@ -1338,6 +1418,15 @@ export default function WerktijdenPage() {
             <TabsTrigger value="afdelingsoverzicht" data-testid="tab-afdelingsoverzicht">
               <Building2 className="h-4 w-4 mr-1.5" />
               Afdelingen
+            </TabsTrigger>
+            <TabsTrigger value="signalen" data-testid="tab-signalen">
+              <AlertTriangle className="h-4 w-4 mr-1.5" />
+              Signalen
+              {drempelResults.length > 0 && (
+                <Badge className="ml-1.5 text-xs px-1.5 py-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">
+                  {drempelResults.length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -2189,6 +2278,181 @@ export default function WerktijdenPage() {
                   );
                 })()}
               </>
+            )}
+          </TabsContent>
+
+          {/* ── Signalen tab ─────────────────────────────────────────────────── */}
+          <TabsContent value="signalen" className="space-y-4 mt-4">
+            {/* Instellingen kaart */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  Drempelwaarschuwingen — instellingen
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Van</label>
+                    <input
+                      type="date"
+                      value={drempelFrom}
+                      onChange={e => setDrempelFrom(e.target.value)}
+                      className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-40"
+                      data-testid="input-drempel-from"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Tot en met</label>
+                    <input
+                      type="date"
+                      value={drempelTo}
+                      onChange={e => setDrempelTo(e.target.value)}
+                      className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-40"
+                      data-testid="input-drempel-to"
+                    />
+                  </div>
+                  <div className="h-px w-px" />
+                  <div>
+                    <label className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1 block">Te laat ≥ (keer)</label>
+                    <Input
+                      type="number" min={1} max={99}
+                      value={drempelTeLaat}
+                      onChange={e => setDrempelTeLaat(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center"
+                      data-testid="input-drempel-telaat"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-1 block">Vroeg uit ≥ (keer)</label>
+                    <Input
+                      type="number" min={1} max={99}
+                      value={drempelTeVroegUit}
+                      onChange={e => setDrempelTeVroegUit(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center"
+                      data-testid="input-drempel-tevroeguit"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-red-700 dark:text-red-400 mb-1 block">Onvolledig ≥ (keer)</label>
+                    <Input
+                      type="number" min={1} max={99}
+                      value={drempelOnvolledig}
+                      onChange={e => setDrempelOnvolledig(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center"
+                      data-testid="input-drempel-onvolledig"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const d = new Date(); d.setDate(d.getDate() - 29);
+                      setDrempelFrom(format(d, "yyyy-MM-dd"));
+                      setDrempelTo(format(new Date(), "yyyy-MM-dd"));
+                      setDrempelTeLaat(3); setDrempelTeVroegUit(3); setDrempelOnvolledig(2);
+                    }}
+                    data-testid="button-drempel-reset"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1.5" />
+                    Standaard
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Medewerkers worden getoond als zij minstens één drempelwaarde overschrijden in de geselecteerde periode.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Resultaten */}
+            {drempelResults.length === 0 ? (
+              <Card>
+                <CardContent className="py-16 text-center text-muted-foreground">
+                  <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-500 opacity-70" />
+                  <p className="font-medium">Geen drempeloverschrijdingen gevonden</p>
+                  <p className="text-sm mt-1">
+                    Alle medewerkers vallen binnen de ingestelde drempelwaarden voor de gekozen periode.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                    {drempelResults.length} medewerker{drempelResults.length !== 1 ? "s" : ""} boven drempelwaarde
+                  </CardTitle>
+                </CardHeader>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead>Medewerker</TableHead>
+                      <TableHead className="text-right">
+                        <span className="text-amber-700 dark:text-amber-400">Te laat</span>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <span className="text-orange-700 dark:text-orange-400">Vroeg uit</span>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <span className="text-red-700 dark:text-red-400">Onvolledig</span>
+                      </TableHead>
+                      <TableHead className="text-right">Uurssaldo</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {drempelResults.map(result => (
+                      <TableRow key={result.kadasterId} data-testid={`row-signaal-${result.kadasterId}`}>
+                        <TableCell className="font-medium">
+                          <div>{result.naam}</div>
+                          <div className="text-xs text-muted-foreground">{result.kadasterId}</div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {result.teLaatCount >= drempelTeLaat
+                            ? <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100">{result.teLaatCount}×</Badge>
+                            : <span className="text-sm text-muted-foreground">{result.teLaatCount}×</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {result.teVroegUitCount >= drempelTeVroegUit
+                            ? <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">{result.teVroegUitCount}×</Badge>
+                            : <span className="text-sm text-muted-foreground">{result.teVroegUitCount}×</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {result.onvolledigCount >= drempelOnvolledig
+                            ? <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100">{result.onvolledigCount}×</Badge>
+                            : <span className="text-sm text-muted-foreground">{result.onvolledigCount}×</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {result.negativeSaldoSec < 0 ? (
+                            <span className="text-sm font-mono text-orange-600">−{formatHMS(Math.abs(result.negativeSaldoSec))}</span>
+                          ) : (
+                            <span className="text-sm font-mono text-green-600">+{formatHMS(result.negativeSaldoSec)}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-400 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                            onClick={() => {
+                              setAnalyseUserId(result.kadasterId);
+                              setAnalyseFrom(drempelFrom);
+                              setAnalyseTo(drempelTo);
+                              setWaarschuwingTekst(composeWaarschuwingVanDrempel(result, drempelFrom, drempelTo));
+                              setShowWaarschuwingDialog(true);
+                            }}
+                            data-testid={`button-signaal-waarschuwing-${result.kadasterId}`}
+                          >
+                            <Send className="h-4 w-4 mr-1.5" />
+                            Waarschuwing
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
             )}
           </TabsContent>
 
