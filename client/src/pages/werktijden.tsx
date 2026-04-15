@@ -907,6 +907,14 @@ export default function WerktijdenPage() {
   const [beoordelingNotitie, setBeoordelingNotitie] = useState("");
   const [beoordeelTarget, setBeoordeelTarget] = useState<{ id: string; status: "goedgekeurd" | "afgewezen" } | null>(null);
 
+  // Pre-fill analyse filters for non-managers with their own department + kadasterId
+  useEffect(() => {
+    if (!isManager && user) {
+      if ((user as any).department) setFilterAnalyseDept((user as any).department);
+      if ((user as any).kadasterId) setAnalyseUserId((user as any).kadasterId);
+    }
+  }, [isManager, user?.id]);
+
   const { data: records = [], isLoading: recordsLoading } = useQuery<Werktijd[]>({
     queryKey: ["/api/werktijden"],
   });
@@ -2119,43 +2127,57 @@ export default function WerktijdenPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="flex flex-wrap gap-3 items-end">
-                  <div className="min-w-[180px]">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Afdeling</label>
-                    <Select
-                      value={filterAnalyseDept}
-                      onValueChange={(v) => { setFilterAnalyseDept(v); setAnalyseUserId(""); setShowOnlyIncomplete(false); }}
-                    >
-                      <SelectTrigger data-testid="select-analyse-dept">
-                        <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                        <SelectValue placeholder="Alle afdelingen…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Alle afdelingen</SelectItem>
-                        {departments.map((d) => (
-                          <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Medewerker</label>
-                    <Select
-                      value={analyseUserId}
-                      onValueChange={(v) => { setAnalyseUserId(v); setShowOnlyIncomplete(false); }}
-                    >
-                      <SelectTrigger data-testid="select-analyse-userid">
-                        <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
-                        <SelectValue placeholder="Selecteer medewerker…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {analyseFilteredUsers.map((u: any) => (
-                          <SelectItem key={u.kadasterId} value={u.kadasterId}>
-                            {u.fullName || u.username} (ID: {u.kadasterId})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {isManager ? (
+                    <div className="min-w-[180px]">
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Afdeling</label>
+                      <Select
+                        value={filterAnalyseDept}
+                        onValueChange={(v) => { setFilterAnalyseDept(v); setAnalyseUserId(""); setShowOnlyIncomplete(false); }}
+                      >
+                        <SelectTrigger data-testid="select-analyse-dept">
+                          <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                          <SelectValue placeholder="Alle afdelingen…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Alle afdelingen</SelectItem>
+                          {departments.map((d) => (
+                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/40 text-sm self-end">
+                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium">{(user as any)?.department || "—"}</span>
+                    </div>
+                  )}
+                  {isManager ? (
+                    <div className="flex-1 min-w-[200px]">
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Medewerker</label>
+                      <Select
+                        value={analyseUserId}
+                        onValueChange={(v) => { setAnalyseUserId(v); setShowOnlyIncomplete(false); }}
+                      >
+                        <SelectTrigger data-testid="select-analyse-userid">
+                          <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                          <SelectValue placeholder="Selecteer medewerker…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {analyseFilteredUsers.map((u: any) => (
+                            <SelectItem key={u.kadasterId} value={u.kadasterId}>
+                              {u.fullName || u.username} (ID: {u.kadasterId})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-muted/40 text-sm self-end">
+                      <UserRound className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium">{(user as any)?.fullName || user?.username}</span>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">Van</label>
                     <Input
