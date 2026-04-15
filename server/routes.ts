@@ -3423,20 +3423,78 @@ export async function registerRoutes(
       const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
       if (lines.length === 0) return res.status(400).json({ message: "Bestand is leeg" });
 
-      // Detecteer separator (komma of puntkomma)
-      const sep = lines[0].includes(";") ? ";" : ",";
-      const headers = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, ""));
+      // Detecteer separator (puntkomma, tab of komma)
+      const sep = lines[0].includes(";") ? ";" : lines[0].includes("\t") ? "\t" : ",";
 
-      const colUserId  = ["userid","pin","personeelsnr","id","employee_id","emp_id"].find(c => headers.includes(c));
-      const colTime    = ["checktime","datetime","timestamp","tijdstip","tijd","date_time","check_time"].find(c => headers.includes(c));
-      const colType    = ["checktype","type","status","richting","direction","check_type","action"].find(c => headers.includes(c));
+      // Helper: parseer datum in diverse formaten naar Date
+      const parseFlexDate = (raw: string): Date | null => {
+        // D-M-YYYY HH:MM[:SS] of DD-MM-YYYY HH:MM[:SS]
+        const m1 = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (m1) {
+          const [, d, mo, y, h, mn, s] = m1;
+          const dt = new Date(`${y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}T${h.padStart(2,"0")}:${mn}:${(s||"00").padStart(2,"0")}`);
+          if (!isNaN(dt.getTime())) return dt;
+        }
+        // D/M/YYYY HH:MM[:SS] of DD/MM/YYYY HH:MM[:SS]
+        const m2 = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (m2) {
+          const [, d, mo, y, h, mn, s] = m2;
+          const dt = new Date(`${y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}T${h.padStart(2,"0")}:${mn}:${(s||"00").padStart(2,"0")}`);
+          if (!isNaN(dt.getTime())) return dt;
+        }
+        // Overige formaten (ISO, etc.)
+        const dt = new Date(raw);
+        return isNaN(dt.getTime()) ? null : dt;
+      };
 
-      if (!colUserId) return res.status(400).json({ message: `Geen userid-kolom gevonden. Verwacht: userid/pin/personeelsnr. Gevonden kolommen: ${headers.join(", ")}` });
-      if (!colTime)   return res.status(400).json({ message: `Geen tijdstip-kolom gevonden. Verwacht: checktime/datetime/timestamp. Gevonden kolommen: ${headers.join(", ")}` });
+      // ── Kolomdetectie ───────────────────────────────────────────────────────
+      const USERID_NAMES = ["userid","pin","personeelsnr","employee_id","emp_id","badgeid","badge"];
+      const TIME_NAMES   = ["checktime","datetime","timestamp","tijdstip","check_time","date_time","tijd"];
+      const TYPE_NAMES   = ["checktype","type","status","check_type","richting","direction","action"];
 
-      const idxUser = headers.indexOf(colUserId);
-      const idxTime = headers.indexOf(colTime);
-      const idxType = colType ? headers.indexOf(colType) : -1;
+      const headerCols = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, ""));
+      const colUserIdName = USERID_NAMES.find(c => headerCols.includes(c));
+      const colTimeName   = TIME_NAMES.find(c => headerCols.includes(c));
+      const colTypeName   = TYPE_NAMES.find(c => headerCols.includes(c));
+
+      let idxUser: number;
+      let idxTime: number;
+      let idxType: number;
+      let dataStartLine: number;
+
+      if (colUserIdName && colTimeName) {
+        // Bestand met herkenbare headers
+        idxUser = headerCols.indexOf(colUserIdName);
+        idxTime = headerCols.indexOf(colTimeName);
+        idxType = colTypeName ? headerCols.indexOf(colTypeName) : -1;
+        dataStartLine = 1;
+      } else {
+        // Geen herkenbare headers — auto-detectie op basis van inhoud
+        // Probeer eerste rij als data; als geen datum gevonden probeer tweede rij (headers aanwezig maar onbekend)
+        let testCols = lines[0].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
+        let testDateIdx = testCols.findIndex(c => parseFlexDate(c) !== null);
+        if (testDateIdx < 0 && lines.length > 1) {
+          testCols = lines[1].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
+          testDateIdx = testCols.findIndex(c => parseFlexDate(c) !== null);
+          dataStartLine = 1; // rij 0 is headerrij (onbekend), data begint op rij 1
+        } else {
+          dataStartLine = 0; // rij 0 is al data
+        }
+        if (testDateIdx < 0) {
+          return res.status(400).json({ message: `Geen datum/tijdkolom herkend. Controleer het bestandsformaat. Eerste rij: ${lines[0]}` });
+        }
+        idxTime = testDateIdx;
+        idxType = -1; // geen type in headerloze bestanden → blok-gebaseerd
+        // Userid = laatste puur numerieke kolom vóór de datumkolom
+        // (ZKTeco-formaat: LogID ; UserID ; DateTime ; ...)
+        const numericBefore = testCols
+          .map((c, i) => ({ i, c }))
+          .filter(({ i, c }) => i < testDateIdx && /^\d+$/.test(c) && c.length > 0);
+        if (numericBefore.length === 0) {
+          return res.status(400).json({ message: `Geen userid-kolom herkend. Eerste rij: ${lines[0]}` });
+        }
+        idxUser = numericBefore[numericBefore.length - 1].i;
+      }
 
       // Alle bekende users ophalen voor validatie
       const allUsers = await storage.getUsers();
@@ -3460,7 +3518,7 @@ export async function registerRoutes(
       type ParsedRec = { userid: string; checktime: Date; checktype: string | null; lineNum: number };
       const parsedRecs: ParsedRec[] = [];
 
-      for (let i = 1; i < lines.length; i++) {
+      for (let i = dataStartLine; i < lines.length; i++) {
         const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
         const rawUserId = cols[idxUser];
         const rawTime   = cols[idxTime];
@@ -3472,17 +3530,8 @@ export async function registerRoutes(
           continue;
         }
 
-        // Tijdstip parsen (meerdere formaten)
-        let checktime: Date | null = null;
-        const formats = [
-          rawTime,
-          rawTime.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1"),
-          rawTime.replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1"),
-        ];
-        for (const f of formats) {
-          const d = new Date(f);
-          if (!isNaN(d.getTime())) { checktime = d; break; }
-        }
+        // Tijdstip parsen via parseFlexDate (ondersteunt DD-MM-YYYY, D-M-YYYY, ISO, etc.)
+        const checktime = parseFlexDate(rawTime);
         if (!checktime) {
           foutRecords++;
           eventLogs.push({ eventType: "error", userid: rawUserId, bericht: `Rij ${i + 1}: ongeldig tijdstip "${rawTime}"` });
