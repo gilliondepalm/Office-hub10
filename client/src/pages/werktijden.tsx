@@ -21,7 +21,7 @@ import {
   Upload, Database, FileText, AlertTriangle, CheckCircle2,
   XCircle, Info, Users, Clock, Layers, RefreshCw, Trash2,
   FileUp, Filter, Search, Calendar, BarChart3, TrendingUp,
-  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send,
+  TrendingDown, CoffeeIcon, ClockAlert, ShieldAlert, LogOut, Send, Building2,
 } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -802,6 +802,7 @@ export default function WerktijdenPage() {
   const [analyseFrom, setAnalyseFrom]             = useState("");
   const [analyseTo, setAnalyseTo]                 = useState("");
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
+  const [filterSessionDept, setFilterSessionDept] = useState("all");
   const [showWaarschuwingDialog, setShowWaarschuwingDialog] = useState(false);
   const [waarschuwingTekst, setWaarschuwingTekst] = useState("");
 
@@ -834,6 +835,11 @@ export default function WerktijdenPage() {
 
   const { data: absences = [] } = useQuery<AbsenceRecord[]>({
     queryKey: ["/api/absences"],
+    enabled: isManager,
+  });
+
+  const { data: departments = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/departments"],
     enabled: isManager,
   });
 
@@ -962,17 +968,22 @@ export default function WerktijdenPage() {
   // ── Sessies ─────────────────────────────────────────────────────────────────
   const sessies = useMemo(() => buildSessies(records), [records]);
 
+  const sessieFilteredUsers = useMemo(() => {
+    if (filterSessionDept === "all") return activeUsers;
+    return activeUsers.filter((u: any) => u.department === filterSessionDept);
+  }, [activeUsers, filterSessionDept]);
+
   const filteredSessies = useMemo(() => {
     return sessies.filter(s => {
       if (filterUserid !== "all" && s.userid !== filterUserid) return false;
       if (filterDatum && !s.datum.includes(filterDatum)) return false;
-      if (searchTerm) {
-        const name = getUserName(s.userid).toLowerCase();
-        if (!name.includes(searchTerm.toLowerCase()) && !s.userid.includes(searchTerm)) return false;
+      if (filterSessionDept !== "all") {
+        const u = activeUsers.find((u: any) => u.kadasterId === s.userid);
+        if (!u || (u as any).department !== filterSessionDept) return false;
       }
       return true;
     });
-  }, [sessies, filterUserid, filterDatum, searchTerm]);
+  }, [sessies, filterUserid, filterDatum, filterSessionDept, activeUsers]);
 
   const filteredRecords = useMemo(() => {
     return records.filter(r => {
@@ -1421,16 +1432,21 @@ export default function WerktijdenPage() {
           {/* ── Sessies tab ──────────────────────────────────────────────────── */}
           <TabsContent value="sessies" className="space-y-4 mt-4">
             <div className="flex flex-wrap gap-2 items-center">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9 w-48"
-                  placeholder="Zoek medewerker…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  data-testid="input-search-sessies"
-                />
-              </div>
+              <Select
+                value={filterSessionDept}
+                onValueChange={(v) => { setFilterSessionDept(v); setFilterUserid("all"); }}
+              >
+                <SelectTrigger className="w-48" data-testid="select-filter-dept-sessies">
+                  <Building2 className="h-4 w-4 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Kies afdeling…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle afdelingen</SelectItem>
+                  {departments.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={filterUserid} onValueChange={setFilterUserid}>
                 <SelectTrigger className="w-52" data-testid="select-filter-sessies">
                   <Users className="h-4 w-4 mr-1.5 text-muted-foreground" />
@@ -1438,7 +1454,7 @@ export default function WerktijdenPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Alle medewerkers</SelectItem>
-                  {activeUsers.map((u: any) => (
+                  {sessieFilteredUsers.map((u: any) => (
                     <SelectItem key={u.kadasterId} value={u.kadasterId}>
                       {u.fullName || u.username} (ID: {u.kadasterId})
                     </SelectItem>
