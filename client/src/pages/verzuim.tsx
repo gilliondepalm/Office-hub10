@@ -642,7 +642,7 @@ function AbsenceReportDialog({
               </TableHeader>
               <TableBody>
                 {sortedDepts.map(dept => (
-                  <>
+                  <Fragment key={`dept-frag-${dept}`}>
                     <TableRow key={`dept-${dept}`}>
                       <TableCell colSpan={6} className="bg-muted/50 font-bold text-sm py-1.5">
                         {dept} ({grouped[dept].length} meldingen)
@@ -689,7 +689,7 @@ function AbsenceReportDialog({
                           </TableRow>
                         );
                       })}
-                  </>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -2375,7 +2375,7 @@ export default function VerzuimPage() {
                           const colCount = isAdminOrManager ? 7 : 6;
                           const depts = Array.from(new Set(sorted.map(a => (a as any).userDepartment || "Geen afdeling"))).sort((a, b) => a.localeCompare(b, "nl"));
                           return depts.map(dept => (
-                            <>{isAdminOrManager && (
+                            <Fragment key={`dept-frag-${dept}`}>{isAdminOrManager && (
                               <TableRow key={`dept-${dept}`}>
                                 <TableCell colSpan={colCount} className="bg-muted/50 font-bold text-sm py-1.5">
                                   {dept}
@@ -2495,7 +2495,7 @@ export default function VerzuimPage() {
                                 </TableRow>
                               );
                             })}
-                            </>
+                            </Fragment>
                           ));
                         })()}
                       </TableBody>
@@ -3157,7 +3157,7 @@ export default function VerzuimPage() {
                       const sorted = [...allBalances].sort((a, b) => a.userName.localeCompare(b.userName, "nl"));
                       const departments = Array.from(new Set(sorted.map(b => b.department))).sort((a, b) => a.localeCompare(b, "nl"));
                       return departments.map(dept => (
-                        <>
+                        <Fragment key={`dept-frag-${dept}`}>
                           <TableRow key={`dept-${dept}`}>
                             <TableCell colSpan={14} className="bg-muted/50 font-bold text-sm py-1.5">
                               {dept}
@@ -3233,7 +3233,7 @@ export default function VerzuimPage() {
                               </TableCell>
                             </TableRow>
                           ))}
-                        </>
+                        </Fragment>
                       ));
                     })()}
                   </TableBody>
